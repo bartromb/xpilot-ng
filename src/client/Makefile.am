@@ -19,6 +19,8 @@ libxpclient_a_SOURCES = \
 	option.c option.h \
 	query.c \
 	recordfmt.h transport_display.c transport_display.h \
+	session_connection.c session_connection.h \
+	session_transport.c session_transport.h \
 	talk.h talkmacros.c textinterface.c \
 	usleep.c \
 	xpclient.h
