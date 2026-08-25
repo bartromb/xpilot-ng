@@ -31,7 +31,7 @@ jobs:
           # to create a GL context. xfonts-base supplies the fixed bitmap fonts
           # the X11 client asks for; without them it falls back and logs errors.
           sudo apt-get install -y --no-install-recommends \
-              $XPILOT_DEPS xvfb libgl1-mesa-dri xfonts-base
+              $XPILOT_DEPS xvfb libgl1-mesa-dri xfonts-base mesa-utils
 
       - name: Configure
         run: cmake -B build -S . -DCMAKE_BUILD_TYPE=RelWithDebInfo
@@ -71,22 +71,52 @@ jobs:
         run: |
           set -eux
           # Assert against the server log rather than the client's stdout: the
-          # client block-buffers stdout and timeout SIGTERMs it without a
-          # flush, so "Login allowed" is not reliably present in its own log.
-          # The server is the authority on who actually connected.
-          # Nicknames must stay short: the server truncates them to 15
-          # characters, so "ci-xpilot-ng-x11" would never match on the way back.
+          # client block-buffers stdout and gets SIGTERMed without a flush, so
+          # "Login allowed" is not reliably present in its own log. The server
+          # is the authority on who actually connected.
+          #
+          # Nicknames stay short because the server truncates them to 15 chars.
+          #
+          # Xvfb gets GLX explicitly: the SDL client creates an OpenGL context
+          # between the contact and login phases of the handshake, and if that
+          # is slow or fails the server drops the half-open connection with
+          # "timeout 01" before ever logging "Welcome".
+          #
+          # stdbuf keeps the client's output line-buffered so a failure is
+          # actually diagnosable instead of being lost in the buffer.
           for c in xpilot-ng-x11 xpilot-ng-sdl; do
             nick="ci-${c##*-}"
-            timeout 25 xvfb-run -a ./build/bin/"$c" \
-                -join -name "$nick" -port 15000 localhost > "$c.log" 2>&1 || true
-            if ! grep -qi "Welcome $nick" server.log; then
-              echo "=== $c did not reach the server ==="
-              cat "$c.log"
+
+            stdbuf -oL -eL xvfb-run -a \
+                -s "-screen 0 1280x1024x24 +extension GLX +extension RANDR +render" \
+                ./build/bin/"$c" -join -name "$nick" -port 15000 localhost \
+                > "$c.log" 2>&1 &
+            client_pid=$!
+
+            # Poll for the server-side Welcome rather than waiting a fixed
+            # period: a fast client passes immediately, a slow one still gets
+            # the full budget.
+            ok=0
+            for _ in $(seq 1 60); do
+              if grep -qi "Welcome $nick" server.log; then ok=1; break; fi
+              if ! kill -0 "$client_pid" 2>/dev/null; then break; fi
+              sleep 1
+            done
+
+            kill "$client_pid" 2>/dev/null || true
+            wait "$client_pid" 2>/dev/null || true
+
+            if [ "$ok" -ne 1 ]; then
+              echo "=== $c never reached the server ==="
+              cat "$c.log" || true
               echo "=== server log ==="
               cat server.log
+              echo "=== glxinfo (is GLX actually working?) ==="
+              xvfb-run -a -s "-screen 0 1280x1024x24 +extension GLX +render" \
+                  glxinfo -B 2>&1 | head -20 || echo "glxinfo unavailable"
               exit 1
             fi
+            echo "$c connected as $nick"
           done
           kill "$(cat server.pid)" || true
 
