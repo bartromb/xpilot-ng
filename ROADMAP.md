@@ -133,12 +133,14 @@ Branch: `phase1-cmake`
 - [x] Add SDL client target behind an option flag (`XPILOT_SDL_CLIENT`, default ON)
 - [x] Keep the autotools build working in parallel until CMake reaches parity
 - [x] Add a GitHub Actions CI workflow: build server + clients on ubuntu-latest
-- [ ] Remove autotools once CI is green on CMake only — **blocked**: the workflow has never
-      run, so "CI is green" is still unproven. Do not delete `configure.ac`/`Makefile.am`
-      until it has passed at least once on GitHub.
+- [ ] Remove autotools once CI is green on CMake only — **unblocked, not done.** CI is now
+      green on both jobs. The removal itself is deliberately left as a separate change: it
+      deletes `configure.ac`, `configure`, ~24 `Makefile.am` files and the parity CI job, and
+      is worth reviewing on its own rather than buried in the port.
 
-Acceptance: **half met.** `cmake -B build && cmake --build build` produces the same binaries
-(verified below); "CI passes" is unverified — see the caveat under Verified parity.
+Acceptance: **met.** `cmake -B build && cmake --build build` produces the same binaries
+(verified below), and CI passes on ubuntu-latest. The one remaining checklist item, removing
+autotools, is follow-up work rather than part of the acceptance criteria.
 
 ### Verified parity (25 Aug 2026)
 
@@ -199,9 +201,9 @@ three separate reasons, all real:
   connected. Nicknames had to be shortened too — the server truncates them to 15 characters,
   so `ci-xpilot-ng-x11` would never have matched.
 
-The fixes are verified locally as far as they can be (the server-side assertion and the
-install step); `xvfb-run` and software GLX still cannot be exercised on the dev machine, so
-the second CI run is what settles it.
+The second run is **green**: both the CMake job and the autotools parity job pass, including
+the headless client smoke tests under `xvfb-run` with software GLX. Run
+[32898668656](https://github.com/bartromb/xpilot-ng/actions/runs/32898668656).
 
 ## Phase 2 — Client: SDL 1.2 → SDL2
 
@@ -315,5 +317,5 @@ shooting bot on a local server in under 30 minutes using only the README.
 
 | Date | Phase | Session summary | Commit/branch |
 |------|-------|-----------------|---------------|
-| 2026-08-25 | 1 | Wrote `docs/build-audit.md` (what autotools actually detects, plus four findings including a dead `HAVE_SDLIMAGE` spelling that silently disables `IMG_Load`). Added a CMake build reaching verified parity with autotools: same 5 binaries, same 55 warnings, smoke test passes, both build systems coexist. Added a GitHub Actions workflow — unverified, never run. Autotools deliberately not removed yet. | `phase1-cmake` |
+| 2026-08-25 | 1 | Wrote `docs/build-audit.md` (what autotools actually detects, plus four findings including a dead `HAVE_SDLIMAGE` spelling that silently disables `IMG_Load`). Added a CMake build reaching verified parity with autotools: same 5 binaries, same 55 warnings, smoke test passes, both build systems coexist. Added a GitHub Actions workflow; first run failed on three real CI-environment issues (missing X11 fonts, uninstalled data files, and an assertion that raced client stdout buffering), second run green. Install parity verified exact at 99 files. Autotools still in place, removal left as a separate reviewable change. | `phase1-cmake` |
 | 2026-08-25 | 0 | Audited actual build state against the checklist. `./configure && make` clean: 0 errors, 55 warnings, all 5 binaries built. Server + both X11 and SDL clients verified against a local 4-robot game; 5-minute soak passed, so Phase 0 acceptance is met. Found the server exits when the last human leaves (`-noQuit` needed) and that audio is compiled out (no OpenAL headers). Wrote `BUILDING.md` and closed out Phase 0. No C source was touched this session — the compile fixes were already on `master`. | `phase0-baseline` (docs only; branched from `b7a6905`) |
