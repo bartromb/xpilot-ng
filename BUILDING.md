@@ -4,8 +4,9 @@ XPilot NG 4.7.3 still builds with its original autotools setup on a current
 Linux system — no `autoreconf` and no source surgery beyond the compile fixes
 already on `master`.
 
-The build system migration to CMake is Phase 1 of `ROADMAP.md`; until then the
-shipped `configure` script is the supported path.
+There are currently **two** build systems in the tree. CMake is the one to use;
+autotools is kept working alongside it until CMake has proven itself in CI, at
+which point Phase 1 of `ROADMAP.md` removes it.
 
 ## Verified environment
 
@@ -70,7 +71,32 @@ OpenAL and freealut present, it prints
 and then continues with a silent build. Check for `#define SOUND 1` in the
 generated `config.h` to confirm sound was actually enabled.
 
-## Build
+## Build (CMake — preferred)
+
+```sh
+cmake -B build -S .
+cmake --build build -j"$(nproc)"
+```
+
+Binaries land in `build/bin/`. Useful options, all mirroring the old
+`configure` flags:
+
+| Option | Default | Effect |
+|---|---|---|
+| `-DXPILOT_X11_CLIENT=OFF` | ON | skip the X11 client |
+| `-DXPILOT_SDL_CLIENT=OFF` | ON | skip the SDL/OpenGL client |
+| `-DXPILOT_REPLAY=OFF` | ON | skip the replay tool |
+| `-DXPILOT_MAPEDIT=OFF` | ON | skip the map editor |
+| `-DXPILOT_SOUND=ON` | OFF | OpenAL sound (requires `libopenal-dev libalut-dev`) |
+| `-DXPILOT_SDL_GAMELOOP=ON` | OFF | use the SDL game loop instead of the X11-optimised one |
+
+Turning off every client also drops the X11 and SDL dependencies entirely, so a
+server-only build needs just `build-essential libexpat1-dev zlib1g-dev`.
+
+Unlike autotools, `-DXPILOT_SOUND=ON` **fails** if OpenAL or freealut is
+missing rather than quietly building without sound.
+
+## Build (autotools — legacy)
 
 ```sh
 ./configure
@@ -107,6 +133,9 @@ The build currently emits 55 warnings and no errors. The bulk are
 `./configure --help` lists the rest.
 
 ## Running a local game
+
+Paths below are the autotools ones; for a CMake build substitute
+`build/bin/xpilot-ng-server` and `build/bin/xpilot-ng-sdl`.
 
 Start a server with robots:
 

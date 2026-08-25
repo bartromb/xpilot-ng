@@ -15,3 +15,6 @@ Makefile
 *.dll
 *.exe
 *.log
+
+# CMake build directory
+/build/

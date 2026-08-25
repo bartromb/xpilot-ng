@@ -128,14 +128,59 @@ not a Phase 0 checklist item) is still outstanding.
 
 Branch: `phase1-cmake`
 
-- [ ] Inventory what autotools actually detects/configures (write to `docs/build-audit.md`)
-- [ ] Write top-level `CMakeLists.txt` covering server + X11 client first
-- [ ] Add SDL client target behind an option flag
-- [ ] Keep the autotools build working in parallel until CMake reaches parity
-- [ ] Add a GitHub Actions CI workflow: build server + clients on ubuntu-latest
-- [ ] Remove autotools once CI is green on CMake only
+- [x] Inventory what autotools actually detects/configures (written to `docs/build-audit.md`)
+- [x] Write top-level `CMakeLists.txt` covering server + X11 client first
+- [x] Add SDL client target behind an option flag (`XPILOT_SDL_CLIENT`, default ON)
+- [x] Keep the autotools build working in parallel until CMake reaches parity
+- [x] Add a GitHub Actions CI workflow: build server + clients on ubuntu-latest
+- [ ] Remove autotools once CI is green on CMake only — **blocked**: the workflow has never
+      run, so "CI is green" is still unproven. Do not delete `configure.ac`/`Makefile.am`
+      until it has passed at least once on GitHub.
 
-Acceptance: `cmake -B build && cmake --build build` produces the same binaries; CI passes.
+Acceptance: **half met.** `cmake -B build && cmake --build build` produces the same binaries
+(verified below); "CI passes" is unverified — see the caveat under Verified parity.
+
+### Verified parity (25 Aug 2026)
+
+The CMake build was checked against the autotools build on the same machine:
+
+| Check | autotools | CMake |
+|---|---|---|
+| Binaries produced | 5 | 5, same names |
+| Build errors | 0 | 0 |
+| Warnings | 55 | 55 |
+| Warning categories | 25 `discarded-qualifiers`, 8 `unused-result`, 1 `pointer-to-int-cast` | identical |
+
+The identical warning profile is the strongest evidence of parity available without
+comparing binaries byte for byte: the same translation units are being compiled with
+equivalent flags. Beyond that, the CMake-built server plus both clients were run through
+the Phase 0 smoke test — server with 4 robots, both clients connecting and logging in —
+and the autotools build was rebuilt afterwards to confirm the two coexist.
+
+Option paths were exercised rather than assumed: a server-only configuration
+(`-DXPILOT_X11_CLIENT=OFF -DXPILOT_SDL_CLIENT=OFF -DXPILOT_REPLAY=OFF
+-DXPILOT_MAPEDIT=OFF`) configures and builds without needing X11 or SDL at all, and
+`-DXPILOT_SDL_GAMELOOP=ON` compiles `gameloop.c` where the default compiles
+`gameloop_x.c`, matching `COND_SDL_GAMELOOP`.
+
+Structural notes:
+
+- Binaries go to `build/bin/`, not next to their sources. The `BUILDING.md` smoke-test
+  commands work unchanged if you substitute that path.
+- `CONF_DATADIR` propagates to every target through an INTERFACE target. This is
+  self-checking: `xpconfig.h` has `#error "CONF_DATADIR NOT DEFINED"`, so a successful
+  compile proves the define reached every translation unit.
+- `src/common/version.h` is checked into git and byte-identical to what autotools
+  regenerates, so CMake uses it as-is instead of generating it. Resolve when autotools goes.
+- `src/replay` needs `src/client` on its include path (for `recordfmt.h`) but does not link
+  `libxpclient`. The autotools build did this through the deprecated `INCLUDES` variable,
+  which is easy to miss when reading `Makefile.am`.
+
+**The CI workflow is unverified.** It was written from the verified local dependency set and
+its YAML parses, but it has never executed. The parts most likely to need a second pass are
+the headless client tests: they rely on `xvfb-run` plus `libgl1-mesa-dri` for software GLX,
+and neither was testable here (xvfb is not installed on the dev machine). Treat the first
+run on GitHub as part of the work, not a formality.
 
 ## Phase 2 — Client: SDL 1.2 → SDL2
 
@@ -249,4 +294,5 @@ shooting bot on a local server in under 30 minutes using only the README.
 
 | Date | Phase | Session summary | Commit/branch |
 |------|-------|-----------------|---------------|
+| 2026-08-25 | 1 | Wrote `docs/build-audit.md` (what autotools actually detects, plus four findings including a dead `HAVE_SDLIMAGE` spelling that silently disables `IMG_Load`). Added a CMake build reaching verified parity with autotools: same 5 binaries, same 55 warnings, smoke test passes, both build systems coexist. Added a GitHub Actions workflow — unverified, never run. Autotools deliberately not removed yet. | `phase1-cmake` |
 | 2026-08-25 | 0 | Audited actual build state against the checklist. `./configure && make` clean: 0 errors, 55 warnings, all 5 binaries built. Server + both X11 and SDL clients verified against a local 4-robot game; 5-minute soak passed, so Phase 0 acceptance is met. Found the server exits when the last human leaves (`-noQuit` needed) and that audio is compiled out (no OpenAL headers). Wrote `BUILDING.md` and closed out Phase 0. No C source was touched this session — the compile fixes were already on `master`. | `phase0-baseline` (docs only; branched from `b7a6905`) |
