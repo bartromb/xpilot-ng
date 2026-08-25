@@ -265,6 +265,9 @@ endif()
 
 set(XP_PKGDATADIR "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}")
 
+# Data files. These lists are taken verbatim from the lib/*/Makefile.am
+# xpilot*_DATA variables rather than globbed, because autotools ships a
+# deliberate subset: 12 of the maps on disk, not all of them.
 install(FILES
     lib/defaults.txt
     lib/password.txt
@@ -272,15 +275,115 @@ install(FILES
     lib/shipshapes.txt
     DESTINATION "${XP_PKGDATADIR}")
 
-install(DIRECTORY lib/maps/     DESTINATION "${XP_PKGDATADIR}/maps"
-        FILES_MATCHING PATTERN "*.xp2" PATTERN "*.xpd")
-install(DIRECTORY lib/fonts/    DESTINATION "${XP_PKGDATADIR}/fonts"
-        FILES_MATCHING PATTERN "*.fnt" PATTERN "*.bdf" PATTERN "*.ttf")
-install(DIRECTORY lib/textures/ DESTINATION "${XP_PKGDATADIR}/textures"
-        FILES_MATCHING PATTERN "*.ppm" PATTERN "*.png")
+set(XP_MAPS
+    lib/maps/blood-music.xp2
+    lib/maps/circle2.xp2
+    lib/maps/dodgers-robots.xp2
+    lib/maps/dodgers-legacy.xp2
+    lib/maps/dragon-1.0.xp2
+    lib/maps/ndh.xp2
+    lib/maps/ndh.xpd
+    lib/maps/polybloods.xp2
+    lib/maps/sadistic_bastard_v2.xp2
+    lib/maps/spaceball.xp2
+    lib/maps/teamcup.xp
+    lib/maps/tourmination.xp2)
+install(FILES ${XP_MAPS} DESTINATION "${XP_PKGDATADIR}/maps")
+
+set(XP_FONTS
+    lib/fonts/ConsoleFont.bmp
+    lib/fonts/VeraMoBd.ttf
+    lib/fonts/FreeSansBoldOblique.ttf)
+install(FILES ${XP_FONTS} DESTINATION "${XP_PKGDATADIR}/fonts")
+
+set(XP_TEXTURES
+    lib/textures/acwise_grav.ppm
+    lib/textures/allitems.ppm
+    lib/textures/asteroid.ppm
+    lib/textures/asteroidconcentrator.ppm
+    lib/textures/ball.ppm
+    lib/textures/ball_gray.ppm
+    lib/textures/ball_gray16.ppm
+    lib/textures/base_down.ppm
+    lib/textures/base_left.ppm
+    lib/textures/base_right.ppm
+    lib/textures/base_up.ppm
+    lib/textures/bullet.ppm
+    lib/textures/bullet2.ppm
+    lib/textures/bullet_blue.ppm
+    lib/textures/bullet_green.ppm
+    lib/textures/cannon_down.ppm
+    lib/textures/cannon_left.ppm
+    lib/textures/cannon_right.ppm
+    lib/textures/cannon_up.ppm
+    lib/textures/checkpoint.ppm
+    lib/textures/clouds.ppm
+    lib/textures/concentrator.ppm
+    lib/textures/cwise_grav.ppm
+    lib/textures/fuel2.ppm
+    lib/textures/fuelcell.ppm
+    lib/textures/holder1.ppm
+    lib/textures/holder2.ppm
+    lib/textures/huditems.ppm
+    lib/textures/logo.ppm
+    lib/textures/metabtndown.png
+    lib/textures/metabtnup.png
+    lib/textures/metalite.ppm
+    lib/textures/meter.ppm
+    lib/textures/mine_other.ppm
+    lib/textures/mine_team.ppm
+    lib/textures/minus.ppm
+    lib/textures/missile.ppm
+    lib/textures/moon.ppm
+    lib/textures/paused.ppm
+    lib/textures/plus.ppm
+    lib/textures/radar.ppm
+    lib/textures/radar2.ppm
+    lib/textures/radar3.ppm
+    lib/textures/refuel.ppm
+    lib/textures/rock4.ppm
+    lib/textures/sdlmetabg.png
+    lib/textures/shield.ppm
+    lib/textures/ship.ppm
+    lib/textures/ship_enemy.ppm
+    lib/textures/ship_friend.ppm
+    lib/textures/ship_blue.ppm
+    lib/textures/ship_red.ppm
+    lib/textures/ship_red2.ppm
+    lib/textures/ship_red3.ppm
+    lib/textures/sparks.ppm
+    lib/textures/target.ppm
+    lib/textures/volcanic.ppm
+    lib/textures/wall_bottom.ppm
+    lib/textures/wall_dl.ppm
+    lib/textures/wall_dr.ppm
+    lib/textures/wall_fi.ppm
+    lib/textures/wall_left.ppm
+    lib/textures/wall_right.ppm
+    lib/textures/wall_top.ppm
+    lib/textures/wall_ul.ppm
+    lib/textures/wall_ull.ppm
+    lib/textures/wall_ur.ppm
+    lib/textures/wall_url.ppm
+    lib/textures/wormhole.ppm)
+install(FILES ${XP_TEXTURES} DESTINATION "${XP_PKGDATADIR}/textures")
+
 if(XPILOT_SOUND)
     install(DIRECTORY lib/sound/ DESTINATION "${XP_PKGDATADIR}/sound")
 endif()
+
+# mapconvert.py ships in pkgdatadir (autotools dist_pkgdata_DATA).
+install(FILES mapconvert.py DESTINATION "${XP_PKGDATADIR}")
+
+# Man pages. Sources are *.man and install as *.6, matching the autotools
+# dist_man6_MANS rule. All five install unconditionally, as they do there,
+# regardless of which targets are enabled.
+foreach(_man xpilot-ng-sdl xpilot-ng-x11 xpilot-ng-server xpilot-ng-replay
+             xpilot-ng-xp-mapedit)
+    install(FILES "doc/man/${_man}.man"
+            DESTINATION "${CMAKE_INSTALL_MANDIR}/man6"
+            RENAME "${_man}.6")
+endforeach()
 
 # ---------------------------------------------------------------------------
 

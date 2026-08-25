@@ -27,7 +27,11 @@ jobs:
           sudo apt-get update
           # libgl1-mesa-dri gives Xvfb software GLX, which the SDL client needs
           # to create a GL context on a headless runner.
-          sudo apt-get install -y --no-install-recommends $XPILOT_DEPS xvfb libgl1-mesa-dri
+          # libgl1-mesa-dri gives Xvfb software GLX, which the SDL client needs
+          # to create a GL context. xfonts-base supplies the fixed bitmap fonts
+          # the X11 client asks for; without them it falls back and logs errors.
+          sudo apt-get install -y --no-install-recommends \
+              $XPILOT_DEPS xvfb libgl1-mesa-dri xfonts-base
 
       - name: Configure
         run: cmake -B build -S . -DCMAKE_BUILD_TYPE=RelWithDebInfo
@@ -42,6 +46,12 @@ jobs:
                    xpilot-ng-replay xpilot-ng-xp-mapedit; do
             test -x "build/bin/$b"
           done
+
+      - name: Install
+        # The clients look for textures and fonts under CONF_DATADIR
+        # (/usr/local/share/xpilot-ng/), so install before smoke-testing them.
+        # This exercises the install rules as a side effect.
+        run: sudo cmake --install build
 
       - name: Smoke test — server with robots
         run: |
@@ -60,10 +70,23 @@ jobs:
       - name: Smoke test — both clients connect
         run: |
           set -eux
+          # Assert against the server log rather than the client's stdout: the
+          # client block-buffers stdout and timeout SIGTERMs it without a
+          # flush, so "Login allowed" is not reliably present in its own log.
+          # The server is the authority on who actually connected.
+          # Nicknames must stay short: the server truncates them to 15
+          # characters, so "ci-xpilot-ng-x11" would never match on the way back.
           for c in xpilot-ng-x11 xpilot-ng-sdl; do
-            timeout 20 xvfb-run -a ./build/bin/"$c" \
-                -join -name ci"$c" -port 15000 localhost > "$c.log" 2>&1 || true
-            grep -q "Login allowed" "$c.log" || { cat "$c.log"; exit 1; }
+            nick="ci-${c##*-}"
+            timeout 25 xvfb-run -a ./build/bin/"$c" \
+                -join -name "$nick" -port 15000 localhost > "$c.log" 2>&1 || true
+            if ! grep -qi "Welcome $nick" server.log; then
+              echo "=== $c did not reach the server ==="
+              cat "$c.log"
+              echo "=== server log ==="
+              cat server.log
+              exit 1
+            fi
           done
           kill "$(cat server.pid)" || true
 

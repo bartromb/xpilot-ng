@@ -176,11 +176,32 @@ Structural notes:
   `libxpclient`. The autotools build did this through the deprecated `INCLUDES` variable,
   which is easy to miss when reading `Makefile.am`.
 
-**The CI workflow is unverified.** It was written from the verified local dependency set and
-its YAML parses, but it has never executed. The parts most likely to need a second pass are
-the headless client tests: they rely on `xvfb-run` plus `libgl1-mesa-dri` for software GLX,
-and neither was testable here (xvfb is not installed on the dev machine). Treat the first
-run on GitHub as part of the work, not a formality.
+**Install parity is exact.** Installing both builds to staging roots and diffing the file
+lists gives 99 files each and no differences. Getting there caught three things a glob-based
+port would have silently got wrong: autotools ships only 12 of the 18 maps on disk, it
+installs `ConsoleFont.bmp` (which an `*.ttf` filter misses), and it installs five man pages
+plus `mapconvert.py` that are easy to forget entirely. The CMake data lists are therefore
+copied verbatim from the `lib/*/Makefile.am` `xpilot*_DATA` variables rather than globbed.
+
+**CI: first run failed, now fixed — second run pending.** The workflow was pushed and did
+run. The autotools parity job passed; the CMake job failed at the client smoke test for
+three separate reasons, all real:
+
+- The runner has no X11 bitmap fonts, so the X11 client could not load
+  `-*-fixed-bold-*` and logged errors. Fixed by installing `xfonts-base`.
+- Nothing had been installed, so `CONF_DATADIR` pointed at an empty
+  `/usr/local/share/xpilot-ng/` and the clients could not find their textures. Fixed by
+  running `cmake --install` before the smoke test, which exercises the install rules too.
+- The assertion itself was wrong. It grepped the *client's* stdout for "Login allowed", but
+  the client block-buffers stdout and `timeout` SIGTERMs it without a flush, so the line is
+  not reliably there even on success. Now it greps the *server* log for the client's
+  nickname, which is written by a still-running process and is the authority on who
+  connected. Nicknames had to be shortened too — the server truncates them to 15 characters,
+  so `ci-xpilot-ng-x11` would never have matched.
+
+The fixes are verified locally as far as they can be (the server-side assertion and the
+install step); `xvfb-run` and software GLX still cannot be exercised on the dev machine, so
+the second CI run is what settles it.
 
 ## Phase 2 — Client: SDL 1.2 → SDL2
 
