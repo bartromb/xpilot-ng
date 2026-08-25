@@ -1,0 +1,894 @@
+make  all-recursive
+make[1]: Entering directory '/home/bart/PROJECTS/xpilot-ng'
+Making all in src
+make[2]: Entering directory '/home/bart/PROJECTS/xpilot-ng/src'
+Making all in common
+make[3]: Entering directory '/home/bart/PROJECTS/xpilot-ng/src/common'
+Making all in NT
+make[4]: Entering directory '/home/bart/PROJECTS/xpilot-ng/src/common/NT'
+Making all in bindist
+make[5]: Entering directory '/home/bart/PROJECTS/xpilot-ng/src/common/NT/bindist'
+make[5]: Nothing to be done for 'all'.
+make[5]: Leaving directory '/home/bart/PROJECTS/xpilot-ng/src/common/NT/bindist'
+make[5]: Entering directory '/home/bart/PROJECTS/xpilot-ng/src/common/NT'
+make[5]: Nothing to be done for 'all-am'.
+make[5]: Leaving directory '/home/bart/PROJECTS/xpilot-ng/src/common/NT'
+make[4]: Leaving directory '/home/bart/PROJECTS/xpilot-ng/src/common/NT'
+make[4]: Entering directory '/home/bart/PROJECTS/xpilot-ng/src/common'
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\"   -g -O2 -MT arraylist.o -MD -MP -MF .deps/arraylist.Tpo -c -o arraylist.o arraylist.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\"   -g -O2 -MT checknames.o -MD -MP -MF .deps/checknames.Tpo -c -o checknames.o checknames.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\"   -g -O2 -MT config.o -MD -MP -MF .deps/config.Tpo -c -o config.o config.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\"   -g -O2 -MT error.o -MD -MP -MF .deps/error.Tpo -c -o error.o error.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\"   -g -O2 -MT list.o -MD -MP -MF .deps/list.Tpo -c -o list.o list.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\"   -g -O2 -MT math.o -MD -MP -MF .deps/math.Tpo -c -o math.o math.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\"   -g -O2 -MT net.o -MD -MP -MF .deps/net.Tpo -c -o net.o net.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\"   -g -O2 -MT portability.o -MD -MP -MF .deps/portability.Tpo -c -o portability.o portability.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\"   -g -O2 -MT randommt.o -MD -MP -MF .deps/randommt.Tpo -c -o randommt.o randommt.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\"   -g -O2 -MT shipshape.o -MD -MP -MF .deps/shipshape.Tpo -c -o shipshape.o shipshape.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\"   -g -O2 -MT socklib.o -MD -MP -MF .deps/socklib.Tpo -c -o socklib.o socklib.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\"   -g -O2 -MT strcasecmp.o -MD -MP -MF .deps/strcasecmp.Tpo -c -o strcasecmp.o strcasecmp.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\"   -g -O2 -MT strdup.o -MD -MP -MF .deps/strdup.Tpo -c -o strdup.o strdup.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\"   -g -O2 -MT strlcpy.o -MD -MP -MF .deps/strlcpy.Tpo -c -o strlcpy.o strlcpy.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\"   -g -O2 -MT xpmemory.o -MD -MP -MF .deps/xpmemory.Tpo -c -o xpmemory.o xpmemory.c
+mv -f .deps/strlcpy.Tpo .deps/strlcpy.Po
+mv -f .deps/strcasecmp.Tpo .deps/strcasecmp.Po
+mv -f .deps/strdup.Tpo .deps/strdup.Po
+mv -f .deps/xpmemory.Tpo .deps/xpmemory.Po
+mv -f .deps/portability.Tpo .deps/portability.Po
+mv -f .deps/config.Tpo .deps/config.Po
+mv -f .deps/arraylist.Tpo .deps/arraylist.Po
+mv -f .deps/math.Tpo .deps/math.Po
+mv -f .deps/randommt.Tpo .deps/randommt.Po
+mv -f .deps/error.Tpo .deps/error.Po
+mv -f .deps/checknames.Tpo .deps/checknames.Po
+mv -f .deps/list.Tpo .deps/list.Po
+mv -f .deps/net.Tpo .deps/net.Po
+mv -f .deps/socklib.Tpo .deps/socklib.Po
+mv -f .deps/shipshape.Tpo .deps/shipshape.Po
+rm -f libxpcommon.a
+ar cru libxpcommon.a arraylist.o checknames.o config.o error.o list.o math.o net.o portability.o randommt.o shipshape.o socklib.o strcasecmp.o strdup.o strlcpy.o xpmemory.o 
+ar: `u' modifier ignored since `D' is the default (see `U')
+ranlib libxpcommon.a
+make[4]: Leaving directory '/home/bart/PROJECTS/xpilot-ng/src/common'
+make[3]: Leaving directory '/home/bart/PROJECTS/xpilot-ng/src/common'
+Making all in server
+make[3]: Entering directory '/home/bart/PROJECTS/xpilot-ng/src/server'
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT alliance.o -MD -MP -MF .deps/alliance.Tpo -c -o alliance.o alliance.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT asteroid.o -MD -MP -MF .deps/asteroid.Tpo -c -o asteroid.o asteroid.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT cannon.o -MD -MP -MF .deps/cannon.Tpo -c -o cannon.o cannon.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT cell.o -MD -MP -MF .deps/cell.Tpo -c -o cell.o cell.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT cmdline.o -MD -MP -MF .deps/cmdline.Tpo -c -o cmdline.o cmdline.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT collision.o -MD -MP -MF .deps/collision.Tpo -c -o collision.o collision.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT command.o -MD -MP -MF .deps/command.Tpo -c -o command.o command.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT contact.o -MD -MP -MF .deps/contact.Tpo -c -o contact.o contact.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT event.o -MD -MP -MF .deps/event.Tpo -c -o event.o event.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT fileparser.o -MD -MP -MF .deps/fileparser.Tpo -c -o fileparser.o fileparser.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT frame.o -MD -MP -MF .deps/frame.Tpo -c -o frame.o frame.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT gravity.o -MD -MP -MF .deps/gravity.Tpo -c -o gravity.o gravity.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT id.o -MD -MP -MF .deps/id.Tpo -c -o id.o id.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT item.o -MD -MP -MF .deps/item.Tpo -c -o item.o item.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT laser.o -MD -MP -MF .deps/laser.Tpo -c -o laser.o laser.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT map.o -MD -MP -MF .deps/map.Tpo -c -o map.o map.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT metaserver.o -MD -MP -MF .deps/metaserver.Tpo -c -o metaserver.o metaserver.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT modifiers.o -MD -MP -MF .deps/modifiers.Tpo -c -o modifiers.o modifiers.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT netserver.o -MD -MP -MF .deps/netserver.Tpo -c -o netserver.o netserver.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT object.o -MD -MP -MF .deps/object.Tpo -c -o object.o object.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT objpos.o -MD -MP -MF .deps/objpos.Tpo -c -o objpos.o objpos.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT option.o -MD -MP -MF .deps/option.Tpo -c -o option.o option.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT parser.o -MD -MP -MF .deps/parser.Tpo -c -o parser.o parser.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT player.o -MD -MP -MF .deps/player.Tpo -c -o player.o player.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT polygon.o -MD -MP -MF .deps/polygon.Tpo -c -o polygon.o polygon.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT race.o -MD -MP -MF .deps/race.Tpo -c -o race.o race.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT rank.o -MD -MP -MF .deps/rank.Tpo -c -o rank.o rank.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT recwrap.o -MD -MP -MF .deps/recwrap.Tpo -c -o recwrap.o recwrap.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT robot.o -MD -MP -MF .deps/robot.Tpo -c -o robot.o robot.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT robotdef.o -MD -MP -MF .deps/robotdef.Tpo -c -o robotdef.o robotdef.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT rules.o -MD -MP -MF .deps/rules.Tpo -c -o rules.o rules.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT saudio.o -MD -MP -MF .deps/saudio.Tpo -c -o saudio.o saudio.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT sched.o -MD -MP -MF .deps/sched.Tpo -c -o sched.o sched.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT score.o -MD -MP -MF .deps/score.Tpo -c -o score.o score.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT server.o -MD -MP -MF .deps/server.Tpo -c -o server.o server.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT ship.o -MD -MP -MF .deps/ship.Tpo -c -o ship.o ship.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT shot.o -MD -MP -MF .deps/shot.Tpo -c -o shot.o shot.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT showtime.o -MD -MP -MF .deps/showtime.Tpo -c -o showtime.o showtime.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT srecord.o -MD -MP -MF .deps/srecord.Tpo -c -o srecord.o srecord.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT suibotdef.o -MD -MP -MF .deps/suibotdef.Tpo -c -o suibotdef.o suibotdef.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT tag.o -MD -MP -MF .deps/tag.Tpo -c -o tag.o tag.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT target.o -MD -MP -MF .deps/target.Tpo -c -o target.o target.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT teamcup.o -MD -MP -MF .deps/teamcup.Tpo -c -o teamcup.o teamcup.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT tuner.o -MD -MP -MF .deps/tuner.Tpo -c -o tuner.o tuner.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT treasure.o -MD -MP -MF .deps/treasure.Tpo -c -o treasure.o treasure.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT update.o -MD -MP -MF .deps/update.Tpo -c -o update.o update.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT walls.o -MD -MP -MF .deps/walls.Tpo -c -o walls.o walls.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT wormhole.o -MD -MP -MF .deps/wormhole.Tpo -c -o wormhole.o wormhole.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT xp2map.o -MD -MP -MF .deps/xp2map.Tpo -c -o xp2map.o xp2map.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT xpmap.o -MD -MP -MF .deps/xpmap.Tpo -c -o xpmap.o xpmap.c
+srecord.c: In function ‘Get_recording_data’:
+srecord.c:206:9: warning: ignoring return value of ‘fread’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
+  206 |         fread(bufs[i].start, 1, len, recf1);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+suibotdef.c: In function ‘Robot_attack_player’:
+suibotdef.c:869:25: warning: format ‘%i’ expects argument of type ‘int’, but argument 2 has type ‘double’ [-Wformat=]
+  869 |       printf("no: dir= %i\n",direction);
+      |                        ~^    ~~~~~~~~~
+      |                         |    |
+      |                         int  double
+      |                        %f
+mv -f .deps/showtime.Tpo .deps/showtime.Po
+teamcup.c: In function ‘teamcup_game_over’:
+teamcup.c:122:28: warning: ‘%s’ directive output may be truncated writing up to 1023 bytes into a region of size 244 [-Wformat-truncation=]
+  122 |              "Score file \"%s\" closed.", teamcup_score_file_name);
+      |                            ^~             ~~~~~~~~~~~~~~~~~~~~~~~
+In file included from /usr/include/stdio.h:980,
+                 from ../../src/common/xpcommon.h:54,
+                 from xpserver.h:32,
+                 from teamcup.c:21:
+In function ‘snprintf’,
+    inlined from ‘teamcup_close_score_file’ at teamcup.c:121:5,
+    inlined from ‘teamcup_game_over’ at teamcup.c:141:5:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:54:10: note: ‘__builtin___snprintf_chk’ output between 22 and 1045 bytes into a destination of size 256
+   54 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   55 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   56 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+mv -f .deps/id.Tpo .deps/id.Po
+teamcup.c: In function ‘teamcup_game_start’:
+teamcup.c:85:28: warning: ‘%s’ directive output may be truncated writing up to 1023 bytes into a region of size 244 [-Wformat-truncation=]
+   85 |              "Score file \"%s\" opened.", teamcup_score_file_name);
+      |                            ^~             ~~~~~~~~~~~~~~~~~~~~~~~
+In function ‘snprintf’,
+    inlined from ‘teamcup_open_score_file’ at teamcup.c:84:5,
+    inlined from ‘teamcup_game_start’ at teamcup.c:131:5:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:54:10: note: ‘__builtin___snprintf_chk’ output between 22 and 1045 bytes into a destination of size 256
+   54 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   55 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   56 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+mv -f .deps/objpos.Tpo .deps/objpos.Po
+mv -f .deps/object.Tpo .deps/object.Po
+mv -f .deps/recwrap.Tpo .deps/recwrap.Po
+mv -f .deps/tag.Tpo .deps/tag.Po
+mv -f .deps/saudio.Tpo .deps/saudio.Po
+mv -f .deps/polygon.Tpo .deps/polygon.Po
+server.c: In function ‘Server_info’:
+server.c:569:48: warning: ‘%-19s’ directive output may be truncated writing between 19 and 79 bytes into a region of size 77 [-Wformat-truncation=]
+  569 |         snprintf(lblstr, sizeof(lblstr), "%c%c %-19s%03d%6.0f",
+      |                                                ^~~~~
+  570 |                  pl->mychar, pl->team == TEAM_NOT_SET ? ' ' : (pl->team + '0'),
+  571 |                  name, pl->pl_life, Get_Score(pl));
+      |                  ~~~~                           
+In file included from /usr/include/stdio.h:980,
+                 from ../../src/common/xpcommon.h:54,
+                 from xpserver.h:32,
+                 from server.c:31:
+In function ‘snprintf’,
+    inlined from ‘Server_info’ at server.c:569:2:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:54:10: note: ‘__builtin___snprintf_chk’ output between 32 and 404 bytes into a destination of size 80
+   54 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   55 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   56 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+mv -f .deps/race.Tpo .deps/race.Po
+mv -f .deps/cell.Tpo .deps/cell.Po
+mv -f .deps/cmdline.Tpo .deps/cmdline.Po
+mv -f .deps/laser.Tpo .deps/laser.Po
+mv -f .deps/teamcup.Tpo .deps/teamcup.Po
+mv -f .deps/srecord.Tpo .deps/srecord.Po
+mv -f .deps/tuner.Tpo .deps/tuner.Po
+mv -f .deps/metaserver.Tpo .deps/metaserver.Po
+mv -f .deps/gravity.Tpo .deps/gravity.Po
+mv -f .deps/treasure.Tpo .deps/treasure.Po
+mv -f .deps/wormhole.Tpo .deps/wormhole.Po
+mv -f .deps/rules.Tpo .deps/rules.Po
+mv -f .deps/target.Tpo .deps/target.Po
+mv -f .deps/parser.Tpo .deps/parser.Po
+mv -f .deps/sched.Tpo .deps/sched.Po
+mv -f .deps/map.Tpo .deps/map.Po
+mv -f .deps/modifiers.Tpo .deps/modifiers.Po
+mv -f .deps/asteroid.Tpo .deps/asteroid.Po
+mv -f .deps/rank.Tpo .deps/rank.Po
+mv -f .deps/option.Tpo .deps/option.Po
+mv -f .deps/server.Tpo .deps/server.Po
+mv -f .deps/alliance.Tpo .deps/alliance.Po
+mv -f .deps/fileparser.Tpo .deps/fileparser.Po
+mv -f .deps/robot.Tpo .deps/robot.Po
+mv -f .deps/xp2map.Tpo .deps/xp2map.Po
+mv -f .deps/cannon.Tpo .deps/cannon.Po
+mv -f .deps/ship.Tpo .deps/ship.Po
+mv -f .deps/event.Tpo .deps/event.Po
+mv -f .deps/suibotdef.Tpo .deps/suibotdef.Po
+mv -f .deps/contact.Tpo .deps/contact.Po
+mv -f .deps/item.Tpo .deps/item.Po
+mv -f .deps/command.Tpo .deps/command.Po
+mv -f .deps/update.Tpo .deps/update.Po
+mv -f .deps/score.Tpo .deps/score.Po
+mv -f .deps/shot.Tpo .deps/shot.Po
+mv -f .deps/xpmap.Tpo .deps/xpmap.Po
+mv -f .deps/player.Tpo .deps/player.Po
+mv -f .deps/collision.Tpo .deps/collision.Po
+mv -f .deps/frame.Tpo .deps/frame.Po
+mv -f .deps/netserver.Tpo .deps/netserver.Po
+mv -f .deps/robotdef.Tpo .deps/robotdef.Po
+mv -f .deps/walls.Tpo .deps/walls.Po
+gcc  -g -O2   -o xpilot-ng-server alliance.o asteroid.o cannon.o cell.o cmdline.o collision.o command.o contact.o event.o fileparser.o frame.o gravity.o id.o item.o laser.o map.o metaserver.o modifiers.o netserver.o object.o objpos.o option.o parser.o player.o polygon.o race.o rank.o recwrap.o robot.o robotdef.o rules.o saudio.o sched.o score.o server.o ship.o shot.o showtime.o srecord.o suibotdef.o tag.o target.o teamcup.o tuner.o treasure.o update.o walls.o wormhole.o xp2map.o xpmap.o ../../src/common/libxpcommon.a   -lexpat -lz -lm 
+make[3]: Leaving directory '/home/bart/PROJECTS/xpilot-ng/src/server'
+Making all in client
+make[3]: Entering directory '/home/bart/PROJECTS/xpilot-ng/src/client'
+Making all in .
+make[4]: Entering directory '/home/bart/PROJECTS/xpilot-ng/src/client'
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT client.o -MD -MP -MF .deps/client.Tpo -c -o client.o client.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT clientcommand.o -MD -MP -MF .deps/clientcommand.Tpo -c -o clientcommand.o clientcommand.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT clientrank.o -MD -MP -MF .deps/clientrank.Tpo -c -o clientrank.o clientrank.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT datagram.o -MD -MP -MF .deps/datagram.Tpo -c -o datagram.o datagram.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT default.o -MD -MP -MF .deps/default.Tpo -c -o default.o default.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT event.o -MD -MP -MF .deps/event.Tpo -c -o event.o event.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT gfx2d.o -MD -MP -MF .deps/gfx2d.Tpo -c -o gfx2d.o gfx2d.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT mapdata.o -MD -MP -MF .deps/mapdata.Tpo -c -o mapdata.o mapdata.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT messages.o -MD -MP -MF .deps/messages.Tpo -c -o messages.o messages.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT meta.o -MD -MP -MF .deps/meta.Tpo -c -o meta.o meta.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT netclient.o -MD -MP -MF .deps/netclient.Tpo -c -o netclient.o netclient.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT paint.o -MD -MP -MF .deps/paint.Tpo -c -o paint.o paint.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT paintmap.o -MD -MP -MF .deps/paintmap.Tpo -c -o paintmap.o paintmap.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT paintobjects.o -MD -MP -MF .deps/paintobjects.Tpo -c -o paintobjects.o paintobjects.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT option.o -MD -MP -MF .deps/option.Tpo -c -o option.o option.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT query.o -MD -MP -MF .deps/query.Tpo -c -o query.o query.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT talkmacros.o -MD -MP -MF .deps/talkmacros.Tpo -c -o talkmacros.o talkmacros.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT textinterface.o -MD -MP -MF .deps/textinterface.Tpo -c -o textinterface.o textinterface.c
+gcc -DHAVE_CONFIG_H -I. -I../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../src/common   -g -O2 -MT usleep.o -MD -MP -MF .deps/usleep.Tpo -c -o usleep.o usleep.c
+talkmacros.c: In function ‘Talk_macro_parse_mesg’:
+talkmacros.c:286:21: warning: ignoring return value of ‘fread’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
+  286 |                     fread(tmpptr, 1, fsize, fp);
+      |                     ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+mv -f .deps/datagram.Tpo .deps/datagram.Po
+mv -f .deps/usleep.Tpo .deps/usleep.Po
+clientcommand.c: In function ‘executeCommand’:
+clientcommand.c:175:36: warning: ‘%s’ directive output may be truncated writing up to 79 bytes into a region of size 63 [-Wformat-truncation=]
+  175 |                  "Stopped ignoring %s. [*Client reply*]", other->nick_name);
+      |                                    ^~
+In file included from /usr/include/stdio.h:980,
+                 from ../../src/common/xpcommon.h:54,
+                 from xpclient.h:29,
+                 from clientcommand.c:28:
+In function ‘snprintf’,
+    inlined from ‘unignorePlayer’ at clientcommand.c:174:2,
+    inlined from ‘executeCommand’ at clientcommand.c:226:6:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:54:10: note: ‘__builtin___snprintf_chk’ output between 36 and 115 bytes into a destination of size 80
+   54 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   55 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   56 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+clientcommand.c: In function ‘executeCommand’:
+clientcommand.c:160:32: warning: ‘%s’ directive output may be truncated writing up to 79 bytes into a region of size 71 [-Wformat-truncation=]
+  160 |                      "Ignoring %s (completely). [*Client reply*]",
+      |                                ^~
+In function ‘snprintf’,
+    inlined from ‘ignorePlayer’ at clientcommand.c:159:6,
+    inlined from ‘executeCommand’ at clientcommand.c:219:6:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:54:10: note: ‘__builtin___snprintf_chk’ output between 41 and 120 bytes into a destination of size 80
+   54 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   55 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   56 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+clientcommand.c: In function ‘executeCommand’:
+clientcommand.c:155:32: warning: ‘%s’ directive output may be truncated writing up to 79 bytes into a region of size 71 [-Wformat-truncation=]
+  155 |                      "Ignoring %s (textmask). [*Client reply*]",
+      |                                ^~
+In function ‘snprintf’,
+    inlined from ‘ignorePlayer’ at clientcommand.c:154:6,
+    inlined from ‘executeCommand’ at clientcommand.c:219:6:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:54:10: note: ‘__builtin___snprintf_chk’ output between 39 and 118 bytes into a destination of size 80
+   54 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   55 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   56 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+mapdata.c: In function ‘Mapdata_setup’:
+mapdata.c:211:29: warning: ‘__builtin___sprintf_chk’ may write a terminating nul past the end of the destination [-Wformat-overflow=]
+  211 |         sprintf(fname, "%s%c", dir, PATHNAME_SEP);
+      |                             ^
+In file included from /usr/include/stdio.h:980,
+                 from ../../src/common/xpcommon.h:54,
+                 from xpclient.h:29,
+                 from mapdata.c:21:
+In function ‘sprintf’,
+    inlined from ‘Mapdata_extract’ at mapdata.c:211:2,
+    inlined from ‘Mapdata_setup’ at mapdata.c:149:10:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:30:10: note: ‘__builtin___sprintf_chk’ output between 2 and 257 bytes into a destination of size 256
+   30 |   return __builtin___sprintf_chk (__s, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   31 |                                   __glibc_objsize (__s), __fmt,
+      |                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   32 |                                   __va_arg_pack ());
+      |                                   ~~~~~~~~~~~~~~~~~
+mv -f .deps/clientcommand.Tpo .deps/clientcommand.Po
+mv -f .deps/query.Tpo .deps/query.Po
+mv -f .deps/clientrank.Tpo .deps/clientrank.Po
+mv -f .deps/paint.Tpo .deps/paint.Po
+mv -f .deps/talkmacros.Tpo .deps/talkmacros.Po
+messages.c: In function ‘Add_message’:
+messages.c:645:31: warning: ‘]’ directive writing 1 byte into a region of size between 0 and 83 [-Wformat-overflow=]
+  645 |         sprintf(buf, "[%s]:[%d]", other->nick_name, other->team);
+      |                               ^
+In file included from /usr/include/stdio.h:980,
+                 from ../../src/common/xpcommon.h:54,
+                 from xpclient.h:29,
+                 from messages.c:28:
+In function ‘sprintf’,
+    inlined from ‘Msg_is_from_our_team’ at messages.c:645:2,
+    inlined from ‘Add_message’ at messages.c:833:10:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:30:10: note: ‘__builtin___sprintf_chk’ output between 7 and 90 bytes into a destination of size 88
+   30 |   return __builtin___sprintf_chk (__s, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   31 |                                   __glibc_objsize (__s), __fmt,
+      |                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   32 |                                   __va_arg_pack ());
+      |                                   ~~~~~~~~~~~~~~~~~
+mv -f .deps/default.Tpo .deps/default.Po
+mv -f .deps/mapdata.Tpo .deps/mapdata.Po
+mv -f .deps/paintobjects.Tpo .deps/paintobjects.Po
+mv -f .deps/paintmap.Tpo .deps/paintmap.Po
+mv -f .deps/gfx2d.Tpo .deps/gfx2d.Po
+mv -f .deps/event.Tpo .deps/event.Po
+mv -f .deps/meta.Tpo .deps/meta.Po
+mv -f .deps/textinterface.Tpo .deps/textinterface.Po
+mv -f .deps/messages.Tpo .deps/messages.Po
+mv -f .deps/option.Tpo .deps/option.Po
+mv -f .deps/netclient.Tpo .deps/netclient.Po
+mv -f .deps/client.Tpo .deps/client.Po
+rm -f libxpclient.a
+ar cru libxpclient.a client.o clientcommand.o clientrank.o datagram.o default.o event.o gfx2d.o mapdata.o messages.o meta.o netclient.o paint.o paintmap.o paintobjects.o option.o query.o talkmacros.o textinterface.o usleep.o  
+ar: `u' modifier ignored since `D' is the default (see `U')
+ranlib libxpclient.a
+make[4]: Leaving directory '/home/bart/PROJECTS/xpilot-ng/src/client'
+Making all in items
+make[4]: Entering directory '/home/bart/PROJECTS/xpilot-ng/src/client/items'
+make[4]: Nothing to be done for 'all'.
+make[4]: Leaving directory '/home/bart/PROJECTS/xpilot-ng/src/client/items'
+Making all in x11
+make[4]: Entering directory '/home/bart/PROJECTS/xpilot-ng/src/client/x11'
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client   -g -O2 -MT about.o -MD -MP -MF .deps/about.Tpo -c -o about.o about.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client   -g -O2 -MT bitmaps.o -MD -MP -MF .deps/bitmaps.Tpo -c -o bitmaps.o bitmaps.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client   -g -O2 -MT colors.o -MD -MP -MF .deps/colors.Tpo -c -o colors.o colors.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client   -g -O2 -MT configure.o -MD -MP -MF .deps/configure.Tpo -c -o configure.o configure.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client   -g -O2 -MT dbuff.o -MD -MP -MF .deps/dbuff.Tpo -c -o dbuff.o dbuff.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client   -g -O2 -MT guimap.o -MD -MP -MF .deps/guimap.Tpo -c -o guimap.o guimap.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client   -g -O2 -MT guiobjects.o -MD -MP -MF .deps/guiobjects.Tpo -c -o guiobjects.o guiobjects.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client   -g -O2 -MT join.o -MD -MP -MF .deps/join.Tpo -c -o join.o join.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client   -g -O2 -MT paintdata.o -MD -MP -MF .deps/paintdata.Tpo -c -o paintdata.o paintdata.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client   -g -O2 -MT painthud.o -MD -MP -MF .deps/painthud.Tpo -c -o painthud.o painthud.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client   -g -O2 -MT paintradar.o -MD -MP -MF .deps/paintradar.Tpo -c -o paintradar.o paintradar.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client   -g -O2 -MT record.o -MD -MP -MF .deps/record.Tpo -c -o record.o record.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client   -g -O2 -MT talk.o -MD -MP -MF .deps/talk.Tpo -c -o talk.o talk.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client   -g -O2 -MT welcome.o -MD -MP -MF .deps/welcome.Tpo -c -o welcome.o welcome.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client   -g -O2 -MT widget.o -MD -MP -MF .deps/widget.Tpo -c -o widget.o widget.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client   -g -O2 -MT xdefault.o -MD -MP -MF .deps/xdefault.Tpo -c -o xdefault.o xdefault.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client   -g -O2 -MT xevent.o -MD -MP -MF .deps/xevent.Tpo -c -o xevent.o xevent.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client   -g -O2 -MT xeventhandlers.o -MD -MP -MF .deps/xeventhandlers.Tpo -c -o xeventhandlers.o xeventhandlers.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client   -g -O2 -MT xinit.o -MD -MP -MF .deps/xinit.Tpo -c -o xinit.o xinit.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client   -g -O2 -MT xpaint.o -MD -MP -MF .deps/xpaint.Tpo -c -o xpaint.o xpaint.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client   -g -O2 -MT xpilot.o -MD -MP -MF .deps/xpilot.Tpo -c -o xpilot.o xpilot.c
+xpaint.c: In function ‘Paint_clock’:
+xpaint.c:528:34: warning: ‘__builtin___sprintf_chk’ may write a terminating nul past the end of the destination [-Wformat-overflow=]
+  528 |         sprintf(buf, "%2d:%02d%cM", hour, minute, tmpchar);
+      |                                  ^
+In file included from /usr/include/stdio.h:980,
+                 from ../../../src/common/xpcommon.h:54,
+                 from ../../../src/client/xpclient.h:29,
+                 from xpclient_x11.h:24,
+                 from xpaint.c:28:
+In function ‘sprintf’,
+    inlined from ‘Paint_clock’ at xpaint.c:528:2:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:30:10: note: ‘__builtin___sprintf_chk’ output between 8 and 26 bytes into a destination of size 16
+   30 |   return __builtin___sprintf_chk (__s, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   31 |                                   __glibc_objsize (__s), __fmt,
+      |                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   32 |                                   __va_arg_pack ());
+      |                                   ~~~~~~~~~~~~~~~~~
+mv -f .deps/xpilot.Tpo .deps/xpilot.Po
+mv -f .deps/join.Tpo .deps/join.Po
+mv -f .deps/xdefault.Tpo .deps/xdefault.Po
+mv -f .deps/dbuff.Tpo .deps/dbuff.Po
+mv -f .deps/xevent.Tpo .deps/xevent.Po
+mv -f .deps/xeventhandlers.Tpo .deps/xeventhandlers.Po
+xpaint.c: In function ‘Paint_score_entry’:
+xpaint.c:396:44: warning: ‘__builtin___sprintf_chk’ may write a terminating nul past the end of the destination [-Wformat-overflow=]
+  396 |                     sprintf(raceStr, "%d.%c",
+      |                                            ^
+In function ‘sprintf’,
+    inlined from ‘Paint_score_entry’ at xpaint.c:396:7:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:30:10: note: ‘__builtin___sprintf_chk’ output between 4 and 9 bytes into a destination of size 8
+   30 |   return __builtin___sprintf_chk (__s, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   31 |                                   __glibc_objsize (__s), __fmt,
+      |                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   32 |                                   __va_arg_pack ());
+      |                                   ~~~~~~~~~~~~~~~~~
+mv -f .deps/xinit.Tpo .deps/xinit.Po
+mv -f .deps/paintdata.Tpo .deps/paintdata.Po
+mv -f .deps/xpaint.Tpo .deps/xpaint.Po
+mv -f .deps/bitmaps.Tpo .deps/bitmaps.Po
+mv -f .deps/about.Tpo .deps/about.Po
+mv -f .deps/configure.Tpo .deps/configure.Po
+mv -f .deps/paintradar.Tpo .deps/paintradar.Po
+mv -f .deps/colors.Tpo .deps/colors.Po
+mv -f .deps/welcome.Tpo .deps/welcome.Po
+mv -f .deps/record.Tpo .deps/record.Po
+guimap.c: In function ‘Gui_paint_base’:
+guimap.c:433:33: warning: ‘%d’ directive writing between 1 and 6 bytes into a region of size 5 [-Wformat-overflow=]
+  433 |                 sprintf(info, " %d", other->life);
+      |                                 ^~
+guimap.c:433:31: note: directive argument in the range [-32768, 32767]
+  433 |                 sprintf(info, " %d", other->life);
+      |                               ^~~~~
+In file included from /usr/include/stdio.h:980,
+                 from ../../../src/common/xpcommon.h:54,
+                 from ../../../src/client/xpclient.h:29,
+                 from xpclient_x11.h:24,
+                 from guimap.c:26:
+In function ‘sprintf’,
+    inlined from ‘Gui_paint_base’ at guimap.c:433:3:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:30:10: note: ‘__builtin___sprintf_chk’ output between 3 and 8 bytes into a destination of size 6
+   30 |   return __builtin___sprintf_chk (__s, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   31 |                                   __glibc_objsize (__s), __fmt,
+      |                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   32 |                                   __va_arg_pack ());
+      |                                   ~~~~~~~~~~~~~~~~~
+mv -f .deps/talk.Tpo .deps/talk.Po
+guiobjects.c: In function ‘Gui_paint_ship’:
+guiobjects.c:698:24: warning: ‘%03d’ directive writing between 3 and 6 bytes into a region of size 4 [-Wformat-overflow=]
+  698 |         sprintf(keff, "%03d", other->life);
+      |                        ^~~~
+In function ‘Gui_paint_ship_name’,
+    inlined from ‘Gui_paint_ship’ at guiobjects.c:990:2:
+guiobjects.c:698:23: note: directive argument in the range [-32768, 32767]
+  698 |         sprintf(keff, "%03d", other->life);
+      |                       ^~~~~~
+In file included from /usr/include/stdio.h:980,
+                 from ../../../src/common/xpcommon.h:54,
+                 from ../../../src/client/xpclient.h:29,
+                 from xpclient_x11.h:24,
+                 from guiobjects.c:28:
+In function ‘sprintf’,
+    inlined from ‘Gui_paint_ship_name’ at guiobjects.c:698:2,
+    inlined from ‘Gui_paint_ship’ at guiobjects.c:990:2:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:30:10: note: ‘__builtin___sprintf_chk’ output between 4 and 7 bytes into a destination of size 4
+   30 |   return __builtin___sprintf_chk (__s, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   31 |                                   __glibc_objsize (__s), __fmt,
+      |                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   32 |                                   __va_arg_pack ());
+      |                                   ~~~~~~~~~~~~~~~~~
+mv -f .deps/painthud.Tpo .deps/painthud.Po
+mv -f .deps/guiobjects.Tpo .deps/guiobjects.Po
+mv -f .deps/widget.Tpo .deps/widget.Po
+mv -f .deps/guimap.Tpo .deps/guimap.Po
+gcc  -g -O2   -o xpilot-ng-x11 about.o bitmaps.o colors.o configure.o dbuff.o guimap.o guiobjects.o join.o paintdata.o painthud.o paintradar.o record.o talk.o welcome.o widget.o xdefault.o xevent.o xeventhandlers.o xinit.o xpaint.o xpilot.o ../../../src/client/libxpclient.a ../../../src/common/libxpcommon.a   -lSM -lICE   -lX11  -lexpat -lz -lm 
+make[4]: Leaving directory '/home/bart/PROJECTS/xpilot-ng/src/client/x11'
+Making all in sdl
+make[4]: Entering directory '/home/bart/PROJECTS/xpilot-ng/src/client/sdl'
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client -I/usr/include/SDL -D_GNU_SOURCE=1 -D_REENTRANT   -g -O2 -MT DT_drawtext.o -MD -MP -MF .deps/DT_drawtext.Tpo -c -o DT_drawtext.o DT_drawtext.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client -I/usr/include/SDL -D_GNU_SOURCE=1 -D_REENTRANT   -g -O2 -MT SDL_console.o -MD -MP -MF .deps/SDL_console.Tpo -c -o SDL_console.o SDL_console.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client -I/usr/include/SDL -D_GNU_SOURCE=1 -D_REENTRANT   -g -O2 -MT SDL_gfxPrimitives.o -MD -MP -MF .deps/SDL_gfxPrimitives.Tpo -c -o SDL_gfxPrimitives.o SDL_gfxPrimitives.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client -I/usr/include/SDL -D_GNU_SOURCE=1 -D_REENTRANT   -g -O2 -MT console.o -MD -MP -MF .deps/console.Tpo -c -o console.o console.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client -I/usr/include/SDL -D_GNU_SOURCE=1 -D_REENTRANT   -g -O2 -MT glwidgets.o -MD -MP -MF .deps/glwidgets.Tpo -c -o glwidgets.o glwidgets.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client -I/usr/include/SDL -D_GNU_SOURCE=1 -D_REENTRANT   -g -O2 -MT images.o -MD -MP -MF .deps/images.Tpo -c -o images.o images.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client -I/usr/include/SDL -D_GNU_SOURCE=1 -D_REENTRANT   -g -O2 -MT main.o -MD -MP -MF .deps/main.Tpo -c -o main.o main.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client -I/usr/include/SDL -D_GNU_SOURCE=1 -D_REENTRANT   -g -O2 -MT scrap.o -MD -MP -MF .deps/scrap.Tpo -c -o scrap.o scrap.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client -I/usr/include/SDL -D_GNU_SOURCE=1 -D_REENTRANT   -g -O2 -MT radar.o -MD -MP -MF .deps/radar.Tpo -c -o radar.o radar.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client -I/usr/include/SDL -D_GNU_SOURCE=1 -D_REENTRANT   -g -O2 -MT sdlevent.o -MD -MP -MF .deps/sdlevent.Tpo -c -o sdlevent.o sdlevent.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client -I/usr/include/SDL -D_GNU_SOURCE=1 -D_REENTRANT   -g -O2 -MT sdlgui.o -MD -MP -MF .deps/sdlgui.Tpo -c -o sdlgui.o sdlgui.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client -I/usr/include/SDL -D_GNU_SOURCE=1 -D_REENTRANT   -g -O2 -MT sdlinit.o -MD -MP -MF .deps/sdlinit.Tpo -c -o sdlinit.o sdlinit.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client -I/usr/include/SDL -D_GNU_SOURCE=1 -D_REENTRANT   -g -O2 -MT sdlkeys.o -MD -MP -MF .deps/sdlkeys.Tpo -c -o sdlkeys.o sdlkeys.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client -I/usr/include/SDL -D_GNU_SOURCE=1 -D_REENTRANT   -g -O2 -MT sdlpaint.o -MD -MP -MF .deps/sdlpaint.Tpo -c -o sdlpaint.o sdlpaint.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client -I/usr/include/SDL -D_GNU_SOURCE=1 -D_REENTRANT   -g -O2 -MT sdlwindow.o -MD -MP -MF .deps/sdlwindow.Tpo -c -o sdlwindow.o sdlwindow.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client -I/usr/include/SDL -D_GNU_SOURCE=1 -D_REENTRANT   -g -O2 -MT text.o -MD -MP -MF .deps/text.Tpo -c -o text.o text.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client -I/usr/include/SDL -D_GNU_SOURCE=1 -D_REENTRANT   -g -O2 -MT todo.o -MD -MP -MF .deps/todo.Tpo -c -o todo.o todo.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client -I/usr/include/SDL -D_GNU_SOURCE=1 -D_REENTRANT   -g -O2 -MT sdlmeta.o -MD -MP -MF .deps/sdlmeta.Tpo -c -o sdlmeta.o sdlmeta.c
+gcc -DHAVE_CONFIG_H -I. -I../../..  -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\" -I../../../src/common -I../../../src/client -I/usr/include/SDL -D_GNU_SOURCE=1 -D_REENTRANT   -g -O2 -MT gameloop_x.o -MD -MP -MF .deps/gameloop_x.Tpo -c -o gameloop_x.o gameloop_x.c
+mv -f .deps/todo.Tpo .deps/todo.Po
+mv -f .deps/sdlkeys.Tpo .deps/sdlkeys.Po
+mv -f .deps/main.Tpo .deps/main.Po
+mv -f .deps/sdlwindow.Tpo .deps/sdlwindow.Po
+mv -f .deps/console.Tpo .deps/console.Po
+mv -f .deps/gameloop_x.Tpo .deps/gameloop_x.Po
+mv -f .deps/DT_drawtext.Tpo .deps/DT_drawtext.Po
+mv -f .deps/sdlevent.Tpo .deps/sdlevent.Po
+mv -f .deps/sdlinit.Tpo .deps/sdlinit.Po
+mv -f .deps/scrap.Tpo .deps/scrap.Po
+mv -f .deps/images.Tpo .deps/images.Po
+SDL_console.c: In function ‘DrawCommandLine’:
+SDL_console.c:599:5: warning: ‘__builtin___strncat_chk’ specified bound depends on the length of the source argument [-Wstringop-overflow=]
+  599 |     strncat(Topmost->VCommand, &Topmost->Command[Topmost->Offset],
+      |     ^
+SDL_console.c:599:5: note: length computed here
+  599 |     strncat(Topmost->VCommand, &Topmost->Command[Topmost->Offset],
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  600 |             strlen(&Topmost->Command[Topmost->Offset]));
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+sdlpaint.c: In function ‘Paint_score_entry’:
+sdlpaint.c:434:44: warning: ‘__builtin___sprintf_chk’ may write a terminating nul past the end of the destination [-Wformat-overflow=]
+  434 |                     sprintf(raceStr, "%d.%c",
+      |                                            ^
+In file included from /usr/include/stdio.h:980,
+                 from ../../../src/common/xpcommon.h:54,
+                 from ../../../src/client/xpclient.h:29,
+                 from xpclient_sdl.h:24,
+                 from sdlpaint.c:32:
+In function ‘sprintf’,
+    inlined from ‘Paint_score_entry’ at sdlpaint.c:434:7:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:30:10: note: ‘__builtin___sprintf_chk’ output between 4 and 9 bytes into a destination of size 8
+   30 |   return __builtin___sprintf_chk (__s, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   31 |                                   __glibc_objsize (__s), __fmt,
+      |                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   32 |                                   __va_arg_pack ());
+      |                                   ~~~~~~~~~~~~~~~~~
+mv -f .deps/sdlpaint.Tpo .deps/sdlpaint.Po
+SDL_console.c: In function ‘Cursor_Home’:
+SDL_console.c:1026:5: warning: ‘__builtin___strncat_chk’ specified bound depends on the length of the source argument [-Wstringop-overflow=]
+ 1026 |     strncat(Topmost->RCommand, temp, strlen(temp));
+      |     ^
+SDL_console.c:1026:5: note: length computed here
+ 1026 |     strncat(Topmost->RCommand, temp, strlen(temp));
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+SDL_console.c: In function ‘Cursor_End’:
+SDL_console.c:1033:5: warning: ‘__builtin___strncat_chk’ specified bound depends on the length of the source argument [-Wstringop-overflow=]
+ 1033 |     strncat(Topmost->LCommand, Topmost->RCommand,
+      |     ^
+SDL_console.c:1033:5: note: length computed here
+ 1033 |     strncat(Topmost->LCommand, Topmost->RCommand,
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 1034 |             strlen(Topmost->RCommand));
+      |             ~~~~~~~~~~~~~~~~~~~~~~~~~~
+mv -f .deps/radar.Tpo .deps/radar.Po
+mv -f .deps/text.Tpo .deps/text.Po
+mv -f .deps/sdlmeta.Tpo .deps/sdlmeta.Po
+mv -f .deps/SDL_console.Tpo .deps/SDL_console.Po
+mv -f .deps/sdlgui.Tpo .deps/sdlgui.Po
+mv -f .deps/SDL_gfxPrimitives.Tpo .deps/SDL_gfxPrimitives.Po
+mv -f .deps/glwidgets.Tpo .deps/glwidgets.Po
+gcc  -g -O2   -o xpilot-ng-sdl DT_drawtext.o SDL_console.o SDL_gfxPrimitives.o console.o glwidgets.o images.o main.o scrap.o radar.o sdlevent.o sdlgui.o sdlinit.o sdlkeys.o sdlpaint.o sdlwindow.o text.o todo.o sdlmeta.o  gameloop_x.o  ../../../src/client/libxpclient.a ../../../src/common/libxpcommon.a -lSDL -L/usr/X11R6/lib -lGL -lGLU -lSDL_ttf -lSDL_image   -lSM -lICE -lX11 -lexpat -lz -lm 
+make[4]: Leaving directory '/home/bart/PROJECTS/xpilot-ng/src/client/sdl'
+Making all in NT
+make[4]: Entering directory '/home/bart/PROJECTS/xpilot-ng/src/client/NT'
+Making all in res
+make[5]: Entering directory '/home/bart/PROJECTS/xpilot-ng/src/client/NT/res'
+make[5]: Nothing to be done for 'all'.
+make[5]: Leaving directory '/home/bart/PROJECTS/xpilot-ng/src/client/NT/res'
+make[5]: Entering directory '/home/bart/PROJECTS/xpilot-ng/src/client/NT'
+make[5]: Nothing to be done for 'all-am'.
+make[5]: Leaving directory '/home/bart/PROJECTS/xpilot-ng/src/client/NT'
+make[4]: Leaving directory '/home/bart/PROJECTS/xpilot-ng/src/client/NT'
+make[3]: Leaving directory '/home/bart/PROJECTS/xpilot-ng/src/client'
+Making all in replay
+make[3]: Entering directory '/home/bart/PROJECTS/xpilot-ng/src/replay'
+Making all in tools
+make[4]: Entering directory '/home/bart/PROJECTS/xpilot-ng/src/replay/tools'
+make[4]: Nothing to be done for 'all'.
+make[4]: Leaving directory '/home/bart/PROJECTS/xpilot-ng/src/replay/tools'
+make[4]: Entering directory '/home/bart/PROJECTS/xpilot-ng/src/replay'
+gcc -DHAVE_CONFIG_H -I. -I../.. -I../../src/common -I../../src/client -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\"   -g -O2 -MT buttons.o -MD -MP -MF .deps/buttons.Tpo -c -o buttons.o buttons.c
+gcc -DHAVE_CONFIG_H -I. -I../.. -I../../src/common -I../../src/client -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\"   -g -O2 -MT xp-replay.o -MD -MP -MF .deps/xp-replay.Tpo -c -o xp-replay.o xp-replay.c
+xp-replay.c: In function ‘ScalePPM’:
+xp-replay.c:2271:19: warning: format ‘%d’ expects argument of type ‘int’, but argument 3 has type ‘size_t’ {aka ‘long unsigned int’} [-Wformat=]
+ 2271 |     fprintf(fp, "%d %d\n", newcols, newrows);
+      |                  ~^        ~~~~~~~
+      |                   |        |
+      |                   int      size_t {aka long unsigned int}
+      |                  %ld
+xp-replay.c:2271:22: warning: format ‘%d’ expects argument of type ‘int’, but argument 4 has type ‘size_t’ {aka ‘long unsigned int’} [-Wformat=]
+ 2271 |     fprintf(fp, "%d %d\n", newcols, newrows);
+      |                     ~^              ~~~~~~~
+      |                      |              |
+      |                      int            size_t {aka long unsigned int}
+      |                     %ld
+mv -f .deps/buttons.Tpo .deps/buttons.Po
+mv -f .deps/xp-replay.Tpo .deps/xp-replay.Po
+gcc  -g -O2   -o xpilot-ng-replay buttons.o xp-replay.o ../../src/common/libxpcommon.a   -lSM -lICE  -lX11 -lexpat -lz -lm 
+make[4]: Leaving directory '/home/bart/PROJECTS/xpilot-ng/src/replay'
+make[3]: Leaving directory '/home/bart/PROJECTS/xpilot-ng/src/replay'
+Making all in mapedit
+make[3]: Entering directory '/home/bart/PROJECTS/xpilot-ng/src/mapedit'
+gcc -DHAVE_CONFIG_H -I. -I../.. -I../../src/common -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\"   -g -O2 -MT events.o -MD -MP -MF .deps/events.Tpo -c -o events.o events.c
+gcc -DHAVE_CONFIG_H -I. -I../.. -I../../src/common -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\"   -g -O2 -MT expose.o -MD -MP -MF .deps/expose.Tpo -c -o expose.o expose.c
+gcc -DHAVE_CONFIG_H -I. -I../.. -I../../src/common -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\"   -g -O2 -MT file.o -MD -MP -MF .deps/file.Tpo -c -o file.o file.c
+gcc -DHAVE_CONFIG_H -I. -I../.. -I../../src/common -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\"   -g -O2 -MT forms.o -MD -MP -MF .deps/forms.Tpo -c -o forms.o forms.c
+gcc -DHAVE_CONFIG_H -I. -I../.. -I../../src/common -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\"   -g -O2 -MT grow.o -MD -MP -MF .deps/grow.Tpo -c -o grow.o grow.c
+gcc -DHAVE_CONFIG_H -I. -I../.. -I../../src/common -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\"   -g -O2 -MT help.o -MD -MP -MF .deps/help.Tpo -c -o help.o help.c
+gcc -DHAVE_CONFIG_H -I. -I../.. -I../../src/common -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\"   -g -O2 -MT main.o -MD -MP -MF .deps/main.Tpo -c -o main.o main.c
+gcc -DHAVE_CONFIG_H -I. -I../.. -I../../src/common -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\"   -g -O2 -MT round.o -MD -MP -MF .deps/round.Tpo -c -o round.o round.c
+gcc -DHAVE_CONFIG_H -I. -I../.. -I../../src/common -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\"   -g -O2 -MT T_Form.o -MD -MP -MF .deps/T_Form.Tpo -c -o T_Form.o T_Form.c
+gcc -DHAVE_CONFIG_H -I. -I../.. -I../../src/common -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\"   -g -O2 -MT T_Handler.o -MD -MP -MF .deps/T_Handler.Tpo -c -o T_Handler.o T_Handler.c
+gcc -DHAVE_CONFIG_H -I. -I../.. -I../../src/common -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\"   -g -O2 -MT tools.o -MD -MP -MF .deps/tools.Tpo -c -o tools.o tools.c
+gcc -DHAVE_CONFIG_H -I. -I../.. -I../../src/common -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\"   -g -O2 -MT T_Popup.o -MD -MP -MF .deps/T_Popup.Tpo -c -o T_Popup.o T_Popup.c
+gcc -DHAVE_CONFIG_H -I. -I../.. -I../../src/common -DCONF_DATADIR=\"/usr/local/share/xpilot-ng/\"   -g -O2 -MT T_Toolkit.o -MD -MP -MF .deps/T_Toolkit.Tpo -c -o T_Toolkit.o T_Toolkit.c
+file.c: In function ‘SaveMap’:
+file.c:190:45: warning: cast from pointer to integer of different size [-Wpointer-to-int-cast]
+  190 |             if (strlen(prefs[n].charvar) != (int) NULL)
+      |                                             ^
+file.c: In function ‘AddOption’:
+file.c:822:30: warning: passing argument 1 of ‘strncpy’ discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]
+  822 |         strncpy(prefs[option].charvar, value, prefs[option].length);
+      |                 ~~~~~~~~~~~~~^~~~~~~~
+In file included from /usr/include/features.h:502,
+                 from /usr/include/x86_64-linux-gnu/bits/libc-header-start.h:33,
+                 from /usr/include/stdio.h:28,
+                 from ../../src/common/xpcommon.h:54,
+                 from xpmapedit.h:30,
+                 from file.c:27:
+/usr/include/x86_64-linux-gnu/bits/string_fortified.h:92:1: note: expected ‘char * restrict’ but argument is of type ‘const char *’
+   92 | __NTH (strncpy (char *__restrict __dest, const char *__restrict __src,
+      | ^~~~~
+file.c:833:29: warning: passing argument 1 of ‘strcpy’ discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]
+  833 |         strcpy(prefs[option].charvar, StrToNum(value, prefs[option].length,
+      |                ~~~~~~~~~~~~~^~~~~~~~
+/usr/include/x86_64-linux-gnu/bits/string_fortified.h:77:1: note: expected ‘char * restrict’ but argument is of type ‘const char *’
+   77 | __NTH (strcpy (char *__restrict __dest, const char *__restrict __src))
+      | ^~~~~
+file.c: In function ‘LoadXbmFile’:
+file.c:405:5: warning: ignoring return value of ‘fgets’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
+  405 |     fgets(line, sizeof(max_str_t), fp);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+file.c:413:5: warning: ignoring return value of ‘fgets’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
+  413 |     fgets(line, sizeof(max_str_t), fp);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+file.c: In function ‘LoadOldMap’:
+file.c:486:5: warning: ignoring return value of ‘fgets’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
+  486 |     fgets(line, sizeof(max_str_t), fp);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+file.c:496:5: warning: ignoring return value of ‘fgets’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
+  496 |     fgets(line, sizeof(max_str_t), fp);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+file.c:504:5: warning: ignoring return value of ‘fgets’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
+  504 |     fgets(line, sizeof(max_str_t), fp);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+file.c:507:5: warning: ignoring return value of ‘fgets’ declared with attribute ‘warn_unused_result’ [-Wunused-result]
+  507 |     fgets(line, sizeof(max_str_t), fp);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+forms.c: In function ‘BuildPrefsSheet’:
+forms.c:233:50: warning: passing argument 2 of ‘T_FormStringEntry’ discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]
+  233 |                 T_FormStringEntry(*temp, prefs[i].name,
+      |                                          ~~~~~~~~^~~~~
+In file included from xpmapedit.h:38,
+                 from forms.c:27:
+T_Toolkit.h:169:42: note: expected ‘char *’ but argument is of type ‘const char *’
+  169 | void T_FormStringEntry(Window win, char *name, short x, short y,
+      |                                    ~~~~~~^~~~
+forms.c:236:60: warning: passing argument 9 of ‘T_FormStringEntry’ discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]
+  236 |                                   t, w, 20, -w, 0, prefs[i].label,
+      |                                                    ~~~~~~~~^~~~~~
+T_Toolkit.h:171:30: note: expected ‘char *’ but argument is of type ‘const char *’
+  171 |                        char *label, char *charvar, int charvar_length,
+      |                        ~~~~~~^~~~~
+forms.c:237:43: warning: passing argument 10 of ‘T_FormStringEntry’ discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]
+  237 |                                   prefs[i].charvar, prefs[i].length, NULL);
+      |                                   ~~~~~~~~^~~~~~~~
+T_Toolkit.h:171:43: note: expected ‘char *’ but argument is of type ‘const char *’
+  171 |                        char *label, char *charvar, int charvar_length,
+      |                                     ~~~~~~^~~~~~~
+forms.c:241:50: warning: passing argument 2 of ‘T_FormMultiButton’ discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]
+  241 |                 T_FormMultiButton(*temp, prefs[i].name,
+      |                                          ~~~~~~~~^~~~~
+T_Toolkit.h:162:42: note: expected ‘char *’ but argument is of type ‘const char *’
+  162 | void T_FormMultiButton(Window win, char *name, short x, short y,
+      |                                    ~~~~~~^~~~
+forms.c:252:36: warning: passing argument 7 of ‘T_FormText’ discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]
+  252 |                            prefs[i].label, JUSTIFY_LEFT);
+      |                            ~~~~~~~~^~~~~~
+T_Toolkit.h:168:37: note: expected ‘char *’ but argument is of type ‘const char *’
+  168 |                 short height, char *label, short justify);
+      |                               ~~~~~~^~~~~
+forms.c:256:50: warning: passing argument 2 of ‘T_FormStringEntry’ discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]
+  256 |                 T_FormStringEntry(*temp, prefs[i].name,
+      |                                          ~~~~~~~~^~~~~
+T_Toolkit.h:169:42: note: expected ‘char *’ but argument is of type ‘const char *’
+  169 | void T_FormStringEntry(Window win, char *name, short x, short y,
+      |                                    ~~~~~~^~~~
+forms.c:259:60: warning: passing argument 9 of ‘T_FormStringEntry’ discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]
+  259 |                                   t, w, 20, -w, 0, prefs[i].label,
+      |                                                    ~~~~~~~~^~~~~~
+T_Toolkit.h:171:30: note: expected ‘char *’ but argument is of type ‘const char *’
+  171 |                        char *label, char *charvar, int charvar_length,
+      |                        ~~~~~~^~~~~
+forms.c:260:43: warning: passing argument 10 of ‘T_FormStringEntry’ discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]
+  260 |                                   prefs[i].charvar, prefs[i].length,
+      |                                   ~~~~~~~~^~~~~~~~
+T_Toolkit.h:171:43: note: expected ‘char *’ but argument is of type ‘const char *’
+  171 |                        char *label, char *charvar, int charvar_length,
+      |                                     ~~~~~~^~~~~~~
+forms.c:265:50: warning: passing argument 2 of ‘T_FormStringEntry’ discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]
+  265 |                 T_FormStringEntry(*temp, prefs[i].name,
+      |                                          ~~~~~~~~^~~~~
+T_Toolkit.h:169:42: note: expected ‘char *’ but argument is of type ‘const char *’
+  169 | void T_FormStringEntry(Window win, char *name, short x, short y,
+      |                                    ~~~~~~^~~~
+forms.c:268:60: warning: passing argument 9 of ‘T_FormStringEntry’ discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]
+  268 |                                   t, w, 20, -w, 0, prefs[i].label,
+      |                                                    ~~~~~~~~^~~~~~
+T_Toolkit.h:171:30: note: expected ‘char *’ but argument is of type ‘const char *’
+  171 |                        char *label, char *charvar, int charvar_length,
+      |                        ~~~~~~^~~~~
+forms.c:269:43: warning: passing argument 10 of ‘T_FormStringEntry’ discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]
+  269 |                                   prefs[i].charvar, prefs[i].length,
+      |                                   ~~~~~~~~^~~~~~~~
+T_Toolkit.h:171:43: note: expected ‘char *’ but argument is of type ‘const char *’
+  171 |                        char *label, char *charvar, int charvar_length,
+      |                                     ~~~~~~^~~~~~~
+forms.c:274:50: warning: passing argument 2 of ‘T_FormStringEntry’ discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]
+  274 |                 T_FormStringEntry(*temp, prefs[i].name,
+      |                                          ~~~~~~~~^~~~~
+T_Toolkit.h:169:42: note: expected ‘char *’ but argument is of type ‘const char *’
+  169 | void T_FormStringEntry(Window win, char *name, short x, short y,
+      |                                    ~~~~~~^~~~
+forms.c:277:60: warning: passing argument 9 of ‘T_FormStringEntry’ discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]
+  277 |                                   t, w, 20, -w, 0, prefs[i].label,
+      |                                                    ~~~~~~~~^~~~~~
+T_Toolkit.h:171:30: note: expected ‘char *’ but argument is of type ‘const char *’
+  171 |                        char *label, char *charvar, int charvar_length,
+      |                        ~~~~~~^~~~~
+forms.c:278:43: warning: passing argument 10 of ‘T_FormStringEntry’ discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]
+  278 |                                   prefs[i].charvar, prefs[i].length, NULL);
+      |                                   ~~~~~~~~^~~~~~~~
+T_Toolkit.h:171:43: note: expected ‘char *’ but argument is of type ‘const char *’
+  171 |                        char *label, char *charvar, int charvar_length,
+      |                                     ~~~~~~^~~~~~~
+forms.c:282:50: warning: passing argument 2 of ‘T_FormStringEntry’ discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]
+  282 |                 T_FormStringEntry(*temp, prefs[i].name,
+      |                                          ~~~~~~~~^~~~~
+T_Toolkit.h:169:42: note: expected ‘char *’ but argument is of type ‘const char *’
+  169 | void T_FormStringEntry(Window win, char *name, short x, short y,
+      |                                    ~~~~~~^~~~
+forms.c:285:60: warning: passing argument 9 of ‘T_FormStringEntry’ discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]
+  285 |                                   t, w, 20, -w, 0, prefs[i].label,
+      |                                                    ~~~~~~~~^~~~~~
+T_Toolkit.h:171:30: note: expected ‘char *’ but argument is of type ‘const char *’
+  171 |                        char *label, char *charvar, int charvar_length,
+      |                        ~~~~~~^~~~~
+forms.c:286:43: warning: passing argument 10 of ‘T_FormStringEntry’ discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]
+  286 |                                   prefs[i].charvar, prefs[i].length, NULL);
+      |                                   ~~~~~~~~^~~~~~~~
+T_Toolkit.h:171:43: note: expected ‘char *’ but argument is of type ‘const char *’
+  171 |                        char *label, char *charvar, int charvar_length,
+      |                                     ~~~~~~^~~~~~~
+forms.c:290:50: warning: passing argument 2 of ‘T_FormStringEntry’ discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]
+  290 |                 T_FormStringEntry(*temp, prefs[i].name,
+      |                                          ~~~~~~~~^~~~~
+T_Toolkit.h:169:42: note: expected ‘char *’ but argument is of type ‘const char *’
+  169 | void T_FormStringEntry(Window win, char *name, short x, short y,
+      |                                    ~~~~~~^~~~
+forms.c:293:60: warning: passing argument 9 of ‘T_FormStringEntry’ discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]
+  293 |                                   t, w, 20, -w, 0, prefs[i].label,
+      |                                                    ~~~~~~~~^~~~~~
+T_Toolkit.h:171:30: note: expected ‘char *’ but argument is of type ‘const char *’
+  171 |                        char *label, char *charvar, int charvar_length,
+      |                        ~~~~~~^~~~~
+forms.c:294:43: warning: passing argument 10 of ‘T_FormStringEntry’ discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]
+  294 |                                   prefs[i].charvar, prefs[i].length,
+      |                                   ~~~~~~~~^~~~~~~~
+T_Toolkit.h:171:43: note: expected ‘char *’ but argument is of type ‘const char *’
+  171 |                        char *label, char *charvar, int charvar_length,
+      |                                     ~~~~~~^~~~~~~
+help.c: In function ‘DrawHelpWin’:
+help.c:233:35: warning: passing argument 7 of ‘T_DrawString’ discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]
+  233 |                          iconlabel[i + 1], JUSTIFY_LEFT, CROP_RIGHT, -1);
+      |                          ~~~~~~~~~^~~~~~~
+In file included from xpmapedit.h:38,
+                 from help.c:27:
+T_Toolkit.h:136:44: note: expected ‘char *’ but argument is of type ‘const char *’
+  136 |                   int height, GC gc, char *string, int justify,
+      |                                      ~~~~~~^~~~~~
+main.c: In function ‘Setup_default_server_options’:
+main.c:928:38: warning: passing argument 1 of ‘AddOption’ discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]
+  928 |         AddOption(default_settings[i].name, default_settings[i].value);
+      |                   ~~~~~~~~~~~~~~~~~~~^~~~~
+In file included from xpmapedit.h:42,
+                 from main.c:27:
+proto.h:110:21: note: expected ‘char *’ but argument is of type ‘const char *’
+  110 | int AddOption(char *name, char *value);
+      |               ~~~~~~^~~~
+main.c:928:64: warning: passing argument 2 of ‘AddOption’ discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]
+  928 |         AddOption(default_settings[i].name, default_settings[i].value);
+      |                                             ~~~~~~~~~~~~~~~~~~~^~~~~~
+proto.h:110:33: note: expected ‘char *’ but argument is of type ‘const char *’
+  110 | int AddOption(char *name, char *value);
+      |                           ~~~~~~^~~~~
+mv -f .deps/events.Tpo .deps/events.Po
+mv -f .deps/grow.Tpo .deps/grow.Po
+mv -f .deps/T_Handler.Tpo .deps/T_Handler.Po
+mv -f .deps/T_Popup.Tpo .deps/T_Popup.Po
+mv -f .deps/help.Tpo .deps/help.Po
+mv -f .deps/forms.Tpo .deps/forms.Po
+mv -f .deps/main.Tpo .deps/main.Po
+file.c: In function ‘StrToNum’:
+file.c:887:37: warning: ‘__builtin___sprintf_chk’ may write a terminating nul past the end of the destination [-Wformat-overflow=]
+  887 |             sprintf(returnval, "%s%c", returnval, string[0]);
+      |                                     ^
+In file included from /usr/include/stdio.h:980:
+In function ‘sprintf’,
+    inlined from ‘StrToNum’ at file.c:887:6:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:30:10: note: ‘__builtin___sprintf_chk’ output between 2 and 2147483648 bytes into a destination of size 2147483647
+   30 |   return __builtin___sprintf_chk (__s, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   31 |                                   __glibc_objsize (__s), __fmt,
+      |                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   32 |                                   __va_arg_pack ());
+      |                                   ~~~~~~~~~~~~~~~~~
+file.c: In function ‘StrToNum’:
+file.c:884:37: warning: ‘__builtin___sprintf_chk’ may write a terminating nul past the end of the destination [-Wformat-overflow=]
+  884 |             sprintf(returnval, "%s%c", returnval, string[0]);
+      |                                     ^
+In function ‘sprintf’,
+    inlined from ‘StrToNum’ at file.c:884:6:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:30:10: note: ‘__builtin___sprintf_chk’ output between 2 and 2147483648 bytes into a destination of size 2147483647
+   30 |   return __builtin___sprintf_chk (__s, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   31 |                                   __glibc_objsize (__s), __fmt,
+      |                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   32 |                                   __va_arg_pack ());
+      |                                   ~~~~~~~~~~~~~~~~~
+mv -f .deps/T_Toolkit.Tpo .deps/T_Toolkit.Po
+mv -f .deps/round.Tpo .deps/round.Po
+mv -f .deps/expose.Tpo .deps/expose.Po
+mv -f .deps/T_Form.Tpo .deps/T_Form.Po
+mv -f .deps/file.Tpo .deps/file.Po
+mv -f .deps/tools.Tpo .deps/tools.Po
+gcc  -g -O2   -o xpilot-ng-xp-mapedit events.o expose.o file.o forms.o grow.o help.o main.o round.o T_Form.o T_Handler.o tools.o T_Popup.o T_Toolkit.o ../../src/common/libxpcommon.a   -lSM -lICE  -lX11 -lexpat -lz -lm 
+make[3]: Leaving directory '/home/bart/PROJECTS/xpilot-ng/src/mapedit'
+make[3]: Entering directory '/home/bart/PROJECTS/xpilot-ng/src'
+make[3]: Nothing to be done for 'all-am'.
+make[3]: Leaving directory '/home/bart/PROJECTS/xpilot-ng/src'
+make[2]: Leaving directory '/home/bart/PROJECTS/xpilot-ng/src'
+Making all in lib
+make[2]: Entering directory '/home/bart/PROJECTS/xpilot-ng/lib'
+Making all in fonts
+make[3]: Entering directory '/home/bart/PROJECTS/xpilot-ng/lib/fonts'
+make[3]: Nothing to be done for 'all'.
+make[3]: Leaving directory '/home/bart/PROJECTS/xpilot-ng/lib/fonts'
+Making all in maps
+make[3]: Entering directory '/home/bart/PROJECTS/xpilot-ng/lib/maps'
+make[3]: Nothing to be done for 'all'.
+make[3]: Leaving directory '/home/bart/PROJECTS/xpilot-ng/lib/maps'
+Making all in textures
+make[3]: Entering directory '/home/bart/PROJECTS/xpilot-ng/lib/textures'
+make[3]: Nothing to be done for 'all'.
+make[3]: Leaving directory '/home/bart/PROJECTS/xpilot-ng/lib/textures'
+make[3]: Entering directory '/home/bart/PROJECTS/xpilot-ng/lib'
+make[3]: Nothing to be done for 'all-am'.
+make[3]: Leaving directory '/home/bart/PROJECTS/xpilot-ng/lib'
+make[2]: Leaving directory '/home/bart/PROJECTS/xpilot-ng/lib'
+Making all in doc
+make[2]: Entering directory '/home/bart/PROJECTS/xpilot-ng/doc'
+Making all in man
+make[3]: Entering directory '/home/bart/PROJECTS/xpilot-ng/doc/man'
+make[3]: Nothing to be done for 'all'.
+make[3]: Leaving directory '/home/bart/PROJECTS/xpilot-ng/doc/man'
+make[3]: Entering directory '/home/bart/PROJECTS/xpilot-ng/doc'
+make[3]: Nothing to be done for 'all-am'.
+make[3]: Leaving directory '/home/bart/PROJECTS/xpilot-ng/doc'
+make[2]: Leaving directory '/home/bart/PROJECTS/xpilot-ng/doc'
+Making all in contrib
+make[2]: Entering directory '/home/bart/PROJECTS/xpilot-ng/contrib'
+Making all in xpngcc
+make[3]: Entering directory '/home/bart/PROJECTS/xpilot-ng/contrib/xpngcc'
+make[3]: Nothing to be done for 'all'.
+make[3]: Leaving directory '/home/bart/PROJECTS/xpilot-ng/contrib/xpngcc'
+make[3]: Entering directory '/home/bart/PROJECTS/xpilot-ng/contrib'
+make[3]: Nothing to be done for 'all-am'.
+make[3]: Leaving directory '/home/bart/PROJECTS/xpilot-ng/contrib'
+make[2]: Leaving directory '/home/bart/PROJECTS/xpilot-ng/contrib'
+make[2]: Entering directory '/home/bart/PROJECTS/xpilot-ng'
+make[2]: Leaving directory '/home/bart/PROJECTS/xpilot-ng'
+make[1]: Leaving directory '/home/bart/PROJECTS/xpilot-ng'
