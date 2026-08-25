@@ -1,12 +1,11 @@
 # Building XPilot NG
 
-XPilot NG 4.7.3 still builds with its original autotools setup on a current
-Linux system — no `autoreconf` and no source surgery beyond the compile fixes
-already on `master`.
+XPilot NG 4.7.3 builds cleanly on a current Linux system with no source
+surgery beyond the compile fixes already on `master`.
 
-There are currently **two** build systems in the tree. CMake is the one to use;
-autotools is kept working alongside it until CMake has proven itself in CI, at
-which point Phase 1 of `ROADMAP.md` removes it.
+The build system is CMake. The original autotools build was removed at the end
+of Phase 1 (see `ROADMAP.md`) once CMake had reached verified parity; there is
+no `./configure` any more.
 
 ## Verified environment
 
@@ -46,9 +45,8 @@ Note that on Ubuntu 24.04 `libsdl1.2-dev` is **not** real SDL 1.2 — it is
 of SDL2. The client therefore already runs on SDL2 underneath, which is worth
 knowing before starting the Phase 2 port.
 
-Autotools (`autoconf`, `automake`, `libtool`) is **not** required. The tarball's
-generated `configure` works as-is; you only need autotools if you change
-`configure.ac` or `Makefile.am`.
+Autotools (`autoconf`, `automake`, `libtool`) is **not** required and is no
+longer used at all.
 
 ### Optional: sound
 
@@ -56,22 +54,16 @@ Sound is opt-in and is **off** in the default build. To attempt it:
 
 ```sh
 sudo apt install libopenal-dev libalut-dev
-./configure --enable-sound
+cmake -B build -S . -DXPILOT_SOUND=ON
 ```
 
 `freealut` (`libalut`) is effectively a dead library; replacing this whole path
-with SDL2_mixer is Phase 3 of the roadmap. Be aware that `configure` treats
-missing audio libraries as non-fatal: if you pass `--enable-sound` without
-OpenAL and freealut present, it prints
+with SDL2_mixer is Phase 3 of the roadmap. Unlike the old autotools build,
+which downgraded missing audio libraries to a warning and silently produced a
+mute binary, `-DXPILOT_SOUND=ON` fails outright if OpenAL or freealut is
+missing.
 
-```
-*** Client sound disabled. Check that you have OpenAL installed.
-```
-
-and then continues with a silent build. Check for `#define SOUND 1` in the
-generated `config.h` to confirm sound was actually enabled.
-
-## Build (CMake — preferred)
+## Build
 
 ```sh
 cmake -B build -S .
@@ -96,60 +88,21 @@ server-only build needs just `build-essential libexpat1-dev zlib1g-dev`.
 Unlike autotools, `-DXPILOT_SOUND=ON` **fails** if OpenAL or freealut is
 missing rather than quietly building without sound.
 
-## Build (autotools — legacy)
-
-```sh
-./configure
-make -j"$(nproc)"
-```
-
-This produces five binaries, left in the source tree (no `make install`
-required to run them):
-
-| Binary | Purpose |
-|---|---|
-| `src/server/xpilot-ng-server` | game server |
-| `src/client/x11/xpilot-ng-x11` | plain X11 client |
-| `src/client/sdl/xpilot-ng-sdl` | SDL/OpenGL client |
-| `src/replay/xpilot-ng-replay` | recording playback |
-| `src/mapedit/xpilot-ng-xp-mapedit` | map editor |
-
-The build currently emits 55 warnings and no errors. The bulk are
-`-Wdiscarded-qualifiers` (25) and `-Wunused-result` (8), concentrated in
-`forms.c` and `file.c`. A captured baseline is in `build-log-baseline.txt`.
-
-### Useful configure flags
-
-| Flag | Effect |
-|---|---|
-| `--disable-x11-client` | skip the X11 client |
-| `--disable-sdl-client` | skip the SDL/OpenGL client |
-| `--disable-replay` | skip the replay tool |
-| `--disable-xp-mapedit` | skip the map editor |
-| `--enable-sound` | attempt OpenAL sound (see above) |
-| `--enable-sdl-gameloop` | use the SDL game loop instead of the X11-optimised one |
-| `--enable-select-sched` | alternative server scheduling, aimed at Linux 2.6+ |
-
-`./configure --help` lists the rest.
-
 ## Running a local game
-
-Paths below are the autotools ones; for a CMake build substitute
-`build/bin/xpilot-ng-server` and `build/bin/xpilot-ng-sdl`.
 
 Start a server with robots:
 
 ```sh
-./src/server/xpilot-ng-server -map lib/maps/dodgers-robots.xp2 \
+./build/bin/xpilot-ng-server -map lib/maps/dodgers-robots.xp2 \
     -maxRobots 4 -minRobots 4 -port 15000 -noQuit -idleRun &
 ```
 
 Connect a client:
 
 ```sh
-./src/client/sdl/xpilot-ng-sdl -join -name yourname -port 15000 localhost
+./build/bin/xpilot-ng-sdl -join -name yourname -port 15000 localhost
 # or
-./src/client/x11/xpilot-ng-x11 -join -name yourname -port 15000 localhost
+./build/bin/xpilot-ng-x11 -join -name yourname -port 15000 localhost
 ```
 
 `-noQuit` and `-idleRun` matter more than they look — see below.
