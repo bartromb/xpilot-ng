@@ -1,0 +1,151 @@
+/*
+ * XPilot NG, a multiplayer space war game.
+ *
+ * CMake-generated configuration header.
+ *
+ * This replaces the autoconf-generated config.h. It intentionally defines only
+ * the macros that source files under src/ actually read; see
+ * docs/build-audit.md for the audit that established that set.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+
+#ifndef XPILOT_CONFIG_H
+#define XPILOT_CONFIG_H
+
+/* --- Package identity ------------------------------------------------- */
+
+#define PACKAGE "@PROJECT_NAME@"
+#define PACKAGE_NAME "@XP_PACKAGE_NAME@"
+#define PACKAGE_VERSION "@PROJECT_VERSION@"
+#define PACKAGE_STRING "@XP_PACKAGE_NAME@ @PROJECT_VERSION@"
+#define PACKAGE_TARNAME "@PROJECT_NAME@"
+#define PACKAGE_BUGREPORT "@XP_BUGREPORT@"
+#define VERSION "@PROJECT_VERSION@"
+
+/* --- Headers ---------------------------------------------------------- */
+
+#cmakedefine HAVE_ARPA_INET_H 1
+#cmakedefine HAVE_ARPA_NAMESER_H 1
+#cmakedefine HAVE_ASSERT_H 1
+#cmakedefine HAVE_BSTRING_H 1
+#cmakedefine HAVE_CTYPE_H 1
+#cmakedefine HAVE_ERRNO_H 1
+#cmakedefine HAVE_FCNTL_H 1
+#cmakedefine HAVE_FLOAT_H 1
+#cmakedefine HAVE_INTTYPES_H 1
+#cmakedefine HAVE_LIMITS_H 1
+#cmakedefine HAVE_MATH_H 1
+#cmakedefine HAVE_MEMORY_H 1
+#cmakedefine HAVE_NETDB_H 1
+#cmakedefine HAVE_NET_IF_H 1
+#cmakedefine HAVE_NETINET_IN_H 1
+#cmakedefine HAVE_NETINET_TCP_H 1
+#cmakedefine HAVE_PWD_H 1
+#cmakedefine HAVE_RESOLV_H 1
+#cmakedefine HAVE_SETJMP_H 1
+#cmakedefine HAVE_SIGNAL_H 1
+#cmakedefine HAVE_STDARG_H 1
+#cmakedefine HAVE_STDINT_H 1
+#cmakedefine HAVE_STDLIB_H 1
+#cmakedefine HAVE_STRING_H 1
+#cmakedefine HAVE_STRINGS_H 1
+#cmakedefine HAVE_SYS_FCNTL_H 1
+#cmakedefine HAVE_SYS_FILE_H 1
+#cmakedefine HAVE_SYS_FILIO_H 1
+#cmakedefine HAVE_SYS_INTTYPES_H 1
+#cmakedefine HAVE_SYS_IOCTL_H 1
+#cmakedefine HAVE_SYS_LOCK_H 1
+#cmakedefine HAVE_SYS_MMAN_H 1
+#cmakedefine HAVE_SYS_PARAM_H 1
+#cmakedefine HAVE_SYS_SELECT_H 1
+#cmakedefine HAVE_SYS_SOCKET_H 1
+#cmakedefine HAVE_SYS_SOCKIO_H 1
+#cmakedefine HAVE_SYS_STAT_H 1
+#cmakedefine HAVE_SYS_TIME_H 1
+#cmakedefine HAVE_SYS_TYPES_H 1
+#cmakedefine HAVE_UNISTD_H 1
+#cmakedefine HAVE_VALUES_H 1
+
+/* X11 headers */
+#cmakedefine HAVE_X11_X_H 1
+#cmakedefine HAVE_X11_XLIB_H 1
+#cmakedefine HAVE_X11_XOS_H 1
+#cmakedefine HAVE_X11_XUTIL_H 1
+#cmakedefine HAVE_X11_KEYSYM_H 1
+#cmakedefine HAVE_X11_XATOM_H 1
+#cmakedefine HAVE_X11_XMD_H 1
+#cmakedefine HAVE_X11_EXTENSIONS_XDBE_H 1
+#cmakedefine HAVE_X11_EXTENSIONS_MULTIBUF_H 1
+
+/* --- Functions -------------------------------------------------------- */
+
+#cmakedefine HAVE_GETTIMEOFDAY 1
+#cmakedefine HAVE_STRCASECMP 1
+#cmakedefine HAVE_STRNCASECMP 1
+#cmakedefine HAVE_STRLCAT 1
+#cmakedefine HAVE_STRLCPY 1
+
+/* --- Libraries -------------------------------------------------------- */
+
+#cmakedefine HAVE_LIBEXPAT 1
+#cmakedefine HAVE_LIBZ 1
+
+/* --- Structure members and misc probes -------------------------------- */
+
+/* struct sockaddr has an sa_len member (BSD-derived systems) */
+#cmakedefine HAVE_SA_LEN 1
+
+/* <sys/time.h> and <time.h> may both be included */
+#cmakedefine TIME_WITH_SYS_TIME 1
+
+/* ANSI C header files are available */
+#cmakedefine STDC_HEADERS 1
+
+/* --- Optional components ---------------------------------------------- */
+
+/* SDL_image is available to the SDL client */
+#cmakedefine HAVE_SDL_IMAGE 1
+
+/* XFree86-Misc extension (never enabled by the CMake build) */
+#cmakedefine HAVE_XF86MISC 1
+
+/* OpenAL sound support */
+#cmakedefine SOUND 1
+
+/* --- Build-time feature switches -------------------------------------- */
+
+/* X Double Buffer Extension in the X11 client */
+#cmakedefine DBE 1
+
+/* X Multibuffer Extension in the X11 client */
+#cmakedefine MBX 1
+
+/* Lock the server into memory with plock() */
+#cmakedefine PLOCKSERVER 1
+
+/* select()-based server scheduling */
+#cmakedefine SELECT_SCHED 1
+
+/* Enable development-only code paths */
+#cmakedefine DEVELOPMENT 1
+
+/*
+ * _WINDOWS is deliberately never defined here. The CMake build targets Linux
+ * only; the Windows paths in the source remain reachable through the legacy
+ * autotools/MSVC project files.
+ */
+
+#endif /* XPILOT_CONFIG_H */

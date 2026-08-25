@@ -1,0 +1,128 @@
+name: build
+
+on:
+  push:
+    branches: [master, 'phase*']
+  pull_request:
+  workflow_dispatch:
+
+env:
+  # Package set documented in BUILDING.md, plus xvfb so the GUI clients can be
+  # smoke-tested headlessly.
+  XPILOT_DEPS: >-
+    libx11-dev libsm-dev libice-dev
+    libgl-dev libglu1-mesa-dev
+    libsdl1.2-dev libsdl-ttf2.0-dev libsdl-image1.2-dev
+    libexpat1-dev zlib1g-dev
+
+jobs:
+  cmake:
+    name: CMake (ubuntu-latest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          # libgl1-mesa-dri gives Xvfb software GLX, which the SDL client needs
+          # to create a GL context on a headless runner.
+          # libgl1-mesa-dri gives Xvfb software GLX, which the SDL client needs
+          # to create a GL context. xfonts-base supplies the fixed bitmap fonts
+          # the X11 client asks for; without them it falls back and logs errors.
+          sudo apt-get install -y --no-install-recommends \
+              $XPILOT_DEPS xvfb libgl1-mesa-dri xfonts-base
+
+      - name: Configure
+        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=RelWithDebInfo
+
+      - name: Build
+        run: cmake --build build -j"$(nproc)"
+
+      - name: Check all five binaries were produced
+        run: |
+          set -eux
+          for b in xpilot-ng-server xpilot-ng-x11 xpilot-ng-sdl \
+                   xpilot-ng-replay xpilot-ng-xp-mapedit; do
+            test -x "build/bin/$b"
+          done
+
+      - name: Install
+        # The clients look for textures and fonts under CONF_DATADIR
+        # (/usr/local/share/xpilot-ng/), so install before smoke-testing them.
+        # This exercises the install rules as a side effect.
+        run: sudo cmake --install build
+
+      - name: Smoke test — server with robots
+        run: |
+          set -eux
+          ./build/bin/xpilot-ng-server \
+              -map lib/maps/dodgers-robots.xp2 \
+              -maxRobots 4 -minRobots 4 -port 15000 -noQuit -idleRun \
+              > server.log 2>&1 &
+          echo $! > server.pid
+          sleep 10
+          # The server exits when the last human leaves, so -noQuit is what
+          # keeps it alive here; if it died, the log says why.
+          kill -0 "$(cat server.pid)" || { cat server.log; exit 1; }
+          grep -q "Server runs at" server.log || { cat server.log; exit 1; }
+
+      - name: Smoke test — both clients connect
+        run: |
+          set -eux
+          # Assert against the server log rather than the client's stdout: the
+          # client block-buffers stdout and timeout SIGTERMs it without a
+          # flush, so "Login allowed" is not reliably present in its own log.
+          # The server is the authority on who actually connected.
+          # Nicknames must stay short: the server truncates them to 15
+          # characters, so "ci-xpilot-ng-x11" would never match on the way back.
+          for c in xpilot-ng-x11 xpilot-ng-sdl; do
+            nick="ci-${c##*-}"
+            timeout 25 xvfb-run -a ./build/bin/"$c" \
+                -join -name "$nick" -port 15000 localhost > "$c.log" 2>&1 || true
+            if ! grep -qi "Welcome $nick" server.log; then
+              echo "=== $c did not reach the server ==="
+              cat "$c.log"
+              echo "=== server log ==="
+              cat server.log
+              exit 1
+            fi
+          done
+          kill "$(cat server.pid)" || true
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cmake-logs
+          path: |
+            *.log
+            build/CMakeFiles/CMakeConfigureLog.yaml
+          if-no-files-found: ignore
+
+  autotools:
+    # Parity check while both build systems coexist. Phase 1 removes this job
+    # together with the autotools files once CMake is the only build.
+    name: autotools (parity)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends $XPILOT_DEPS
+
+      - name: Configure and build
+        run: |
+          ./configure
+          make -j"$(nproc)"
+
+      - name: Check all five binaries were produced
+        run: |
+          set -eux
+          test -x src/server/xpilot-ng-server
+          test -x src/client/x11/xpilot-ng-x11
+          test -x src/client/sdl/xpilot-ng-sdl
+          test -x src/replay/xpilot-ng-replay
+          test -x src/mapedit/xpilot-ng-xp-mapedit
