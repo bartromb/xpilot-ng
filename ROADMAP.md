@@ -4,7 +4,13 @@ Goal: revive XPilot NG 4.7.3 (last release 2010, C, GPLv2) so it builds and runs
 cleanly on modern Linux (Ubuntu 24.04+, Wayland, current GCC/Clang), then
 incrementally modernize the client.
 
-Source: SourceForge tarball 4.7.3 or GitHub mirror `kekyo/xpilot-ng`.
+Repo: **`bartromb/xpilot-ng`** (https://github.com/bartromb/xpilot-ng) — this is where the
+modernization work lives, and it is what `origin` points at.
+
+Upstream provenance: the code originates from the SourceForge 4.7.3 tarball, by way of the
+GitHub mirror `kekyo/xpilot-ng`, which this repo is a fork of and which is wired up as the
+`upstream` remote. Upstream is archival — it has seen no development since 2010 — so treat it
+as a provenance link and a source of history, never as a merge target.
 
 ## Ecosystem — state of play (checked Aug 2026)
 
