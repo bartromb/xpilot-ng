@@ -322,12 +322,51 @@ Two findings worth carrying forward:
 
 Branch: `phase3-audio`
 
-- [ ] Map current sound events → sample table
-- [ ] Replace freealut loading (dead library) with SDL2_mixer
-- [ ] Positional audio: simple stereo panning based on screen position is enough
-- [ ] Make audio optional at build AND runtime (server stays silent/headless)
+- [x] Map current sound events → sample table — audited: **83 event names declared, 61 bound
+      in `lib/sound/sounds.txt`, 22 events silent** (`player_hit_wall`, `nuke_explosion`,
+      `declare_war` and others), and **0 entries in sounds.txt referencing an unknown event**,
+      so the file has no rot in it. Two entries carry parameters rather than a bare filename:
+      `sbounce.wav,0.4` and `thrust.wav,0.05,1`, i.e. `file,gain,loop`.
+- [x] Replace freealut loading with SDL2_mixer — new backend `src/client/sdlmixaudio.c`
+      implements the same six `audioDevice*` entry points, so `caudio.c` and the event
+      mapping are untouched. `oalaudio.c` is deleted and nothing links OpenAL or freealut.
+      Two behaviours of the old backend had to be preserved, and both would have been easy
+      to lose:
+      the `file,gain,loop` parameter syntax (the old parser chopped the caller's string in
+      place with `strtok`; the new one does not, and that is unit-tested); and the fact that
+      **`audioDeviceUpdate` is not a no-op** — the protocol has no "stop" event, so a looping
+      sound like thrust is kept alive by the server re-sending the event each frame and must
+      be stopped when those events stop arriving. A no-op would have left thrust looping
+      forever after one burst.
+- [ ] Positional audio — **not implementable as specified.** The audio packet is three
+      bytes: packet id, sound index, volume (`Receive_audio` in `netclient.c`, `queue_audio`
+      in the server). The client is never told *where* a sound came from, so there is no
+      screen position to pan on. What conveys position today is the server's
+      distance-derived volume, which the new backend honours. Real panning would need a
+      protocol extension, which would break compatibility with existing servers — a
+      deliberate decision rather than a small change, and not one to make in passing.
+- [x] Make audio optional at build AND runtime — build: `XPILOT_SOUND` (off by default) and
+      it now *fails* if SDL2_mixer is missing rather than silently producing a mute binary,
+      which is what autotools used to do. Runtime: `maxVolume` and `sound` already gate every
+      event through `audioIsEnabled()`, and `/set maxVolume 0` silences it live. The server
+      links no audio at all — the backend is in `libxpclient`, which the server does not use.
 
 Acceptance: all game sounds play; build no longer links freealut.
+
+**Status (26 Aug 2026): built, running, and audible to the system — not yet judged by ear.**
+
+| Check | Result |
+|---|---|
+| Builds with `-DXPILOT_SOUND=ON` | 0 errors, and 52 warnings — unchanged, so the new backend adds none |
+| No freealut/OpenAL linkage | **Confirmed**: `ldd` finds zero matches; `libSDL2_mixer` present |
+| Audio device opens | `Audio: SDL2_mixer, 32 channels.` |
+| Samples load | No load failures across a full match |
+| Actually producing output | **Confirmed**: PipeWire reports a live stereo sink-input owned by `xpilot-ng-sdl` |
+| Sounds are *correct* | **Unverified.** Whether the right sample plays for each event, at sensible volume, and whether the thrust loop stops cleanly, needs a human listening. |
+
+The one thing most worth a human ear is the looping thrust sound, because that is where the
+old backend's behaviour was subtlest: loops are stopped by the *absence* of repeated events,
+so a mistake shows up as thrust that never stops rather than as an error.
 
 ## Phase 4 — Quality of life
 

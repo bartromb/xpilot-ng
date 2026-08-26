@@ -32,9 +32,8 @@ add_library(xpclient STATIC
 
 # Matches the autotools COND_SOUND conditional.
 if(XPILOT_SOUND)
-    target_sources(xpclient PRIVATE caudio.c oalaudio.c)
-    target_link_libraries(xpclient PUBLIC OpenAL::OpenAL "${ALUT_LIBRARY}")
-    target_include_directories(xpclient PUBLIC "${ALUT_INCLUDE_DIR}")
+    target_sources(xpclient PRIVATE caudio.c sdlmixaudio.c)
+    target_link_libraries(xpclient PUBLIC PkgConfig::SDL2_MIXER PkgConfig::SDL2)
 endif()
 
 target_include_directories(xpclient PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")

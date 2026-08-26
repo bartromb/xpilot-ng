@@ -122,7 +122,7 @@
 /* XFree86-Misc extension (never enabled by the CMake build) */
 #cmakedefine HAVE_XF86MISC 1
 
-/* OpenAL sound support */
+/* Sound support (SDL2_mixer) */
 #cmakedefine SOUND 1
 
 /* --- Build-time feature switches -------------------------------------- */
