@@ -109,11 +109,17 @@ Several of these had been in the code for decades:
   signed, so `ptr[j++] << 24` shifts a negative value for any byte ≥ 0x80 —
   reachable pre-authentication. The fix was verified not to change wire
   decoding at all. ([`tests/`](tests/README.md))
-- **`PKT_PLAYER` was mis-sized by every reimplementation of the protocol**,
-  including this one at first. It carries *two* ship-shape strings, not one,
-  and the reliable stream is undelimited — so reading one string turns
-  everything after it into garbage. Documented in
-  [`docs/protocol.md`](docs/protocol.md).
+- **The reliable sub-stream hides inside frame packets.** Before play it
+  arrives as datagrams of its own; once frames start the server appends it to
+  the *end of a frame update*, so a client checking only the first byte goes
+  deaf exactly when the game begins. Nothing errors — scores and kills simply
+  never arrive, and the server quietly drops the connection with a retransmit
+  timeout that reads like a network fault. This one bug was why "the robots
+  never kill the bot" was believed for so long. They kill it constantly.
+- **`PKT_PLAYER` is mis-sized by the obvious reading of the protocol.** It
+  carries *two* ship-shape strings, not one, and the reliable stream is
+  undelimited — so reading one string turns everything after it into garbage.
+  Both findings are in [`docs/protocol.md`](docs/protocol.md).
 - **`Console_print` crashed on any format argument**, passing a `va_list` to a
   variadic function. Every existing caller passed a bare string, so it had
   never fired.

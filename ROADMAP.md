@@ -602,12 +602,34 @@ kind of decision from the rest of this phase.
       across 4 environments**, 4x realtime each.
 
 ### 6c — Learned agents
-- [ ] Baseline: PPO via Stable-Baselines3, self-play
-- [ ] Curriculum: navigate-only map → dodge → combat (prior work shows direct
-      combat learning stalls; staged rewards needed)
-- [ ] Benchmark against the built-in server robots; log win rates per checkpoint
+- [x] Baseline: PPO via Stable-Baselines3 (`ai/xpilot_bot/train.py`). Not
+      self-play: the built-in robots are a stronger and more stable opponent
+      than an early checkpoint, and they cost nothing to run.
+- [x] Curriculum: navigate → dodge → combat, carrying the policy forward
+      (`--stages`). The prior work is right about why: firing is only
+      rewarded when it connects, and it cannot connect until the agent can
+      fly and aim, so an agent dropped into combat has no gradient to climb.
+- [x] Benchmark against the built-in server robots (`ai/xpilot_bot/benchmark.py`),
+      reporting kills and deaths from the server's own death notices, always
+      against a random-policy baseline on the same map.
 - [ ] Stretch: LLM as high-level strategy layer / chat personality on top of a
-      classical controller (never for frame-level control — latency unsuitable)
+      classical controller (never for frame-level control — latency unsuitable).
+      Not attempted.
+
+Two things found here that were not on anyone's list, both in `docs/protocol.md`:
+
+- **Reliable data is piggybacked onto frame packets** once play starts, so a
+  client that checks only the first byte of each datagram goes deaf exactly
+  when the game begins. Nothing errors; the server just stops being
+  acknowledged and drops the connection after ~15s with a retransmit timeout
+  that reads like a network fault. Every training episode longer than that
+  had been ending in a disconnection dressed up as an episode end.
+- **`PKT_PLAYER` carries two ship-shape strings**, not one. The stream is
+  undelimited, so reading one turns everything after it into garbage.
+
+The standing note that the robots never kill the bot was wrong, and this is
+why: an idle bot dies five times in seventy seconds, and the server had been
+announcing every one of them on the stream nobody was reading.
 
 Acceptance 6a: a third party can `pip install` the SDK and have a moving,
 shooting bot on a local server in under 30 minutes using only the README.

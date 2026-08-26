@@ -227,23 +227,23 @@ looked like it was working and was teaching nothing. Ten frames makes a step
 
 ### On win rates
 
-They are measurable now. Scores, kills and player names travel on the
-**reliable sub-stream**, not the frame stream, which is why they were
-invisible for so long -- the bot was acknowledging that stream without ever
-looking inside it. [`reliable.py`](xpilot_bot/reliable.py) decodes it, and
-the benchmark reports the server's own kill and death counts.
+They are measured, from the server's own death notices. Getting there took
+fixing a client bug worth knowing about, because it made the whole
+environment quietly wrong: reliable data is piggybacked onto frame packets
+once play starts, and the client only checked the first byte of each
+datagram. So it went deaf at exactly the moment the game began — no scores,
+no kills, no player joins — and, having stopped acknowledging anything, was
+dropped by the server after about fifteen seconds. Every training episode
+longer than that was ending in a disconnection dressed up as an episode end.
 
-The honest caveat is that against the stock robots on `dodgers-robots.xp2`,
-**nobody dies** in a 300-step episode: neither policy kills, and neither gets
-killed. The benchmark says so in those words rather than reporting 0-0 as a
-draw. Getting real fights out of the robots is the next problem, and it is a
-game-configuration problem rather than a protocol one.
+This is also why the note "the robots never kill the bot" stood for so long.
+They kill it constantly: an idle bot on `dodgers-robots.xp2` dies five times
+in seventy seconds, and the server had been announcing every one of them.
 
-What the reliable stream *does* give immediately is the server's own score,
-which is worth more than it sounds: it is computed by the game, entirely
-independent of the reward function in `env.py`. A policy that scores better
-by the server's reckoning is not merely satisfying the reward it was trained
-on.
+Kills come from the death notices rather than from `PKT_SCORE`, whose life
+count never changes on a map with unlimited lives. Chat is excluded, since
+otherwise a player could type "bot was killed by a shot from robo." and be
+believed.
 
 ## Status
 

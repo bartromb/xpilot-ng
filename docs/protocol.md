@@ -70,6 +70,23 @@ Decoding it was needed to measure anything about a game's *outcome*, since no
 score, kill or player name appears on the frame stream at all. Three
 properties are easy to miss from the source and expensive to get wrong.
 
+**Segments are not always datagrams of their own.** This is the one that
+costs the most to get wrong. Before play begins, each `PKT_RELIABLE` segment
+arrives as its own datagram, so a client can recognise it by its first byte.
+Once frames start, `Send_end_of_frame` appends whatever reliable data is
+queued to the *end of a frame update* — so the datagram begins with
+`PKT_START` and the segment is somewhere in the middle of it. A client that
+inspects only `data[0]` therefore works flawlessly through setup and goes
+deaf the instant the game starts.
+
+The failure is quiet and misleading. Nothing errors; the reliable stream
+simply appears to stop. Player joins, scores and death notices never arrive,
+so the game looks eventless. Meanwhile the server is retransmitting data it
+is owed, receiving no acknowledgement, and after enough retries it drops the
+connection — logged as `Goodbye … ("timeout 08")`, which reads like a network
+problem rather than a parsing one. Finding a `PKT_RELIABLE` therefore means
+walking the whole datagram packet by packet.
+
 **It is a byte stream, not a packet stream.** Each `PKT_RELIABLE` segment is
 `%c%hd%ld%ld` — type, payload length, offset into the stream, and a frame
 number — followed by the payload. Segments arrive out of order, are
@@ -99,6 +116,24 @@ Types that can appear (the client's `reliable_tbl`, plus `PKT_REPLY` and
 `PLAYER`, `TEAM`, `SCORE`, `TIMING`, `LEAVE`, `WAR`, `SEEK`, `BASE`, `QUIT`,
 `STRING`, `SCORE_OBJECT`, `TALK_ACK`. Scores are sent as hundredths in
 protocol versions ≥ 0x4F11 and as whole numbers before that.
+
+### Kills and deaths are only in the text
+
+There is no kill packet. `PKT_SCORE` carries a life count, but on a map with
+unlimited lives it never changes, so watching it detects nothing. What the
+server does send is a death notice as an ordinary `PKT_MESSAGE`:
+
+    Probe was killed by a shot from Boson.
+    bot and robo crashed.
+    bot smashed against a wall
+
+These come from `sprintf` formats in `src/server/*.c`, and they are what a
+human player reads too. Counting them is the only way to get kills.
+
+One caveat that matters if the results are to be trusted: a player could
+simply *type* a death notice. The server appends `" [nick]"` to everything a
+player says and to nothing it says itself, so a message ending in `]` is
+chat and must not be counted.
 
 ## NAT audit
 
