@@ -51,6 +51,12 @@ struct options	options;
  * during runtime and no follow up action is needed.
  */
 void tuner_none(void)  { ; }
+
+/* Apply -metaServerHost, so a self-hosted metaserver needs no recompile. */
+void tuner_metaServerHost(void)
+{
+    Meta_set_host(options.metaServerHost);
+}
 void tuner_dummy(void) { ; }
 
 
@@ -952,6 +958,19 @@ static option_desc opts[] = {
 	valBool,
 	tuner_none,
 	"Keep the meta server informed about our game?\n",
+	OPT_COMMAND | OPT_DEFAULTS | OPT_VISIBLE
+    },
+    {
+	"metaServerHost",
+	"metaServerHost",
+	"",
+	&options.metaServerHost,
+	valString,
+	tuner_metaServerHost,
+	"Hostname or address of the metaserver to report to.\n"
+	"Empty means the historical meta.xpilot.org and meta2.xpilot.org,\n"
+	"both of which are dead. Set this to a self-hosted metaserver; see\n"
+	"metaserver/README.md.\n",
 	OPT_COMMAND | OPT_DEFAULTS | OPT_VISIBLE
     },
     {

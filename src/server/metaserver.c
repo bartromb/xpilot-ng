@@ -42,6 +42,26 @@ struct MetaServer meta_servers[2] = {
     },
 };
 
+/*
+ * Point the server at a different metaserver at runtime.
+ *
+ * The addresses were compiled in, which meant a self-hosted metaserver
+ * required recompiling the server -- enough friction that nobody would. The
+ * -metaServerHost option overrides the first entry; the second is dropped,
+ * since a self-hoster has one.
+ */
+void Meta_set_host(const char *host)
+{
+    if (host == NULL || host[0] == '\0')
+	return;
+
+    strlcpy(meta_servers[0].name, host, sizeof(meta_servers[0].name));
+    /* Let the name be resolved rather than trusting a stale literal IP. */
+    meta_servers[0].addr[0] = '\0';
+    meta_servers[1].name[0] = '\0';
+    meta_servers[1].addr[0] = '\0';
+}
+
 void Meta_send(char *mesg, size_t len)
 {
     int i;
@@ -50,10 +70,22 @@ void Meta_send(char *mesg, size_t len)
 	return;
 
     for (i = 0; i < NELEM(meta_servers); i++) {
-	if (sock_send_dest(&contactSocket, meta_servers[i].addr,
+	/*
+	 * Prefer the literal address when there is one, since it saves a
+	 * lookup, but fall back to the name -- a host set with
+	 * -metaServerHost has no address, deliberately, so that it is
+	 * resolved rather than assumed.
+	 */
+	const char *dest = meta_servers[i].addr[0] != '\0'
+	    ? meta_servers[i].addr : meta_servers[i].name;
+
+	if (dest[0] == '\0')
+	    continue;	/* slot cleared by -metaServerHost */
+
+	if (sock_send_dest(&contactSocket, (char *)dest,
 			   META_PORT, mesg, (int)len) != (int)len) {
 	    sock_get_error(&contactSocket);
-	    sock_send_dest(&contactSocket, meta_servers[i].addr,
+	    sock_send_dest(&contactSocket, (char *)dest,
 			   META_PORT, mesg, (int)len);
 	}
     }
@@ -64,7 +96,11 @@ int Meta_from(char *addr, int port)
     int i;
 
     for (i = 0; i < NELEM(meta_servers); i++) {
-	if (!strcmp(addr, meta_servers[i].addr))
+	if (meta_servers[i].addr[0] != '\0'
+	    && !strcmp(addr, meta_servers[i].addr))
+	    return (port == META_PORT);
+	if (meta_servers[i].name[0] != '\0'
+	    && !strcmp(addr, meta_servers[i].name))
 	    return (port == META_PORT);
     }
     return 0;
