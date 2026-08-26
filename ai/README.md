@@ -201,6 +201,39 @@ to fire against a live server, because provoking a death on demand proved
 unreliable -- holding self-destruct for thirty seconds produced none, and the
 built-in robots never killed the bot in several thousand steps.
 
+## Training an agent
+
+```sh
+pip install "./ai[rl]" stable-baselines3
+python -m xpilot_bot.train --steps 200000 --envs 4 --fps 200
+python -m xpilot_bot.benchmark --model ai/checkpoints/ppo_final.zip
+python -m xpilot_bot.benchmark --random      # always compare against this
+```
+
+Training runs a curriculum — **navigate, then dodge, then combat** — carrying
+the policy forward between stages. The reason for staging is that firing is
+only rewarded when it connects, and it cannot connect until the agent can
+already fly and aim, so an agent dropped straight into combat has no gradient
+to climb and settles for sitting still.
+
+### One setting that matters more than the rest
+
+`frames_per_step` defaults to 10, and the default used to be 1. That was
+wrong in a way worth knowing about: at 200 fps a frame is 5 ms, so a 500-step
+episode was **two and a half seconds of game time**. Measured, the ship never
+reached a non-zero speed and no opponent ever came into view — the environment
+looked like it was working and was teaching nothing. Ten frames makes a step
+50 ms, about a human reaction time.
+
+### On win rates
+
+The roadmap asks to benchmark win rates against the built-in robots. They are
+**not measurable yet**: scores arrive on the reliable sub-stream, which the
+client acknowledges but does not parse, so a bot never learns who killed whom.
+The benchmark reports survival, reward and aim quality, all of which come from
+the frame stream that *is* decoded. Win rates need the reliable stream
+decoded — a separate piece of work, and the honest next step for 6c.
+
 ## Status
 
 Phase 6a of `ROADMAP.md` is met, and frame decoding is done: verified at 0

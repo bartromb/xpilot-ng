@@ -56,6 +56,27 @@ ACTIONS: list[tuple[int, ...]] = [
     (p.KEY_SHIELD,),
 ]
 
+#: Curriculum stages, as reward weights.
+#:
+#: The roadmap notes that learning combat directly tends to stall, which is
+#: the usual finding: firing is only rewarded when it connects, and it cannot
+#: connect until the agent can already fly and aim. So flying is rewarded
+#: first, then staying alive near opponents, then aiming, and only then is the
+#: survival bonus reduced so that fighting is worth the risk.
+#:
+#: alive   per step, for existing
+#: fuel    change in fuel fraction; discourages pointless thrusting
+#: aim     for pointing at the nearest ship
+#: speed   for moving at all; without it "sit still" is a local optimum
+STAGES = {
+    "navigate": {"alive": 0.01, "fuel": 0.5, "aim": 0.00, "speed": 0.05},
+    "dodge":    {"alive": 0.02, "fuel": 0.3, "aim": 0.00, "speed": 0.02},
+    "combat":   {"alive": 0.01, "fuel": 0.2, "aim": 0.05, "speed": 0.01},
+}
+
+#: Robots present at each stage. Navigation is learned on an empty map.
+STAGE_ROBOTS = {"navigate": 0, "dodge": 2, "combat": 4}
+
 #: How many other ships appear in the observation, nearest first.
 MAX_TRACKED_SHIPS = 4
 
@@ -146,10 +167,11 @@ class XPilotEnv(gym.Env):
         nick: str = "rl",
         fps: int = 50,
         max_steps: int = 2000,
-        frames_per_step: int = 1,
+        frames_per_step: int = 10,
         world_scale: float = 3000.0,
         death_frames: int = 15,
         death_penalty: float = 1.0,
+        stage: str = "combat",
         server: ServerProcess | None = None,
     ) -> None:
         super().__init__()
@@ -158,6 +180,12 @@ class XPilotEnv(gym.Env):
         self.nick = nick
         self.fps = fps
         self.max_steps = max_steps
+        # One frame per step is far too fine to act on. At 200 fps a frame is
+        # 5ms, so a 500-step episode would be two and a half seconds of game
+        # time -- measured, the ship never even reached a non-zero speed and
+        # no opponent ever came into view. Ten frames makes a step 50ms at
+        # 200 fps, which is about a human reaction and enough for an action to
+        # have a visible effect.
         self.frames_per_step = frames_per_step
         self.world_scale = world_scale
         # A frame with no PKT_SELF means "not actively playing": dead,
@@ -166,6 +194,10 @@ class XPilotEnv(gym.Env):
         # "you died" packet the client can simply read.
         self.death_frames = death_frames
         self.death_penalty = death_penalty
+        if stage not in STAGES:
+            raise ValueError(f"unknown stage {stage!r}; expected one of "
+                             f"{sorted(STAGES)}")
+        self.stage = stage
         self._server = server
 
         self.action_space = spaces.Discrete(len(ACTIONS))
@@ -314,33 +346,41 @@ class XPilotEnv(gym.Env):
         return np.asarray(obs, dtype=np.float32)
 
     def _reward(self, frame) -> float:
-        """A deliberately plain reward: stay alive, keep fuel, face the enemy.
+        """Reward for the current curriculum stage.
 
-        It is not a good fighting reward and is not meant to be. Phase 6c's
-        curriculum is where shaping belongs; putting it here would bake one
-        set of choices into the environment, where every experiment would
-        inherit them.
+        Kept simple and legible on purpose. Every term is something a person
+        can check against behaviour on screen, which matters when an agent
+        does something strange and the question is whether the reward asked
+        for it.
         """
+        w = STAGES[self.stage]
         me = frame.self_
-        reward = 0.01  # being alive at all
+        reward = w["alive"]
 
         fuel = me.fuel / max(me.fuel_max, 1)
         if self._prev_fuel is not None:
-            reward += (fuel - self._prev_fuel) * 0.5
+            reward += (fuel - self._prev_fuel) * w["fuel"]
         self._prev_fuel = fuel
 
         if frame.damaged and not self._prev_damaged:
             reward -= 1.0
         self._prev_damaged = frame.damaged
 
-        others = [sh for sh in frame.ships if (sh.x, sh.y) != (me.x, me.y)]
-        if others:
-            nearest = min(others,
-                          key=lambda sh: (sh.x - me.x) ** 2 + (sh.y - me.y) ** 2)
-            heading = 2 * math.pi * me.heading / HEADING_STEPS
-            bearing = math.atan2(nearest.y - me.y, nearest.x - me.x)
-            err = abs((bearing - heading + math.pi) % (2 * math.pi) - math.pi)
-            reward += 0.02 * (1.0 - err / math.pi)
+        speed = math.hypot(me.vx, me.vy)
+        reward += w["speed"] * min(speed / 20.0, 1.0)
+
+        if w["aim"]:
+            others = [sh for sh in frame.ships
+                      if (sh.x, sh.y) != (me.x, me.y)]
+            if others:
+                nearest = min(
+                    others,
+                    key=lambda sh: (sh.x - me.x) ** 2 + (sh.y - me.y) ** 2)
+                heading = 2 * math.pi * me.heading / HEADING_STEPS
+                bearing = math.atan2(nearest.y - me.y, nearest.x - me.x)
+                err = abs((bearing - heading + math.pi) % (2 * math.pi)
+                          - math.pi)
+                reward += w["aim"] * (1.0 - err / math.pi)
 
         return float(reward)
 
@@ -349,7 +389,8 @@ def make_parallel(
     n: int,
     base_port: int = 15400,
     fps: int = 200,
-    robots: int = 2,
+    robots: int | None = None,
+    stage: str = "combat",
     map_file: str = "lib/maps/dodgers-robots.xp2",
     binary: str = "./build/bin/xpilot-ng-server",
     **env_kwargs,
@@ -362,10 +403,10 @@ def make_parallel(
     little CPU when nothing is happening.
 
     Returns (envs, servers). Close the envs; each closes its own server.
-
-        envs, _ = make_parallel(4, fps=200)
-        vec = gymnasium.vector.SyncVectorEnv([lambda e=e: e for e in envs])
     """
+    if robots is None:
+        robots = STAGE_ROBOTS[stage]
+
     envs, servers = [], []
     try:
         for i in range(n):
@@ -374,7 +415,7 @@ def make_parallel(
                                 robots=robots, fps=fps)
             servers.append(srv)
             envs.append(XPilotEnv(port=port, nick=f"rl{i}", fps=fps,
-                                  server=srv, **env_kwargs))
+                                  stage=stage, server=srv, **env_kwargs))
         return envs, servers
     except Exception:
         for e in envs:

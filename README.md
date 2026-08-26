@@ -24,6 +24,7 @@ development since 2010 and is kept here only as a provenance link.
 | 5 | Network & hosting | **Done** — including a self-hostable metaserver |
 | 6a | Python bot SDK | **Done** — including frame decoding |
 | 6b | Gymnasium RL environment | **Done** — accelerated and parallel |
+| 6c | Learned agents | PPO curriculum training and benchmarking |
 
 Full detail, including everything deliberately *not* done and why, is in
 [`ROADMAP.md`](ROADMAP.md).
@@ -92,7 +93,8 @@ the original protocol, so bots play against unmodified servers seeing only what
 a human's client sees. Frames are decoded into world state — own ship, other
 ships, shots, items — so a bot can perceive as well as act. There is a
 Gymnasium environment on top of it for reinforcement learning, which runs
-faster than realtime and in parallel.
+faster than realtime and in parallel, plus PPO curriculum training and a
+benchmark that compares any policy against acting at random.
 
 ## Bugs found and fixed
 
