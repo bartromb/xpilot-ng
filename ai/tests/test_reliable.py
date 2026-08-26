@@ -226,3 +226,20 @@ def test_ball_owner_is_not_read_as_the_killer_name():
     b = _board_with_players("bot", "robo")
     b.note_message("bot was killed by a ball owned by robo.")
     assert b._by_nick("robo").kills == 1
+
+
+def test_held_segments_do_not_accumulate():
+    """Retransmissions are routine, so segments held behind a gap must be
+    dropped once they are behind the parser -- otherwise the held set grows
+    until it refuses a segment that is actually needed."""
+    s = ReliableStream()
+    blob = player(1, "bot", myself=1) + score(1, 1.0, 3)
+    # Hold a far-future segment, then deliver everything in order, then
+    # replay old segments the way a retransmitting server would.
+    s.feed(10_000, b"x" * 10)
+    feed_all(s, blob, chunk=4)
+    for i in range(0, len(blob), 4):
+        s.feed(i, blob[i : i + 4])
+    assert s.board.me.score == pytest.approx(1.0)
+    # Only the genuinely-future segment is still held.
+    assert list(s._pending) == [10_000]

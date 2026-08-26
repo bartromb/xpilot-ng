@@ -316,6 +316,13 @@ class ReliableStream:
         # A held segment may now be contiguous; keep draining while so.
         while True:
             head = self.offset + len(self._buf)
+            # Anything entirely behind head is data we already have. Dropping
+            # it matters: retransmissions are routine, so without this the
+            # held set grows until it hits MAX_PENDING and starts refusing
+            # segments that are genuinely needed.
+            for off in [o for o, d in self._pending.items() if o + len(d) <= head]:
+                del self._pending[off]
+
             seg = self._pending.pop(head, None)
             if seg is None:
                 # Also accept a held segment that starts before head.
