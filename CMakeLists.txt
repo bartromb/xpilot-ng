@@ -220,9 +220,21 @@ configure_file(
     "${CMAKE_CURRENT_BINARY_DIR}/generated/config.h"
     @ONLY)
 
-# src/common/version.h is checked into git and is byte-identical to what
-# autotools regenerates, so it is used as-is rather than regenerated here.
-# Revisit when autotools is removed at the end of Phase 1.
+# src/common/version.h is a checked-in, hand-maintained header rather than a
+# generated one. It is deliberately not regenerated: it carries the authors'
+# names in ISO-8859-1, and regenerating it through CMake would risk re-encoding
+# them. Guard against the version drifting from project(VERSION) instead.
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/src/common/version.h" _xp_version_h)
+if(NOT _xp_version_h MATCHES "define[ \t]+VERSION[ \t]+\"([0-9][^\"]*)\"")
+    message(FATAL_ERROR "Could not parse VERSION out of src/common/version.h")
+endif()
+if(NOT CMAKE_MATCH_1 STREQUAL PROJECT_VERSION)
+    message(FATAL_ERROR
+        "Version mismatch: src/common/version.h says ${CMAKE_MATCH_1}, "
+        "CMakeLists.txt project(VERSION) says ${PROJECT_VERSION}. "
+        "Update both.")
+endif()
+unset(_xp_version_h)
 
 set(XP_DATADIR "${CMAKE_INSTALL_FULL_DATADIR}/${PROJECT_NAME}/")
 

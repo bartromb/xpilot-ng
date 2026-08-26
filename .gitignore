@@ -1,20 +1,10 @@
-Makefile
-.deps/
-/config.h
-/config.status
-/src/client/sdl/xpilot-ng-sdl
-/src/client/x11/xpilot-ng-x11
-/src/mapedit/xpilot-ng-xp-mapedit
-/src/replay/xpilot-ng-replay
-/src/server/xpilot-ng-server
-/stamp-h1
+# CMake build directory
+/build/
 
+# Build artefacts
 *.o
 *.a
 *.so
 *.dll
 *.exe
 *.log
-
-# CMake build directory
-/build/

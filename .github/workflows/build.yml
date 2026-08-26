@@ -129,30 +129,3 @@ jobs:
             *.log
             build/CMakeFiles/CMakeConfigureLog.yaml
           if-no-files-found: ignore
-
-  autotools:
-    # Parity check while both build systems coexist. Phase 1 removes this job
-    # together with the autotools files once CMake is the only build.
-    name: autotools (parity)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends $XPILOT_DEPS
-
-      - name: Configure and build
-        run: |
-          ./configure
-          make -j"$(nproc)"
-
-      - name: Check all five binaries were produced
-        run: |
-          set -eux
-          test -x src/server/xpilot-ng-server
-          test -x src/client/x11/xpilot-ng-x11
-          test -x src/client/sdl/xpilot-ng-sdl
-          test -x src/replay/xpilot-ng-replay
-          test -x src/mapedit/xpilot-ng-xp-mapedit
