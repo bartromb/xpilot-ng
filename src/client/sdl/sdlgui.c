@@ -29,6 +29,7 @@
  */
 
 #include "xpclient_sdl.h"
+#include "effects.h"
 
 #include "sdlpaint.h"
 #include "images.h"
@@ -864,6 +865,11 @@ void Gui_paint_polygon(int i, int xoff, int yoff)
 
     /* possibly paint the edges around the polygon */
     if (width != -1) {
+	/* Glow first, so the crisp edge below is drawn over the halo and the
+	 * wall's apparent position is unchanged. */
+	Glow_call_list(polyEdgeListBase + i, e_style.rgb,
+		       width * clData.scale);
+
 	set_alphacolor((e_style.rgb << 8) | 0xff);
 	glLineWidth(width * clData.scale);
 	if (smoothLines) {

@@ -137,6 +137,7 @@ Open the console (`m` by default) and use:
 | `/bind keyFireShot` | show what that option is bound to |
 | `/bind keyFireShot space` | rebind it |
 | `/bind keyFireShot none` | unbind it |
+| `/set glowEffect no` | change any option at runtime |
 | `/save` | write the config file |
 | `/help` | list the commands |
 

@@ -381,8 +381,18 @@ Hard rules for every item in this phase:
   them all and reproduces the plain vector look.
 - Server untouched. All work lives in the SDL2 client.
 
-- [ ] Layered glow via additive blending (same primitive drawn 2-3x, increasing width,
-      decreasing alpha) for ships, walls, shots — no shaders required
+- [x] Layered glow via additive blending — implemented for **wall edges** so far, in
+      `src/client/sdl/effects.c`. Ships and shots are not done yet; they draw through
+      different paths and are the next step.
+      Options: `glowEffect` (on), `glowWidth` (1.5), `glowLayers` (3), plus `classicRender`
+      as the master off switch. All changeable at runtime with the new `/set` console
+      command.
+      Verified against the hard rules: the halo is drawn on the *same* geometry with a wider
+      line, so the centre — and therefore the apparent position — cannot move; with robots
+      disabled the scene is deterministic, and classic mode differs from the pre-4b build by
+      **fewer pixels than the pre-4b build differs from itself between runs** (21,865 vs
+      26,499 of 1.31M), while glow differs by 63,531; and `/set glowEffect no` mid-game drops
+      brightness from 2.65 to 1.57, matching classic.
 - [ ] Particle system: thrust exhaust, explosions, debris (client-side, driven by
       existing server events only)
 - [ ] Parallax starfield, 2-3 depth layers
