@@ -19,8 +19,11 @@
  */
 
 #include "xpclient_sdl.h"
+#include "effects.h"
 
 #include "images.h"
+
+static void Image_bleed_edges(image_t *img);
 #include "sdlpaint.h"
 
 static image_t *images = NULL;
@@ -82,17 +85,75 @@ static int Image_init(image_t *img)
 	}
     }
 
+    /*
+     * Transparent pixels are stored as 0x00000000, i.e. transparent *black*.
+     * With linear filtering the sampler blends toward that black wherever it
+     * straddles the edge of a sprite, which shows up as a dark fringe. Give
+     * every transparent pixel the colour of an opaque neighbour, leaving its
+     * alpha at zero: invisible on its own, but it stops the blend darkening
+     * the edge. One pass is enough, because linear filtering only ever reaches
+     * one texel out.
+     */
+    Image_bleed_edges(img);
+
     glGenTextures(1, &img->name);
     glBindTexture(GL_TEXTURE_2D, img->name);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, img->data_width, img->data_height, 
                  0, GL_RGBA, GL_UNSIGNED_BYTE, img->data);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, 
-                    GL_NEAREST);
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, 
-                    GL_NEAREST);
+    Image_set_filter();
+
+    /*
+     * Sprites sit inside a power-of-two texture, so the default GL_REPEAT
+     * makes a sample near one edge pull in the opposite edge. Clamp instead.
+     */
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	
     img->state = IMG_STATE_READY;
     return 0;
+}
+
+/*
+ * Apply the configured filter to the currently bound texture. Smooth
+ * filtering is the polished look; classic mode keeps the original hard-edged
+ * GL_NEAREST so the old appearance is exactly reproducible.
+ */
+void Image_set_filter(void)
+{
+    GLint filter = (Effects_classic() || !textureSmoothing)
+	? GL_NEAREST : GL_LINEAR;
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
+}
+
+/*
+ * Copy the colour of an opaque neighbour into each fully transparent pixel,
+ * keeping alpha at zero. See the call site for why.
+ */
+static void Image_bleed_edges(image_t *img)
+{
+    int x, y, w = img->data_width, h = img->data_height;
+    unsigned int *d = img->data;
+
+    for (y = 0; y < h; y++) {
+	for (x = 0; x < w; x++) {
+	    unsigned int *px = &d[x + y * w];
+	    unsigned int rgb = 0;
+
+	    if ((*px & 0xff000000) != 0)
+		continue;	/* opaque, nothing to do */
+
+	    /* Take the first opaque neighbour we find. */
+	    if (x > 0     && (d[(x-1) + y*w] & 0xff000000)) rgb = d[(x-1) + y*w];
+	    else if (x < w-1 && (d[(x+1) + y*w] & 0xff000000)) rgb = d[(x+1) + y*w];
+	    else if (y > 0   && (d[x + (y-1)*w] & 0xff000000)) rgb = d[x + (y-1)*w];
+	    else if (y < h-1 && (d[x + (y+1)*w] & 0xff000000)) rgb = d[x + (y+1)*w];
+	    else continue;
+
+	    *px = rgb & 0x00ffffff;	/* neighbour's colour, alpha still 0 */
+	}
+    }
 }
 
 static void Image_free(image_t *img)
@@ -224,9 +285,7 @@ void Image_paint_rotated(int ind, int x, int y, int dir, int color)
     glEnable(GL_TEXTURE_2D);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    /* Linear Filtering */
-    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
-    glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+    Image_set_filter();
     set_alphacolor(color);
 
     glBegin(GL_QUADS);

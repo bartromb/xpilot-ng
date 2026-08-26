@@ -253,6 +253,7 @@ void Starfield_paint(double view_x, double view_y, int w, int h)
 
 bool particleEffect;
 int particleLife;
+bool textureSmoothing;
 
 #define PARTICLE_MAX 8192
 
@@ -392,6 +393,15 @@ void Store_effects_options(void)
 	    XP_OPTFLAG_DEFAULT,
 	    "How far the glow spreads, as a multiple of the line width\n"
 	    "per layer.\n"),
+
+	XP_BOOL_OPTION(
+	    "textureSmoothing",
+	    true,
+	    &textureSmoothing,
+	    NULL,
+	    XP_OPTFLAG_DEFAULT,
+	    "Filter textures smoothly instead of showing hard texel edges.\n"
+	    "Turn off, or use classicRender, for the original blocky look.\n"),
 
 	XP_BOOL_OPTION(
 	    "particleEffect",
