@@ -443,6 +443,20 @@ Acceptance: robot match looks visibly modernized with all effects on; "classic" 
 pixel-comparable to the pre-4b renderer; toggling any effect mid-game causes no
 gameplay-visible change; stable 144 fps on modest hardware with all effects enabled.
 
+**Status: three of four acceptance criteria met; stopped at the stretch line (26 Aug 2026).**
+
+| Criterion | State |
+|---|---|
+| Visibly modernized with effects on | Met — glow, starfield, particle trails all visible in play |
+| Classic pixel-comparable to pre-4b | **Met and measured** — differs by fewer pixels than the pre-4b build differs from itself between runs |
+| Toggling mid-game causes no gameplay change | Met — `/set` toggles each effect live; effects are draw-only and never touch positions or timing |
+| Stable 144 fps with all effects | **Unverified.** The machine was under heavy external load (8 unrelated CPU-saturated processes, load average 9) whenever this was measured, so absolute frame rates were meaningless. The relative figure is sound: classic 12.000 vs all effects 11.999 under identical load, so the effects cost nothing measurable. Needs re-measuring on an idle machine. |
+
+The two stretch items below are **deliberately not started**. The client is immediate-mode
+OpenGL 1.x throughout, so a core-profile 3.3 pipeline means replacing every drawing path
+rather than adding to one — a rewrite of the renderer, not a polish pass, and a different
+kind of decision from the rest of this phase.
+
 ## Phase 5 — Network & multiplayer revival (optional/later)
 
 - [ ] Audit UDP protocol for NAT-friendliness; document in `docs/protocol.md`
