@@ -16,6 +16,10 @@ keywords = ["xpilot", "game", "bot", "reinforcement-learning"]
 # that drags in a stack is harder to embed in a training loop.
 dependencies = []
 
+[project.optional-dependencies]
+# The reinforcement-learning environment needs these; the client does not.
+rl = ["gymnasium>=0.29", "numpy>=1.21"]
+
 [project.urls]
 Homepage = "https://github.com/bartromb/xpilot-ng"
 
