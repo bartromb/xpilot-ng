@@ -345,9 +345,28 @@ Branch: `phase3-audio`
       distance-derived volume, which the new backend honours. Real panning would need a
       protocol extension, which would break compatibility with existing servers — a
       deliberate decision rather than a small change, and not one to make in passing.
-- [ ] Make audio optional at build AND runtime (server stays silent/headless)
+- [x] Make audio optional at build AND runtime — build: `XPILOT_SOUND` (off by default) and
+      it now *fails* if SDL2_mixer is missing rather than silently producing a mute binary,
+      which is what autotools used to do. Runtime: `maxVolume` and `sound` already gate every
+      event through `audioIsEnabled()`, and `/set maxVolume 0` silences it live. The server
+      links no audio at all — the backend is in `libxpclient`, which the server does not use.
 
 Acceptance: all game sounds play; build no longer links freealut.
+
+**Status (26 Aug 2026): built, running, and audible to the system — not yet judged by ear.**
+
+| Check | Result |
+|---|---|
+| Builds with `-DXPILOT_SOUND=ON` | 0 errors, and 52 warnings — unchanged, so the new backend adds none |
+| No freealut/OpenAL linkage | **Confirmed**: `ldd` finds zero matches; `libSDL2_mixer` present |
+| Audio device opens | `Audio: SDL2_mixer, 32 channels.` |
+| Samples load | No load failures across a full match |
+| Actually producing output | **Confirmed**: PipeWire reports a live stereo sink-input owned by `xpilot-ng-sdl` |
+| Sounds are *correct* | **Unverified.** Whether the right sample plays for each event, at sensible volume, and whether the thrust loop stops cleanly, needs a human listening. |
+
+The one thing most worth a human ear is the looping thrust sound, because that is where the
+old backend's behaviour was subtlest: loops are stopped by the *absence* of repeated events,
+so a mistake shows up as thrust that never stops rather than as an error.
 
 ## Phase 4 — Quality of life
 
