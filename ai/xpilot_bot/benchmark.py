@@ -12,10 +12,18 @@ frame stream, so they were unmeasurable until that stream was decoded (see
 reliable.py). They are now read straight from it: `own deaths` and `kills`
 below are the server's own counts, not inferred from missing frames.
 
-Two honest caveats. A run in which nobody dies reports 0-0, which says the
-policies never fought, not that they drew. And the aim and survival figures
-still come from the frame stream, which is the more sensitive measure when
-kill counts are small.
+Three honest caveats. A run in which nobody dies reports 0-0, which says the
+policies never fought, not that they drew. The aim and survival figures come
+from the frame stream, which is the more sensitive measure when kill counts
+are small. And the "uniform would be 1.57" note beside the aim error is a
+sanity floor rather than a baseline -- a genuinely random policy scores
+better than uniform here, because the nearest opponent is not uniformly
+distributed around the ship. Compare against a `--random` run, not against
+that number.
+
+If a checkpoint was trained with --shots it must be evaluated with --shots:
+the flag widens the observation, and the model will not load into the wrong
+shape.
 """
 
 from __future__ import annotations
@@ -95,9 +103,14 @@ def report(name: str, r: dict) -> None:
     print(f"  mean length      {r['length_mean']:.0f} steps")
     print(f"  deaths           {r['deaths']}/{r['episodes']}")
     if r["aim_error_mean"] is not None:
-        # pi/2 is the average error of pointing at random.
+        # pi/2 is what pointing uniformly at random would give. A real random
+        # policy does better than that here -- around 1.33 rad -- because the
+        # nearest opponent is not uniformly distributed around the ship. So
+        # this number is a floor to sanity-check against, not the baseline;
+        # the baseline is whatever `--random` measured on the day.
         print(f"  mean aim error   {r['aim_error_mean']:.2f} rad "
-              f"(random ~{math.pi / 2:.2f}) over {r['aim_samples']} samples")
+              f"(uniform would be {math.pi / 2:.2f}; compare a --random run) "
+              f"over {r['aim_samples']} samples")
     else:
         print("  mean aim error   no opponents were ever in view")
 
