@@ -171,6 +171,7 @@ class XPilotEnv(gym.Env):
         world_scale: float = 3000.0,
         death_frames: int = 15,
         death_penalty: float = 1.0,
+        reuse_connection: bool = True,
         stage: str = "combat",
         server: ServerProcess | None = None,
     ) -> None:
@@ -194,6 +195,7 @@ class XPilotEnv(gym.Env):
         # "you died" packet the client can simply read.
         self.death_frames = death_frames
         self.death_penalty = death_penalty
+        self.reuse_connection = reuse_connection
         if stage not in STAGES:
             raise ValueError(f"unknown stage {stage!r}; expected one of "
                              f"{sorted(STAGES)}")
@@ -221,13 +223,29 @@ class XPilotEnv(gym.Env):
 
     def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
-        self._close_client()
 
-        self._client = Client(
-            host=self.host, port=self.port,
-            nick=self.nick, user=self.nick, fps=self.fps,
-        )
-        self._client.connect()
+        # Reconnecting between episodes is the tidy thing to do and it is
+        # expensive: the handshake is a two-phase exchange with a setup
+        # transfer, and with episodes ending on death rather than on the step
+        # limit it happens every few seconds. Measured, it was most of the
+        # difference between 56 steps/s on the empty map and 25 in combat.
+        #
+        # It is also unnecessary. XPilot respawns a dead ship on the same
+        # connection -- that is what makes an idle bot die ten times in
+        # ninety seconds rather than once -- so a new episode can simply
+        # carry on. The counters this class keeps are already differences
+        # against where the episode started, precisely so that works.
+        if self._client is None or not self.reuse_connection:
+            self._close_client()
+            self._client = Client(
+                host=self.host, port=self.port,
+                nick=self.nick, user=self.nick, fps=self.fps,
+            )
+            self._client.connect()
+        else:
+            self._client.release_all()
+            self._client.send_keys()
+
         self._steps = 0
         self._prev_fuel = None
         self._prev_damaged = False
