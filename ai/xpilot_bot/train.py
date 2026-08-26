@@ -83,6 +83,7 @@ def train(args) -> int:
                     n_steps=args.rollout,
                     batch_size=args.batch,
                     learning_rate=args.lr,
+                    ent_coef=args.ent_coef,
                     seed=args.seed,
                 )
             else:
@@ -136,6 +137,11 @@ def main(argv=None) -> int:
     ap.add_argument("--rollout", type=int, default=512)
     ap.add_argument("--batch", type=int, default=128)
     ap.add_argument("--lr", type=float, default=3e-4)
+    ap.add_argument("--ent-coef", type=float, default=0.01,
+                    help="entropy bonus. Stable-Baselines3 defaults this to "
+                         "0, which lets the policy converge on one action "
+                         "and stop exploring; a previous run collapsed to "
+                         "'turn right and fire' on 91%% of steps.")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("-v", "--verbose", action="store_true")
     args = ap.parse_args(argv)
