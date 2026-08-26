@@ -46,6 +46,16 @@ def main(argv=None) -> int:
 
     problems = []
 
+    # A truncated frame is no longer merely a gap in perception. Finding a
+    # piggybacked reliable segment means walking the datagram packet by
+    # packet, so an unknown type part-way through stops the walk -- and any
+    # segment behind it goes unacknowledged, which is how the server comes to
+    # drop a client that looks perfectly healthy.
+    if c.status.truncated_frames:
+        problems.append(
+            f"{c.status.truncated_frames} frames could not be walked to the "
+            f"end, so any reliable segment inside them was missed")
+
     if c.reliable.desynced:
         problems.append(
             f"stream desynchronised at packet type {c.reliable.desynced_at} "
