@@ -151,3 +151,18 @@ def test_two_deaths_in_one_episode_are_not_one():
     env._client.kill_me("someone else")
     _o, _r, terminated, _t, info = env.step(0)
     assert terminated and info.get("died") is True
+
+
+def test_a_kill_is_rewarded_once():
+    """The count only rises, so a kill must be rewarded on the step it
+    happens and not on every step afterwards."""
+    env = _env_with([_alive()] * 6)
+    env.stage = "combat"
+    env._kills_seen = 0
+    base, _, _, _, _ = env.step(0)
+    r_before = env._reward(_alive())
+    env._client._feed(_message_packet("robo was killed by a shot from bot."))
+    r_kill = env._reward(_alive())
+    r_after = env._reward(_alive())
+    assert r_kill > r_before + 4.0, "the kill step should be worth ~5"
+    assert abs(r_after - r_before) < 1e-6, "and only that step"

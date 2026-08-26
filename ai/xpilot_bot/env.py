@@ -69,9 +69,9 @@ ACTIONS: list[tuple[int, ...]] = [
 #: aim     for pointing at the nearest ship
 #: speed   for moving at all; without it "sit still" is a local optimum
 STAGES = {
-    "navigate": {"alive": 0.01, "fuel": 0.5, "aim": 0.00, "speed": 0.05},
-    "dodge":    {"alive": 0.02, "fuel": 0.3, "aim": 0.00, "speed": 0.02},
-    "combat":   {"alive": 0.01, "fuel": 0.2, "aim": 0.05, "speed": 0.01},
+    "navigate": {"alive": 0.01, "fuel": 0.5, "aim": 0.00, "speed": 0.05, "kill": 0.0},
+    "dodge":    {"alive": 0.02, "fuel": 0.3, "aim": 0.00, "speed": 0.02, "kill": 0.0},
+    "combat":   {"alive": 0.01, "fuel": 0.2, "aim": 0.05, "speed": 0.01, "kill": 5.0},
 }
 
 #: Robots present at each stage. Navigation is learned on an empty map.
@@ -211,6 +211,7 @@ class XPilotEnv(gym.Env):
         self._prev_fuel: float | None = None
         self._prev_damaged = False
         self._last_obs: np.ndarray | None = None
+        self._kills_seen = 0
         #: Deaths the server had announced when the episode started. reset()
         #: makes a fresh connection, so this is always 0 in practice; it is
         #: kept explicit rather than assumed.
@@ -231,6 +232,7 @@ class XPilotEnv(gym.Env):
         self._prev_fuel = None
         self._prev_damaged = False
         self._deaths_at_step = self._death_count()
+        self._kills_seen = self._kill_count()
 
         frame = self._await_frame()
         obs = self._observe(frame)
@@ -359,6 +361,14 @@ class XPilotEnv(gym.Env):
         me = rel.board.me
         return me.deaths if me is not None else 0
 
+    def _kill_count(self) -> int:
+        """How many kills the server has credited us this connection."""
+        rel = getattr(self._client, "reliable", None)
+        if rel is None:
+            return 0
+        me = rel.board.me
+        return me.kills if me is not None else 0
+
     def _observe(self, frame) -> np.ndarray:
         me = frame.self_
         s = self.world_scale
@@ -412,6 +422,17 @@ class XPilotEnv(gym.Env):
 
         speed = math.hypot(me.vx, me.vy)
         reward += w["speed"] * min(speed / 20.0, 1.0)
+
+        # The only term that is the actual objective rather than a proxy for
+        # it. It is sparse and it arrives a frame or two late, which is why
+        # the aim and survival terms exist at all -- but leaving it out
+        # entirely meant an agent could satisfy every term in this function
+        # without ever winning a fight.
+        if w["kill"]:
+            kills = self._kill_count()
+            if kills > self._kills_seen:
+                reward += w["kill"] * (kills - self._kills_seen)
+                self._kills_seen = kills
 
         if w["aim"]:
             others = [sh for sh in frame.ships
