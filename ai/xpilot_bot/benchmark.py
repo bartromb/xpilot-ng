@@ -60,8 +60,8 @@ def evaluate(model, envs, episodes: int, stage: str):
                 if info.get("died"):
                     deaths += 1
                 sb = info.get("scoreboard") or {}
-                own_deaths += sb.get("own_deaths") or 0
-                kills += sb.get("own_kills") or 0
+                own_deaths += sb.get("episode_deaths") or 0
+                kills += sb.get("episode_kills") or 0
                 score_total += sb.get("own_score") or 0.0
                 desynced = desynced or bool(info.get("reliable_desynced"))
                 break

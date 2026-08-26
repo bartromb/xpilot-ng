@@ -220,6 +220,8 @@ class XPilotEnv(gym.Env):
         #: makes a fresh connection, so this is always 0 in practice; it is
         #: kept explicit rather than assumed.
         self._deaths_at_step = 0
+        self._deaths_at_reset = 0
+        self._kills_at_reset = 0
 
     # ------------------------------------------------------------ gym API
 
@@ -253,6 +255,8 @@ class XPilotEnv(gym.Env):
         self._prev_damaged = False
         self._deaths_at_step = self._death_count()
         self._kills_seen = self._kill_count()
+        self._deaths_at_reset = self._deaths_at_step
+        self._kills_at_reset = self._kills_seen
 
         frame = self._await_frame()
         obs = self._observe(frame)
@@ -271,7 +275,14 @@ class XPilotEnv(gym.Env):
         info = dict(extra)
         rel = getattr(self._client, "reliable", None)
         if rel is not None:
-            info["scoreboard"] = rel.board.summary()
+            board = rel.board.summary()
+            # The board counts a whole connection, and a connection now spans
+            # many episodes. Anything summed per episode has to be a delta
+            # against where this episode started, or twenty single-death
+            # episodes add up to two hundred deaths.
+            board["episode_kills"] = self._kill_count() - self._kills_at_reset
+            board["episode_deaths"] = self._death_count() - self._deaths_at_reset
+            info["scoreboard"] = board
             info["reliable_desynced"] = rel.desynced
         return info
 

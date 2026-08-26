@@ -231,3 +231,20 @@ def test_the_nearest_ship_is_chosen_across_the_seam():
     # The first tracked ship's distance is obs[8] (6 self fields, then
     # dx, dy, dist per ship).
     assert obs[8] * env.world_scale == pytest.approx(100, abs=1)
+
+
+def test_episode_counts_are_deltas_not_running_totals():
+    """A connection now spans many episodes, so anything the benchmark sums
+    per episode must be measured from the episode's own start."""
+    env = _env_with([_alive()] * 4)
+    env._client.kill_me()
+    _o, _r, _t, _tr, info = env.step(0)
+    assert info["scoreboard"]["episode_deaths"] == 1
+    assert info["scoreboard"]["own_deaths"] == 1
+
+    # A second episode on the same connection starts from one death.
+    env._deaths_at_reset = env._deaths_at_step = env._death_count()
+    env._kills_at_reset = env._kills_seen = env._kill_count()
+    _o, _r, _t, _tr, info = env.step(0)
+    assert info["scoreboard"]["episode_deaths"] == 0, "not the previous one"
+    assert info["scoreboard"]["own_deaths"] == 1, "the total still counts it"
