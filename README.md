@@ -21,7 +21,7 @@ development since 2010 and is kept here only as a provenance link.
 | 3 | Audio: OpenAL/freealut → SDL2_mixer | **Done** — not yet judged by ear |
 | 4 | Quality of life | **Done** — keybind defaults left alone deliberately |
 | 4b | Graphics modernization | **Done** to the stretch line |
-| 5 | Network & hosting | 3 of 4 — metaserver not started |
+| 5 | Network & hosting | **Done** — including a self-hostable metaserver |
 | 6a | Python bot SDK | **Done** — game-state decoding not started |
 
 Full detail, including everything deliberately *not* done and why, is in
@@ -80,6 +80,12 @@ runs.
 **Audio.** OpenAL and the long-dead freealut replaced by SDL2_mixer. CI asserts
 that nothing links freealut any more.
 
+**Network.** The protocol is documented and audited for NAT. The dead
+metaservers have a [replacement](metaserver/README.md) — dependency-free, and
+speaking the original protocol so unmodified clients and servers can use it.
+`-metaServerHost` on both ends means you can actually point at one; the
+addresses used to be compiled in.
+
 **Bots.** [`ai/`](ai/README.md) is a dependency-free Python client that speaks
 the original protocol, so bots play against unmodified servers seeing only what
 a human's client sees.
@@ -115,7 +121,8 @@ Several of these had been in the code for decades:
 | [`docs/sdl2-port-audit.md`](docs/sdl2-port-audit.md) | the SDL 1.2 → SDL2 surface |
 | [`docs/warnings-debt.md`](docs/warnings-debt.md) | the 52 remaining warnings, ranked |
 | [`ai/README.md`](ai/README.md) | the Python bot SDK |
-| [`packaging/`](packaging/) | systemd unit and Dockerfile |
+| [`metaserver/README.md`](metaserver/README.md) | the self-hosted metaserver |
+| [`packaging/`](packaging/) | systemd units and Dockerfile |
 
 ## Known limits
 
