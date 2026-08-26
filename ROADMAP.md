@@ -616,7 +616,8 @@ kind of decision from the rest of this phase.
       classical controller (never for frame-level control — latency unsuitable).
       Not attempted.
 
-Two things found here that were not on anyone's list, both in `docs/protocol.md`:
+Three things found here that were not on anyone's list, the first two in
+`docs/protocol.md`:
 
 - **Reliable data is piggybacked onto frame packets** once play starts, so a
   client that checks only the first byte of each datagram goes deaf exactly
@@ -626,6 +627,12 @@ Two things found here that were not on anyone's list, both in `docs/protocol.md`
   had been ending in a disconnection dressed up as an episode end.
 - **`PKT_PLAYER` carries two ship-shape strings**, not one. The stream is
   undelimited, so reading one turns everything after it into garbage.
+- **Dying does not interrupt the frame stream.** `Receive_self`'s own comment
+  points the other way, so death detection naturally gets built on missing
+  `PKT_SELF` packets — and detects nothing. An idle bot died ten times in
+  ninety seconds with every frame's `PKT_SELF` present, so no episode ever
+  terminated on death and the death penalty was never applied. Death is
+  stated only in the server's text notices.
 
 The standing note that the robots never kill the bot was wrong, and this is
 why: an idle bot dies five times in seventy seconds, and the server had been

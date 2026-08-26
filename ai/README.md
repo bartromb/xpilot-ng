@@ -227,23 +227,37 @@ looked like it was working and was teaching nothing. Ten frames makes a step
 
 ### On win rates
 
-They are measured, from the server's own death notices. Getting there took
-fixing a client bug worth knowing about, because it made the whole
-environment quietly wrong: reliable data is piggybacked onto frame packets
-once play starts, and the client only checked the first byte of each
-datagram. So it went deaf at exactly the moment the game began — no scores,
-no kills, no player joins — and, having stopped acknowledging anything, was
-dropped by the server after about fifteen seconds. Every training episode
-longer than that was ending in a disconnection dressed up as an episode end.
+They are measured, from the server's own death notices, and the benchmark
+reports them. Getting there meant fixing two bugs that had made the whole
+environment quietly wrong, both of which looked like facts about the game
+rather than defects in the client.
 
-This is also why the note "the robots never kill the bot" stood for so long.
-They kill it constantly: an idle bot on `dodgers-robots.xp2` dies five times
-in seventy seconds, and the server had been announcing every one of them.
+**The client went deaf when play started.** Reliable data is piggybacked onto
+frame packets once the game begins, and the client only inspected the first
+byte of each datagram. So it read all of setup correctly and then heard
+nothing: no scores, no kills, no player joins. Having stopped acknowledging
+anything, it was dropped by the server about fifteen seconds in — every
+training episode longer than that was ending in a disconnection dressed up
+as an episode end.
 
-Kills come from the death notices rather than from `PKT_SCORE`, whose life
-count never changes on a map with unlimited lives. Chat is excluded, since
-otherwise a player could type "bot was killed by a shot from robo." and be
-believed.
+**Death was detected by a signal that never fires.** `Receive_self` in the C
+client notes that a frame without PKT_SELF means the player is "damaged,
+dead, paused or has game over", which makes watching for missing PKT_SELF
+look like the obvious approach. Measured against a live server, an idle bot
+died **ten times in ninety seconds without a single frame missing its
+PKT_SELF** — the server reports the ship straight through death and respawn.
+No episode had ever terminated on death and the death penalty had never once
+been applied.
+
+Both are why the standing note that "the robots never kill the bot" was
+wrong. They kill it constantly; nobody was listening. An idle bot dies five
+times in seventy seconds, and every one of those deaths was announced:
+
+    Probe was killed by a shot from Boson.
+
+Kills come from those notices rather than from `PKT_SCORE`, whose life count
+never changes on a map with unlimited lives. Chat is excluded — otherwise a
+player could type a death notice and be believed.
 
 ## Status
 

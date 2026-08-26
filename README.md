@@ -114,8 +114,14 @@ Several of these had been in the code for decades:
   the *end of a frame update*, so a client checking only the first byte goes
   deaf exactly when the game begins. Nothing errors — scores and kills simply
   never arrive, and the server quietly drops the connection with a retransmit
-  timeout that reads like a network fault. This one bug was why "the robots
-  never kill the bot" was believed for so long. They kill it constantly.
+  timeout that reads like a network fault.
+- **Dying does not stop the frame stream.** The C client's own comment
+  suggests a frame without `PKT_SELF` means the player is dead, so that is
+  where death detection naturally goes. Measured against a live server, an
+  idle bot died ten times in ninety seconds without a single frame missing
+  its `PKT_SELF`. Together with the bug above, this is why "the robots never
+  kill the bot" was believed for so long. They kill it constantly; nobody was
+  listening.
 - **`PKT_PLAYER` is mis-sized by the obvious reading of the protocol.** It
   carries *two* ship-shape strings, not one, and the reliable stream is
   undelimited — so reading one string turns everything after it into garbage.
