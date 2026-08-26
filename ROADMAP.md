@@ -498,10 +498,53 @@ kind of decision from the rest of this phase.
 
 ## Phase 5 — Network & multiplayer revival (optional/later)
 
-- [ ] Audit UDP protocol for NAT-friendliness; document in `docs/protocol.md`
-- [ ] Self-hostable metaserver replacement (tiny HTTP JSON service) since original metaservers are dead
-- [ ] systemd unit + Docker image for easy server hosting (LAN games at home)
-- [ ] Security pass on server input parsing (1990s C parsing network packets — fuzz it: AFL++ on packet handlers)
+- [x] Audit UDP protocol for NAT-friendliness; documented in `docs/protocol.md`. Headline:
+      **a client behind NAT needs nothing; a server behind NAT is hostile by default.** The
+      server does not serve the game from 15345 — it opens a fresh ephemeral UDP socket per
+      login and sends that port to the client, so only forwarding 15345 gives a confusing
+      failure where login succeeds and the game then goes silent. The fix already exists:
+      `clientPortStart`/`clientPortEnd` pin that range. Any packaging in this phase should
+      set them by default. Notably the protocol embeds **no IP addresses**, only a port, so
+      it avoids the FTP-style NAT breakage entirely.
+- [x] systemd unit + Docker image — `packaging/xpilot-ng-server.service` and
+      `packaging/Dockerfile`. Both **pin `clientPortStart`/`clientPortEnd`**, because the NAT
+      audit showed the default ephemeral per-connection ports produce a login that succeeds
+      and then goes silent; the Docker instructions publish both ranges for the same reason.
+      Both also pass `-noQuit -idleRun`, without which the server exits when the last human
+      leaves — which under systemd or Docker reads as a crash loop.
+      The unit is hardened (`ProtectSystem=strict`, `RestrictAddressFamilies`,
+      `SystemCallFilter=@system-service`, no write access anywhere) and passes
+      `systemd-analyze verify`. The image is multi-stage and builds the **server only**, with
+      no SDL, X11 or OpenGL.
+      Verified as far as possible without a Docker daemon, which is not running here: the
+      exact server-only CMake configure, build and install the Dockerfile encodes were run
+      locally and succeed. The runtime stage installs `libexpat1` and `zlib1g`, which
+      `objdump -p` confirms is the binary's complete dependency set — `ldd` on this host
+      additionally reports X11 libraries, but those come from an unrelated
+      `/etc/ld.so.preload` entry, not from the build.
+- [x] Security pass on server input parsing — `tests/fuzz_packet_scanf.c`, targeting
+      `Packet_scanf` because the pre-auth contact path and every `PKT_*` handler funnel
+      through it. **Found and fixed three undefined-behaviour sites reachable from
+      attacker-controlled bytes**, plus two more of the same shape found by reading:
+      `sbuf->ptr` is `char *`, signed on x86, so `ptr[j++] << 24` shifts a negative value for
+      any byte ≥ 0x80, and the `%u` case overflows `int` even when masked. The tell was that
+      the *following* bytes in each expression are masked with `& 0xFF` and only the top byte
+      is not.
+      GCC has emitted the intended result for 30 years, which is why nobody noticed; it is
+      still UB and is exactly what breaks under a different compiler or optimisation level.
+      Verified for behaviour as well as UB — a 34-case round-trip recovers every value
+      bit-for-bit, so wire compatibility is untouched — and re-fuzzing reports zero errors
+      over 1.6M parses.
+      AFL++ is not installed here, so this was dumb random fuzzing under UBSan; the harness
+      is AFL-ready and `tests/README.md` has the command. **ASan cannot be used on this
+      machine at all**: a trivial `printf` built with `-fsanitize=address` segfaults, because
+      `/etc/ld.so.preload` injects `libAppProtection.so` into every process and collides with
+      ASan's shadow memory. Worth running the harness under ASan in a container.
+- [ ] Self-hostable metaserver replacement — **not started.** `docs/protocol.md` documents
+      what it must do (UDP 5500, plain text, `Meta_send()` format) and notes that the
+      metaserver addresses are compiled into `metaserver.h`, so pointing at a self-hosted one
+      currently needs a recompile — making that an option is a prerequisite worth doing
+      first. `lmartinking/xpilot-metaserver` remains the sensible starting point.
 
 ---
 

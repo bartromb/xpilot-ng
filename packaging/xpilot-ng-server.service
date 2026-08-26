@@ -1,0 +1,55 @@
+# systemd unit for a self-hosted XPilot NG server.
+#
+# Install:
+#   sudo cp packaging/xpilot-ng-server.service /etc/systemd/system/
+#   sudo useradd --system --no-create-home --shell /usr/sbin/nologin xpilot
+#   sudo systemctl enable --now xpilot-ng-server
+#
+# The port range below is not decoration. The server serves the game from a
+# fresh UDP port per connection, not from 15345, so a NATed or firewalled host
+# that only opens 15345 gets logins that succeed and then go silent. Pinning
+# the range makes it forwardable. See docs/protocol.md.
+
+[Unit]
+Description=XPilot NG game server
+Documentation=https://github.com/bartromb/xpilot-ng
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=xpilot
+Group=xpilot
+
+ExecStart=/usr/local/bin/xpilot-ng-server \
+    -map /usr/local/share/xpilot-ng/maps/blood-music.xp2 \
+    -port 15345 \
+    -clientPortStart 15346 \
+    -clientPortEnd 15400 \
+    -noQuit \
+    -idleRun
+
+Restart=on-failure
+RestartSec=5s
+
+# The server needs no write access anywhere, no privileges, and no device
+# access, so take all of it away.
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=true
+RestrictRealtime=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+
+[Install]
+WantedBy=multi-user.target
