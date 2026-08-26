@@ -398,8 +398,22 @@ Hard rules for every item in this phase:
       **fewer pixels than the pre-4b build differs from itself between runs** (21,865 vs
       26,499 of 1.31M), while glow differs by 63,531; and `/set glowEffect no` mid-game drops
       brightness from 2.65 to 1.57, matching classic.
-- [ ] Particle system: thrust exhaust, explosions, debris (client-side, driven by
-      existing server events only)
+- [x] Particle system — implemented as an **afterglow trail** rather than a simulation, and
+      that choice is deliberate. The server already decides where every spark and debris
+      fragment is on every frame; a client-side simulation would draw things at positions the
+      server never sent, which this phase's rules forbid. Instead each spark leaves a fading
+      mark at the position the server actually reported, so the trail is the spark's own
+      history. One mechanism covers thrust exhaust, explosions and debris, because all three
+      already arrive as sparks.
+      Options: `particleEffect` (on), `particleLife` (350ms). Fixed 8192-particle pool,
+      overwritten oldest-first, so a firefight cannot make the client allocate unboundedly.
+      Ageing uses wall-clock time, so a trail lasts the same duration at 50 or 144 fps.
+      Verified visually: thrusting produces a clear exhaust plume marking the ship's path.
+      **Performance is not yet validated.** The reference machine was under heavy external
+      load (8 unrelated CPU-saturated processes, load average 9) during measurement, so
+      absolute frame rates were meaningless — everything read 12 fps. The *relative* figure
+      is sound because it was measured under identical load: classic 12.000 vs all effects
+      11.999. The 144 fps acceptance criterion needs re-measuring on an idle machine.
 - [x] Parallax starfield, 3 depth layers — `starfieldEffect` (on), `starfieldDensity` (45).
       Stars come from a fixed seed through a private generator, so the sky is identical every
       frame and every session and does not disturb the global `rand()` stream. Each layer

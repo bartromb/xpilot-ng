@@ -958,18 +958,26 @@ void Gui_paint_mine(int x, int y, int teammine, char *name)
 
 void Gui_paint_spark(int color, int x, int y)
 {
+    int r = 255 * (color + 1) / 8;
+    int g = 255 * color * color / 64;
+    int px = x + world.x;
+    int py = world.y + ext_view_height - y;
+
     /*
     Image_paint(IMG_SPARKS,
 		x + world.x,
 		world.y + ext_view_height - y,
 		color);
     */
-    glColor3ub(255 * (color + 1) / 8,
-	       255 * color * color / 64,
-	       0);
+
+    /* Record where the server put this spark, so the trail is made of real
+     * reported positions rather than anything the client made up. */
+    Particles_spawn(px, py, r, g, 0);
+
+    glColor3ub(r, g, 0);
     glPointSize(sparkSize);
     glBegin(GL_POINTS);
-    glVertex2i(x + world.x, world.y + ext_view_height - y);
+    glVertex2i(px, py);
     glEnd();
 }
 

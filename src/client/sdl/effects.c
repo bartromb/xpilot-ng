@@ -233,6 +233,134 @@ void Starfield_paint(double view_x, double view_y, int w, int h)
 	glDisable(GL_BLEND);
 }
 
+
+/* ------------------------------------------------------------------ *
+ * Particles
+ *
+ * These are deliberately not a simulation. The server already decides where
+ * every spark and debris fragment is, every frame; inventing client-side
+ * motion would mean drawing things at positions the server never sent, which
+ * is exactly what this phase's rules forbid.
+ *
+ * Instead each spark leaves a fading afterimage at the position the server
+ * actually reported. The trail you see is the spark's own history, so thrust
+ * exhaust, explosions and debris all gain a sense of motion without a single
+ * invented coordinate.
+ *
+ * The pool is fixed size and overwrites oldest-first, so a firefight cannot
+ * make the client allocate or slow down unboundedly.
+ * ------------------------------------------------------------------ */
+
+bool particleEffect;
+int particleLife;
+
+#define PARTICLE_MAX 8192
+
+typedef struct {
+    float x, y;
+    float life;		/* seconds remaining */
+    float life_max;
+    unsigned char r, g, b;
+} particle_t;
+
+static particle_t particles[PARTICLE_MAX];
+static int particle_next = 0;
+static int particle_live = 0;
+static unsigned int particle_last_ticks = 0;
+
+bool Effects_particles(void)
+{
+    return !classicRender && particleEffect;
+}
+
+void Particles_spawn(double x, double y, int r, int g, int b)
+{
+    particle_t *p;
+
+    if (!Effects_particles() || particleLife <= 0)
+	return;
+
+    p = &particles[particle_next];
+    particle_next = (particle_next + 1) % PARTICLE_MAX;
+    if (particle_live < PARTICLE_MAX)
+	particle_live++;
+
+    p->x = (float)x;
+    p->y = (float)y;
+    p->life_max = p->life = (float)particleLife / 1000.0f;
+    p->r = (unsigned char)r;
+    p->g = (unsigned char)g;
+    p->b = (unsigned char)b;
+}
+
+/*
+ * Age every particle. Uses wall-clock time rather than a per-frame decrement
+ * so the trail lasts the same length of time whether the client is running at
+ * 50 or 144 fps.
+ */
+void Particles_update(void)
+{
+    unsigned int now = SDL_GetTicks();
+    float dt;
+    int i;
+
+    if (particle_last_ticks == 0) {
+	particle_last_ticks = now;
+	return;
+    }
+
+    dt = (float)(now - particle_last_ticks) / 1000.0f;
+    particle_last_ticks = now;
+
+    /* A long stall (a map load, say) should not wipe the field in one go. */
+    if (dt > 0.25f)
+	dt = 0.25f;
+
+    for (i = 0; i < particle_live; i++) {
+	if (particles[i].life > 0.0f)
+	    particles[i].life -= dt;
+    }
+}
+
+/*
+ * Draw the trail. Must be called in the same coordinate space the sparks are
+ * drawn in, since the stored positions are the ones the spark used.
+ */
+void Particles_paint(void)
+{
+    GLboolean blend_was_on;
+    GLint src, dst;
+    int i;
+
+    if (!Effects_particles() || particle_live == 0)
+	return;
+
+    blend_was_on = glIsEnabled(GL_BLEND);
+    glGetIntegerv(GL_BLEND_SRC, &src);
+    glGetIntegerv(GL_BLEND_DST, &dst);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+
+    glPointSize((GLfloat)sparkSize);
+    glBegin(GL_POINTS);
+    for (i = 0; i < particle_live; i++) {
+	particle_t *p = &particles[i];
+	float frac;
+
+	if (p->life <= 0.0f)
+	    continue;
+
+	frac = p->life / p->life_max;
+	glColor4ub(p->r, p->g, p->b, (GLubyte)(frac * 200.0f));
+	glVertex2i((int)p->x, (int)p->y);
+    }
+    glEnd();
+
+    glBlendFunc(src, dst);
+    if (!blend_was_on)
+	glDisable(GL_BLEND);
+}
+
 void Store_effects_options(void)
 {
     static xp_option_t options[] = {
@@ -264,6 +392,25 @@ void Store_effects_options(void)
 	    XP_OPTFLAG_DEFAULT,
 	    "How far the glow spreads, as a multiple of the line width\n"
 	    "per layer.\n"),
+
+	XP_BOOL_OPTION(
+	    "particleEffect",
+	    true,
+	    &particleEffect,
+	    NULL,
+	    XP_OPTFLAG_DEFAULT,
+	    "Leave a fading trail behind sparks, debris and thrust exhaust.\n"
+	    "The trail marks positions the server actually reported, so it\n"
+	    "shows real motion rather than invented motion. No effect when\n"
+	    "classicRender is on.\n"),
+
+	XP_INT_OPTION(
+	    "particleLife",
+	    350, 0, 2000,
+	    &particleLife,
+	    NULL,
+	    XP_OPTFLAG_DEFAULT,
+	    "How long a trail lasts, in milliseconds. 0 disables it.\n"),
 
 	XP_BOOL_OPTION(
 	    "starfieldEffect",

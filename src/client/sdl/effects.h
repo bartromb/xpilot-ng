@@ -42,6 +42,14 @@ extern int  starfieldDensity;
 bool Effects_starfield(void);
 void Starfield_paint(double view_x, double view_y, int w, int h);
 
+extern bool particleEffect;
+extern int  particleLife;
+
+bool Effects_particles(void);
+void Particles_spawn(double x, double y, int r, int g, int b);
+void Particles_update(void);
+void Particles_paint(void);
+
 void Store_effects_options(void);
 
 #endif /* EFFECTS_H */
