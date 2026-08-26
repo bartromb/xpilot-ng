@@ -38,13 +38,15 @@ def _lazy_imports():
     return PPO, Monitor, DummyVecEnv
 
 
-def build_vec_env(stage, n_envs, base_port, fps, max_steps, binary, map_file):
+def build_vec_env(stage, n_envs, base_port, fps, max_steps, binary, map_file,
+                  include_shots=False):
     from xpilot_bot.env import make_parallel
     _PPO, Monitor, DummyVecEnv = _lazy_imports()
 
     envs, servers = make_parallel(
         n_envs, base_port=base_port, fps=fps, stage=stage,
         max_steps=max_steps, binary=binary, map_file=map_file,
+        include_shots=include_shots,
     )
     vec = DummyVecEnv([(lambda e=e: Monitor(e)) for e in envs])
     return vec, envs, servers
@@ -67,7 +69,7 @@ def train(args) -> int:
 
         vec, envs, servers = build_vec_env(
             stage, args.envs, port, args.fps, args.max_steps,
-            args.binary, args.map,
+            args.binary, args.map, include_shots=args.shots,
         )
         # Fresh ports per stage: a server from the previous stage may still be
         # shutting down, and binding over it fails intermittently.
@@ -125,6 +127,10 @@ def main(argv=None) -> int:
                     help="steps before an episode is truncated")
     ap.add_argument("--base-port", type=int, default=15500)
     ap.add_argument("--out", default="ai/checkpoints")
+    ap.add_argument("--shots", action="store_true",
+                    help="show the agent nearby shots. This widens the "
+                         "observation, so a checkpoint trained with it can "
+                         "only be evaluated with it.")
     ap.add_argument("--binary", default="./build/bin/xpilot-ng-server")
     ap.add_argument("--map", default="lib/maps/dodgers-robots.xp2")
     ap.add_argument("--rollout", type=int, default=512)

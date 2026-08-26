@@ -37,6 +37,7 @@ except ImportError as exc:  # pragma: no cover
     ) from exc
 
 from .client import Client, ProtocolError
+from .frames import world_shots
 from . import protocol as p
 
 #: Actions, as combinations of held keys. XPilot input is continuous -- keys
@@ -79,6 +80,14 @@ STAGE_ROBOTS = {"navigate": 0, "dodge": 2, "combat": 4}
 
 #: How many other ships appear in the observation, nearest first.
 MAX_TRACKED_SHIPS = 4
+
+#: How many incoming shots appear in the observation, nearest first.
+#:
+#: Without these the agent cannot see bullets at all, which makes the
+#: roadmap's "dodge" stage a stage about avoiding *ships*. Shots are the
+#: densest thing in a frame -- a few thousand in a busy ten seconds -- so
+#: only the nearest handful are worth the observation width.
+MAX_TRACKED_SHOTS = 4
 
 HEADING_STEPS = 128
 
@@ -173,6 +182,7 @@ class XPilotEnv(gym.Env):
         death_penalty: float = 1.0,
         reuse_connection: bool = True,
         edge_wrap: bool = True,
+        include_shots: bool = False,
         stage: str = "combat",
         server: ServerProcess | None = None,
     ) -> None:
@@ -198,6 +208,9 @@ class XPilotEnv(gym.Env):
         self.death_penalty = death_penalty
         self.reuse_connection = reuse_connection
         self.edge_wrap = edge_wrap
+        # Changing this changes the observation width, so a checkpoint and
+        # the benchmark that scores it have to agree on it.
+        self.include_shots = include_shots
         if stage not in STAGES:
             raise ValueError(f"unknown stage {stage!r}; expected one of "
                              f"{sorted(STAGES)}")
@@ -206,6 +219,8 @@ class XPilotEnv(gym.Env):
 
         self.action_space = spaces.Discrete(len(ACTIONS))
         obs_len = 6 + 5 * MAX_TRACKED_SHIPS
+        if include_shots:
+            obs_len += 5 * MAX_TRACKED_SHOTS
         self.observation_space = spaces.Box(
             low=-np.inf, high=np.inf, shape=(obs_len,), dtype=np.float32
         )
@@ -462,7 +477,38 @@ class XPilotEnv(gym.Env):
             else:
                 obs += [0.0, 0.0, 0.0, 0.0, 0.0]
 
+        if self.include_shots:
+            obs += self._shot_features(frame, me, heading)
+
         return np.asarray(obs, dtype=np.float32)
+
+    def _shot_features(self, frame, me, heading) -> list:
+        """The nearest few shots, in the same shape as the ship slots."""
+        s = self.world_scale
+        shots = world_shots(frame)
+
+        rows = []
+        for sx, sy, _kind in shots:
+            dx, dy = self._delta(me.x, me.y, sx, sy)
+            d2 = dx * dx + dy * dy
+            # Our own muzzle flash sits on top of us every time we fire, and
+            # reporting it as the nearest threat would drown out real ones.
+            if d2 < 400:
+                continue
+            rows.append((d2, dx, dy))
+        rows.sort(key=lambda r: r[0])
+
+        out = []
+        for i in range(MAX_TRACKED_SHOTS):
+            if i < len(rows):
+                d2, dx, dy = rows[i]
+                dist = math.sqrt(d2)
+                bearing = math.atan2(dy, dx)
+                err = (bearing - heading + math.pi) % (2 * math.pi) - math.pi
+                out += [dx / s, dy / s, dist / s, err / math.pi, 1.0]
+            else:
+                out += [0.0, 0.0, 0.0, 0.0, 0.0]
+        return out
 
     def _reward(self, frame) -> float:
         """Reward for the current curriculum stage.

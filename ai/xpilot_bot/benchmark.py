@@ -128,6 +128,10 @@ def main(argv=None) -> int:
     ap.add_argument("--fps", type=int, default=200)
     ap.add_argument("--max-steps", type=int, default=1000)
     ap.add_argument("--base-port", type=int, default=15700)
+    ap.add_argument("--shots", action="store_true",
+                    help="show the agent nearby shots. This widens the "
+                         "observation, so a checkpoint trained with it can "
+                         "only be evaluated with it.")
     ap.add_argument("--binary", default="./build/bin/xpilot-ng-server")
     ap.add_argument("--map", default="lib/maps/dodgers-robots.xp2")
     args = ap.parse_args(argv)
@@ -153,6 +157,7 @@ def main(argv=None) -> int:
     envs, servers = make_parallel(
         args.envs, base_port=args.base_port, fps=args.fps, stage=args.stage,
         max_steps=args.max_steps, binary=args.binary, map_file=args.map,
+        include_shots=args.shots,
     )
     try:
         name = f"random policy" if model is None else f"model {args.model}"

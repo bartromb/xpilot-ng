@@ -71,3 +71,30 @@ def test_a_shot_off_our_nose_bears_the_way_we_point():
     (x, y, _), = world_shots(f)
     bearing = math.atan2(y - 4000, x - 5000)
     assert bearing == pytest.approx(0.0), "due east, as heading 0 points"
+
+
+# ------------------------------------------- shots in the observation
+
+
+def test_shots_widen_the_observation_only_when_asked():
+    """A checkpoint is tied to its observation width, so this cannot be a
+    silent default change."""
+    from xpilot_bot.env import XPilotEnv, MAX_TRACKED_SHOTS
+    plain = XPilotEnv(port=1)
+    withshots = XPilotEnv(port=1, include_shots=True)
+    assert (withshots.observation_space.shape[0]
+            - plain.observation_space.shape[0]) == 5 * MAX_TRACKED_SHOTS
+
+
+def test_our_own_muzzle_flash_is_not_reported_as_a_threat():
+    """Firing puts shots on top of us every frame. Reporting those as the
+    nearest incoming fire would drown out the ones that matter."""
+    from xpilot_bot.env import XPilotEnv
+    env = XPilotEnv(port=1, include_shots=True)
+    f = _frame(view=(1024, 768), me=(5000, 4000),
+               shots=[(256, 128, 5),          # exactly on us: our own muzzle
+                      (256 + 200, 128, 5)])   # 200px away: a real one
+    rows = env._shot_features(f, f.self_, 0.0)
+    assert rows[4] == 1.0, "one shot should be reported"
+    assert rows[2] * env.world_scale == pytest.approx(200, abs=1)
+    assert rows[9] == 0.0, "and only one"
