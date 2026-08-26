@@ -26,7 +26,21 @@ extern int    glowLayers;
 bool Effects_classic(void);
 bool Effects_glow(void);
 
+/*
+ * Emit the geometry to be glowed. Called once per glow layer; the callback
+ * must not change colour or line width, which the glow controls.
+ */
+typedef void (*glow_emit_fn)(void *data);
+
+void Glow_draw(glow_emit_fn emit, void *data, unsigned int rgb,
+	       double base_width);
 void Glow_call_list(unsigned int list, unsigned int rgb, double base_width);
+
+extern bool starfieldEffect;
+extern int  starfieldDensity;
+
+bool Effects_starfield(void);
+void Starfield_paint(double view_x, double view_y, int w, int h);
 
 void Store_effects_options(void);
 

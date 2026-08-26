@@ -381,9 +381,14 @@ Hard rules for every item in this phase:
   them all and reproduces the plain vector look.
 - Server untouched. All work lives in the SDL2 client.
 
-- [x] Layered glow via additive blending — implemented for **wall edges** so far, in
-      `src/client/sdl/effects.c`. Ships and shots are not done yet; they draw through
-      different paths and are the next step.
+- [x] Layered glow via additive blending — **walls and ships**, in
+      `src/client/sdl/effects.c`. Shots are **not** glowed: they are textured sprites drawn
+      through `Image_paint`, whose `frame` argument is an animation index, not a size, so
+      there is no way to draw them larger without new geometry. That belongs with the
+      particle work rather than here. Ships only glow in vector mode; with `texturedShips`
+      on (the default) they are sprites and the same limit applies. Cloaked and phased ships
+      are deliberately excluded — a halo would reveal a ship that is meant to be hard to see,
+      which would be a gameplay change, not a presentation one.
       Options: `glowEffect` (on), `glowWidth` (1.5), `glowLayers` (3), plus `classicRender`
       as the master off switch. All changeable at runtime with the new `/set` console
       command.
@@ -395,7 +400,12 @@ Hard rules for every item in this phase:
       brightness from 2.65 to 1.57, matching classic.
 - [ ] Particle system: thrust exhaust, explosions, debris (client-side, driven by
       existing server events only)
-- [ ] Parallax starfield, 2-3 depth layers
+- [x] Parallax starfield, 3 depth layers — `starfieldEffect` (on), `starfieldDensity` (45).
+      Stars come from a fixed seed through a private generator, so the sky is identical every
+      frame and every session and does not disturb the global `rand()` stream. Each layer
+      scrolls at a fraction of the view (0.15 / 0.35 / 0.60), tiled on a 1024px grid.
+      Verified view-linked rather than static: thrusting for 2.5s changed 2,849 pixels in a
+      region of otherwise empty space.
 - [ ] Polish the existing SDL texture mode for ships/walls instead of rebuilding it
 - [ ] Later / stretch: OpenGL 3.3 core shader pipeline with bloom post-processing
 - [ ] Later / stretch: dynamic lighting — shots and explosions tinting nearby walls
