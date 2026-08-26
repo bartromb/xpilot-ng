@@ -22,7 +22,7 @@ development since 2010 and is kept here only as a provenance link.
 | 4 | Quality of life | **Done** — keybind defaults left alone deliberately |
 | 4b | Graphics modernization | **Done** to the stretch line |
 | 5 | Network & hosting | **Done** — including a self-hostable metaserver |
-| 6a | Python bot SDK | **Done** — game-state decoding not started |
+| 6a | Python bot SDK | **Done** — including frame decoding |
 
 Full detail, including everything deliberately *not* done and why, is in
 [`ROADMAP.md`](ROADMAP.md).
@@ -88,7 +88,8 @@ addresses used to be compiled in.
 
 **Bots.** [`ai/`](ai/README.md) is a dependency-free Python client that speaks
 the original protocol, so bots play against unmodified servers seeing only what
-a human's client sees.
+a human's client sees. Frames are decoded into world state — own ship, other
+ships, shots, items — so a bot can perceive as well as act.
 
 ## Bugs found and fixed
 
@@ -136,8 +137,9 @@ Stated plainly, because they decide what is safe to rely on:
   packet carries a sound index and a volume, and no position.
 - **The 144 fps target is unmeasured**, because the reference machine was under
   heavy unrelated load whenever it was tried.
-- **Bots can act but not perceive.** The frame stream is acknowledged, not
-  decoded, so Phases 6b and 6c need that work first.
+- **Bots perceive, but the example bot is not good.** Frame decoding is
+  complete; the `hunter` example aims better than chance and no more. Making it
+  play well is Phase 6c.
 
 ## Licence
 
