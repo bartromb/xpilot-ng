@@ -507,7 +507,22 @@ kind of decision from the rest of this phase.
       set them by default. Notably the protocol embeds **no IP addresses**, only a port, so
       it avoids the FTP-style NAT breakage entirely.
 - [ ] Self-hostable metaserver replacement (tiny HTTP JSON service) since original metaservers are dead
-- [ ] systemd unit + Docker image for easy server hosting (LAN games at home)
+- [x] systemd unit + Docker image — `packaging/xpilot-ng-server.service` and
+      `packaging/Dockerfile`. Both **pin `clientPortStart`/`clientPortEnd`**, because the NAT
+      audit showed the default ephemeral per-connection ports produce a login that succeeds
+      and then goes silent; the Docker instructions publish both ranges for the same reason.
+      Both also pass `-noQuit -idleRun`, without which the server exits when the last human
+      leaves — which under systemd or Docker reads as a crash loop.
+      The unit is hardened (`ProtectSystem=strict`, `RestrictAddressFamilies`,
+      `SystemCallFilter=@system-service`, no write access anywhere) and passes
+      `systemd-analyze verify`. The image is multi-stage and builds the **server only**, with
+      no SDL, X11 or OpenGL.
+      Verified as far as possible without a Docker daemon, which is not running here: the
+      exact server-only CMake configure, build and install the Dockerfile encodes were run
+      locally and succeed. The runtime stage installs `libexpat1` and `zlib1g`, which
+      `objdump -p` confirms is the binary's complete dependency set — `ldd` on this host
+      additionally reports X11 libraries, but those come from an unrelated
+      `/etc/ld.so.preload` entry, not from the build.
 - [ ] Security pass on server input parsing (1990s C parsing network packets — fuzz it: AFL++ on packet handlers)
 
 ---
