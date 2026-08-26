@@ -230,7 +230,23 @@ class XPilotEnv(gym.Env):
         frame = self._await_frame()
         obs = self._observe(frame)
         self._last_obs = obs
-        return obs, {}
+        return obs, self._info()
+
+    def _info(self, **extra) -> dict:
+        """Per-step diagnostics, including what the reliable stream says.
+
+        The scoreboard is the only source of scores and kills: none of it is
+        on the frame stream, which is why win rates were unmeasurable until
+        that stream was decoded. It is reported rather than rewarded --
+        rewarding it directly would be tempting but it arrives late and
+        irregularly, which makes for a badly-shaped signal.
+        """
+        info = dict(extra)
+        rel = getattr(self._client, "reliable", None)
+        if rel is not None:
+            info["scoreboard"] = rel.board.summary()
+            info["reliable_desynced"] = rel.desynced
+        return info
 
     def step(self, action: int):
         if self._client is None:
@@ -254,19 +270,19 @@ class XPilotEnv(gym.Env):
                            else np.zeros(self.observation_space.shape,
                                          dtype=np.float32))
                     self._steps += 1
-                    return obs, -self.death_penalty, True, False, {"died": True}
+                    return obs, -self.death_penalty, True, False, self._info(died=True)
         except ProtocolError:
             # Dropped mid-episode. Ending it is honest; pretending otherwise
             # would feed the agent an observation that never happened.
             obs = np.zeros(self.observation_space.shape, dtype=np.float32)
-            return obs, 0.0, True, False, {"disconnected": True}
+            return obs, 0.0, True, False, self._info(disconnected=True)
 
         self._steps += 1
         obs = self._observe(frame)
         self._last_obs = obs
         reward = self._reward(frame)
         truncated = self._steps >= self.max_steps
-        return obs, reward, False, truncated, {"frame": frame.loops}
+        return obs, reward, False, truncated, self._info(frame=frame.loops)
 
     def close(self):
         self._close_client()

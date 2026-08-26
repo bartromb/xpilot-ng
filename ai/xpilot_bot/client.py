@@ -21,6 +21,7 @@ import time
 from dataclasses import dataclass, field
 
 from . import protocol as p
+from .reliable import ReliableStream
 from .frames import Frame, decode_frame
 from .packet import Reader, Writer
 
@@ -78,6 +79,10 @@ class Client:
         # and will eventually drop a client that never acknowledges, so this
         # is not optional even for a bot that ignores the content.
         self._reliable_offset = 0
+        #: Decoded scores, players and messages from that stream. It handles
+        #: the map blob at the head of the stream itself, so segments can be
+        #: fed to it from the first datagram onwards.
+        self.reliable = ReliableStream()
         self._last_loops = 0
         #: The most recently decoded frame, and the bytes it came from.
         self.frame: Frame | None = None
@@ -314,7 +319,7 @@ class Client:
         raise ProtocolError("server never started sending frames")
 
     def _handle_datagram(self, data: bytes) -> None:
-        """Acknowledge the reliable stream. Frame content is not decoded."""
+        """Acknowledge the reliable stream and decode it."""
         if not data or data[0] != p.PKT_RELIABLE:
             return
         try:
@@ -327,6 +332,12 @@ class Client:
             return
 
         self._last_loops = rel_loops
+
+        # The payload follows the 11-byte %c%hd%ld%ld header. Hand it to the
+        # reassembler, which sorts out gaps and retransmissions itself.
+        payload = data[11 : 11 + length]
+        if len(payload) == length:
+            self.reliable.feed(rel, payload)
 
         # Only advance on the segment we are actually waiting for; anything
         # else is a retransmission or arrived out of order.

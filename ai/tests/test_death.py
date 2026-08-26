@@ -16,6 +16,7 @@ import numpy as np
 
 from xpilot_bot.env import XPilotEnv
 from xpilot_bot.frames import Frame, Self
+from xpilot_bot.reliable import ReliableStream
 
 
 class FakeClient:
@@ -24,6 +25,8 @@ class FakeClient:
     def __init__(self, frames):
         self._frames = list(frames)
         self.sent = 0
+        # The real client carries one, and env reports from it.
+        self.reliable = ReliableStream()
 
     def poll(self):
         return self._frames.pop(0) if self._frames else _alive()

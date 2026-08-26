@@ -7,12 +7,15 @@ Always compare against `--random`. A number like "mean reward 41.2" means
 nothing on its own; what matters is whether it beats acting at random on the
 same map with the same robots.
 
-On win rates. The roadmap asks for them, and they are not measurable here yet:
-scores arrive on the reliable sub-stream, which the client acknowledges but
-does not parse, so the bot never learns who killed whom. What is measured is
-survival, reward and how well the policy points at opponents -- all of which
-come from the frame stream that is decoded. Adding win rates means decoding
-the reliable stream, which is a separate piece of work.
+On win rates. Scores and kills travel on the reliable sub-stream, not the
+frame stream, so they were unmeasurable until that stream was decoded (see
+reliable.py). They are now read straight from it: `own deaths` and `kills`
+below are the server's own counts, not inferred from missing frames.
+
+Two honest caveats. A run in which nobody dies reports 0-0, which says the
+policies never fought, not that they drew. And the aim and survival figures
+still come from the frame stream, which is the more sensitive measure when
+kill counts are small.
 """
 
 from __future__ import annotations
@@ -29,6 +32,10 @@ def evaluate(model, envs, episodes: int, stage: str):
     from xpilot_bot.env import HEADING_STEPS
 
     rewards, lengths, deaths, aim_errors = [], [], 0, []
+    # From the reliable stream: the server's own view of who died.
+    own_deaths = kills = 0
+    score_total = 0.0
+    desynced = False
 
     for ep in range(episodes):
         env = envs[ep % len(envs)]
@@ -52,6 +59,11 @@ def evaluate(model, envs, episodes: int, stage: str):
             if terminated or truncated:
                 if info.get("died"):
                     deaths += 1
+                sb = info.get("scoreboard") or {}
+                own_deaths += sb.get("own_deaths") or 0
+                kills += sb.get("opponent_deaths_total") or 0
+                score_total += sb.get("own_score") or 0.0
+                desynced = desynced or bool(info.get("reliable_desynced"))
                 break
 
         rewards.append(total)
@@ -69,6 +81,10 @@ def evaluate(model, envs, episodes: int, stage: str):
         "deaths": deaths,
         "aim_error_mean": statistics.mean(aim_errors) if aim_errors else None,
         "aim_samples": len(aim_errors),
+        "own_deaths": own_deaths,
+        "kills": kills,
+        "score_total": score_total,
+        "desynced": desynced,
     }
 
 
@@ -84,6 +100,21 @@ def report(name: str, r: dict) -> None:
               f"(random ~{math.pi / 2:.2f}) over {r['aim_samples']} samples")
     else:
         print("  mean aim error   no opponents were ever in view")
+
+    # From the reliable stream.
+    print(f"  score (total)    {r['score_total']:.2f}")
+    print(f"  kills / deaths   {r['kills']} / {r['own_deaths']}"
+          f"   (server's own counts)")
+    if r["kills"] == 0 and r["own_deaths"] == 0:
+        print("                   nobody died: this is not a draw, it is a "
+              "run with no fighting in it")
+    else:
+        total = r["kills"] + r["own_deaths"]
+        print(f"  win rate         {r['kills'] / total:.0%} "
+              f"of {total} decided fights")
+    if r["desynced"]:
+        print("  NOTE: the reliable stream desynchronised, so the counts "
+              "above are incomplete")
 
 
 def main(argv=None) -> int:
