@@ -266,36 +266,37 @@ Phases 6a and 6b are met. Both of the game's packet streams decode: frames at
 reliable sub-stream cleanly through setup and play, checked continuously in
 CI by `tools/check_reliable.py`.
 
-Phase 6c has a working training and benchmark loop, and **no trained policy
-has yet beaten acting at random**. That is the honest state of it. The most
-recent comparison, 20 episodes each on `dodgers-robots.xp2`:
+Phase 6c has a working training and benchmark loop. **Every result measured
+before 2026-08-27 is void**, for a reason worth stating plainly: the ship
+could not turn. `MIN_PLAYER_TURNSPEED` is 0.0 and a player starts at the
+minimum, so a client that never sends `PKT_TURNSPEED` is welded to one
+heading — and nothing reports it. The keys are accepted, the server
+acknowledges them, the frames keep coming. A bot holding turn-right for five
+seconds sat at heading 32 for all of it.
 
-| | random | trained (60k steps) |
-|---|---|---|
-| mean reward | 5.16 (sd 3.25) | 3.89 (sd 3.12) |
-| mean episode length | 131 steps | 137 steps |
-| mean aim error | 1.57 rad | 1.88 rad |
-| kills / deaths | 6 / 20 | 4 / 20 |
-| win rate | 23% | 17% |
+So the agent had been rewarded for pointing at its nearest opponent while
+holding no action that could change where it pointed. The aim term was noise
+and the benchmark measured the same noise. Engine power was stuck at 5.0
+instead of 55.0 for the same reason, which is why thrust had looked weak.
 
-The reward difference is within noise (Welch t = −1.23 on 20 episodes each).
-The aim error is not: on two thousand samples per policy, the trained agent
-points *further* from its nearest opponent than chance does, which is a
-stronger statement than "it hasn't learned yet".
+The current random baseline, on a ship that can fly, 20 episodes:
 
-**That table was measured with a broken ruler and is kept only as a record.**
-Both policies were graded on a bearing that ignored the map wrapping, which
-put 40% of "which opponent is nearest" answers wrong. So the aim column
-compares two numbers that were each computed incorrectly, and the trained
-agent had additionally been *trained* on that bearing as a reward — which is
-the leading explanation for it aiming worse than chance, though that is a
-hypothesis until the next run tests it.
+| | random |
+|---|---|
+| mean reward | 7.26 (sd 5.85) |
+| mean episode length | 127 steps |
+| mean aim error | 1.69 rad |
+| kills / deaths | 15 / 20 |
+| win rate | 43% |
 
-A corrected random baseline, 20 episodes: mean reward 6.21 (sd 4.22), mean
-aim error 1.33 rad, 8 kills against 20 deaths, win rate 29%. Note that 1.33
-rather than π/2: a random *policy* does better than uniform here, because the
-nearest opponent is not uniformly distributed around the ship. That is the
-number a trained policy has to beat.
+Note how much better random does than it did on the crippled ship — 15 kills
+against 8, 43% against 29%. Most of what a benchmark measures here is whether
+the ship works at all.
+
+No trained policy has beaten this baseline yet. The last one collapsed to a
+single action ("turn right and fire" on 91% of steps), which was a rational
+response to a world where turning did nothing; training now runs with an
+entropy bonus, on a ship that flies.
 
 The `hunter` example remains a demonstration rather than a good player:
 tracking one target it holds a mean aim error of about 19 heading units

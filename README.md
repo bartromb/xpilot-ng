@@ -115,6 +115,11 @@ Several of these had been in the code for decades:
   deaf exactly when the game begins. Nothing errors — scores and kills simply
   never arrive, and the server quietly drops the connection with a retransmit
   timeout that reads like a network fault.
+- **A client that never sends `PKT_TURNSPEED` has a ship that cannot turn.**
+  `MIN_PLAYER_TURNSPEED` is 0.0 and players start at the minimum, so the
+  turn keys are accepted, acknowledged, and do nothing — no error anywhere.
+  Engine power behaves the same way, sitting at 5.0 instead of 55.0. Easy to
+  mistake for bad flying.
 - **The world wraps, and the protocol never says so.** Most maps set
   `edgeWrap="yes"`, so subtracting two positions returns the long way round
   once they are more than half a map apart. Measured on a live game, that
