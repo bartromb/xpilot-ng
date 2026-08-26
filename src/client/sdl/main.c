@@ -77,6 +77,22 @@ int main(int argc, char *argv[])
 	exit(1);
     }
 
+    /*
+     * Create the window before contacting the server, not after.
+     *
+     * The server holds a half-open connection between the contact reply and
+     * the login handshake, and drops it after a short timeout. Creating an
+     * OpenGL context in that gap is fine on hardware, where it takes
+     * milliseconds, but under software rendering it can take long enough for
+     * the server to give up -- the connection is logged as "timeout 01" and
+     * the client reports a successful login followed by silence. Doing the
+     * slow part first removes the gap entirely.
+     */
+    if (Init_window()) {
+	error("Could not initialize SDL, check your settings.");
+	exit(1);
+    }
+
     if (xpArgs.text || xpArgs.auto_connect || argv[1]) {
 	if (!Contact_servers(argc - 1, &argv[1],
 			     xpArgs.auto_connect, xpArgs.list_servers,
@@ -84,15 +100,7 @@ int main(int argc, char *argv[])
 			     0, NULL, NULL, NULL, NULL,
 			     &connectParam))
 	    return 0;
-	if (Init_window()) {
-	    error("Could not initialize SDL, check your settings.");
-	    exit(1);
-	}
     } else {
-	if (Init_window()) {
-	    error("Could not initialize SDL, check your settings.");
-	    exit(1);
-	}
 	while (1) {
 	    result = Meta_window(&connectParam);
 	    if (result < 0) return 0;

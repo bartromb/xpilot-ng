@@ -240,6 +240,13 @@ Branch: `phase2-sdl2`
       appear on the pre-HiDPI build), so not a port regression. The client deliberately clears
       with a full-screen quad rather than `glClear`, only when `damaged <= 0`; that conditional
       is the likely culprit and is where to start.
+- [x] Fixed a real startup race found by CI: the client created its OpenGL context *between*
+      the contact reply and the login handshake, while the server held a half-open connection
+      on a short timeout. On hardware that gap is milliseconds; under software rendering it
+      was long enough for the server to drop the connection with "timeout 01", which presents
+      as a successful login followed by silence. The window is now created before contacting,
+      removing the gap. This was intermittently failing CI and would have affected anyone on
+      a slow or virtualised machine.
 - [ ] Verify fullscreen toggle, alt-tab, multi-monitor on Wayland — **not done, and blocked by
       the default game loop.** `gameloop_x.c` selects on the X connection fd, so it needs an X11
       video driver; it now says so and points at `-DXPILOT_SDL_GAMELOOP=ON` rather than failing
