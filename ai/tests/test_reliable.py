@@ -166,3 +166,63 @@ def test_summary_counts_both_sides():
     assert d["own_deaths"] == 0
     assert d["opponents"] == 1
     assert d["opponent_deaths_total"] == 2
+
+
+# ------------------------------------------------------- death notices
+
+
+def _board_with_players(*nicks):
+    s = ReliableStream()
+    blob = b"".join(player(i + 1, n, myself=(i == 0))
+                    for i, n in enumerate(nicks))
+    feed_all(s, blob)
+    return s.board
+
+
+@pytest.mark.parametrize("text,victim,killer", [
+    ("bot was killed by a shot from robo.", "bot", "robo"),
+    ("bot was killed by robo.", "bot", "robo"),
+    ("bot was killed by a ball owned by robo.", "bot", "robo"),
+    ("bot was killed by a ball.", "bot", None),
+    ("bot smashed against a wall", "bot", None),
+    ("bot crashed against a wall", "bot", None),
+    ("bot smashed into an asteroid.", "bot", None),
+])
+def test_death_notices_are_counted(text, victim, killer):
+    b = _board_with_players("bot", "robo")
+    b.note_message(text)
+    assert b._by_nick(victim).deaths == 1
+    if killer:
+        assert b._by_nick(killer).kills == 1
+    else:
+        assert sum(pl.kills for pl in b.players.values()) == 0
+
+
+def test_mutual_crash_kills_both_and_credits_neither():
+    b = _board_with_players("bot", "robo")
+    b.note_message("bot and robo crashed.")
+    assert b._by_nick("bot").deaths == 1
+    assert b._by_nick("robo").deaths == 1
+    assert sum(pl.kills for pl in b.players.values()) == 0
+
+
+def test_chat_cannot_forge_a_death():
+    """The server appends " [nick]" to player chat and to nothing of its own,
+    which is the only thing separating a real notice from a typed one."""
+    b = _board_with_players("bot", "robo")
+    b.note_message("bot was killed by a shot from robo. [robo]")
+    assert b._by_nick("bot").deaths == 0
+
+
+def test_a_notice_about_an_unknown_name_is_not_counted():
+    b = _board_with_players("bot", "robo")
+    b.note_message("stranger was killed by a shot from robo.")
+    assert sum(pl.deaths for pl in b.players.values()) == 0
+    assert sum(pl.kills for pl in b.players.values()) == 0
+
+
+def test_ball_owner_is_not_read_as_the_killer_name():
+    """The general 'killed by X' pattern must not swallow the specific ones."""
+    b = _board_with_players("bot", "robo")
+    b.note_message("bot was killed by a ball owned by robo.")
+    assert b._by_nick("robo").kills == 1

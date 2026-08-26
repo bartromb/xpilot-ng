@@ -64,6 +64,42 @@ over UDP, carrying anything that must not be dropped — map data, messages,
 score updates — while frame state is sent unreliably and simply superseded by
 the next frame.
 
+### The reliable sub-stream in detail
+
+Decoding it was needed to measure anything about a game's *outcome*, since no
+score, kill or player name appears on the frame stream at all. Three
+properties are easy to miss from the source and expensive to get wrong.
+
+**It is a byte stream, not a packet stream.** Each `PKT_RELIABLE` segment is
+`%c%hd%ld%ld` — type, payload length, offset into the stream, and a frame
+number — followed by the payload. Segments arrive out of order, are
+retransmitted until acknowledged, and a single packet may straddle two of
+them. A decoder must therefore buffer by offset and parse only contiguous
+bytes; parsing per-segment double-counts retransmissions.
+
+**It does not start with packets.** The layout is fixed:
+
+    [PKT_REPLY (3)] [PKT_MAGIC (5)] [setup header + map_data_len bytes] [packets…]
+
+The setup blob is `%ld%ld%hd%hd%hd%hd%s%s%S` — `map_data_len`, mode, lives,
+width, height, fps, map name, author, data URL — followed by exactly
+`map_data_len` bytes of map. Only after it does the packet stream begin.
+Because the length is announced, the blob can be stepped over exactly; there
+is no need to guess when setup has ended.
+
+**`PKT_PLAYER` carries two shape strings.** `Send_player` writes the base
+ship shape and then an `ext` continuation, which the C client appends to the
+first (`&shape[strlen(shape)]`). Reading only one leaves a string on the
+stream, and since packets are undelimited, everything after it decodes as
+garbage. A working reference implementation is in
+[`ai/xpilot_bot/reliable.py`](../ai/xpilot_bot/reliable.py).
+
+Types that can appear (the client's `reliable_tbl`, plus `PKT_REPLY` and
+`PKT_MAGIC`, which it handles inline): `MOTD`, `MESSAGE`, `TEAM_SCORE`,
+`PLAYER`, `TEAM`, `SCORE`, `TIMING`, `LEAVE`, `WAR`, `SEEK`, `BASE`, `QUIT`,
+`STRING`, `SCORE_OBJECT`, `TALK_ACK`. Scores are sent as hundredths in
+protocol versions ≥ 0x4F11 and as whole numbers before that.
+
 ## NAT audit
 
 The question the roadmap asks is whether this is NAT-friendly. The answer

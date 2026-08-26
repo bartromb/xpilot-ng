@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 
 from . import protocol as p
 from .reliable import ReliableStream
-from .frames import Frame, decode_frame
+from .frames import Frame, decode_frame, iter_reliable
 from .packet import Reader, Writer
 
 
@@ -319,37 +319,40 @@ class Client:
         raise ProtocolError("server never started sending frames")
 
     def _handle_datagram(self, data: bytes) -> None:
-        """Acknowledge the reliable stream and decode it."""
-        if not data or data[0] != p.PKT_RELIABLE:
-            return
-        try:
-            r = Reader(data)
-            r.c()                       # PKT_RELIABLE
-            length = r.hd()
-            rel = r.ld()
-            rel_loops = r.ld()
-        except Reader.Truncated:
+        """Acknowledge and decode every reliable segment in a datagram.
+
+        Not just one, and not only at offset zero. Before frames start, a
+        segment arrives as a datagram of its own; once play begins the server
+        piggybacks it onto the end of a frame update instead, so the datagram
+        starts with PKT_START and the segment is somewhere inside it. Reading
+        only `data[0]` therefore works perfectly through setup and then stops
+        working the instant the game starts -- the stream appears to freeze,
+        nothing is ever acknowledged, and the server eventually drops the
+        connection with a retransmit timeout. That is a slow and confusing
+        way to discover the packet is not where you assumed.
+        """
+        if not data:
             return
 
-        self._last_loops = rel_loops
-
-        # The payload follows the 11-byte %c%hd%ld%ld header. Hand it to the
-        # reassembler, which sorts out gaps and retransmissions itself.
-        payload = data[11 : 11 + length]
-        if len(payload) == length:
+        acked = False
+        for rel, rel_loops, payload in iter_reliable(data):
+            self._last_loops = rel_loops
             self.reliable.feed(rel, payload)
+            # Only advance on the segment we are actually waiting for;
+            # anything else is a retransmission or arrived out of order.
+            if rel == self._reliable_offset:
+                self._reliable_offset += len(payload)
+            acked = True
 
-        # Only advance on the segment we are actually waiting for; anything
-        # else is a retransmission or arrived out of order.
-        if rel == self._reliable_offset:
-            self._reliable_offset += length
+        if not acked:
+            return
 
         try:
             self._game.send(
                 Writer()
                 .c(p.PKT_ACK)
                 .ld(self._reliable_offset)
-                .ld(rel_loops)
+                .ld(self._last_loops)
                 .bytes()
             )
         except OSError:

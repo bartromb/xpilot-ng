@@ -22,9 +22,9 @@ development since 2010 and is kept here only as a provenance link.
 | 4 | Quality of life | **Done** — keybind defaults left alone deliberately |
 | 4b | Graphics modernization | **Done** to the stretch line |
 | 5 | Network & hosting | **Done** — including a self-hostable metaserver |
-| 6a | Python bot SDK | **Done** — including frame decoding |
+| 6a | Python bot SDK | **Done** — both packet streams decoded |
 | 6b | Gymnasium RL environment | **Done** — accelerated and parallel |
-| 6c | Learned agents | PPO curriculum training and benchmarking |
+| 6c | Learned agents | **Done** — PPO beats random; robots still won't fight |
 
 Full detail, including everything deliberately *not* done and why, is in
 [`ROADMAP.md`](ROADMAP.md).
@@ -90,11 +90,16 @@ addresses used to be compiled in.
 
 **Bots.** [`ai/`](ai/README.md) is a dependency-free Python client that speaks
 the original protocol, so bots play against unmodified servers seeing only what
-a human's client sees. Frames are decoded into world state — own ship, other
-ships, shots, items — so a bot can perceive as well as act. There is a
-Gymnasium environment on top of it for reinforcement learning, which runs
-faster than realtime and in parallel, plus PPO curriculum training and a
-benchmark that compares any policy against acting at random.
+a human's client sees. **Both** of the game's packet streams are decoded: the
+frame stream into world state — own ship, other ships, shots, items — and the
+reliable sub-stream into players, messages and scores. The second one matters
+more than it sounds, because nothing about a game's *outcome* is on the frame
+stream at all; decoding it is what made kills and scores measurable.
+
+On top of that sits a Gymnasium environment that runs faster than realtime and
+in parallel, PPO curriculum training, and a benchmark that compares any policy
+against acting at random — including on the server's own score, which is
+computed by the game and owes nothing to the reward function.
 
 ## Bugs found and fixed
 
@@ -104,6 +109,11 @@ Several of these had been in the code for decades:
   signed, so `ptr[j++] << 24` shifts a negative value for any byte ≥ 0x80 —
   reachable pre-authentication. The fix was verified not to change wire
   decoding at all. ([`tests/`](tests/README.md))
+- **`PKT_PLAYER` was mis-sized by every reimplementation of the protocol**,
+  including this one at first. It carries *two* ship-shape strings, not one,
+  and the reliable stream is undelimited — so reading one string turns
+  everything after it into garbage. Documented in
+  [`docs/protocol.md`](docs/protocol.md).
 - **`Console_print` crashed on any format argument**, passing a `va_list` to a
   variadic function. Every existing caller passed a bare string, so it had
   never fired.

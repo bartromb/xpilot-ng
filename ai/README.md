@@ -227,12 +227,23 @@ looked like it was working and was teaching nothing. Ten frames makes a step
 
 ### On win rates
 
-The roadmap asks to benchmark win rates against the built-in robots. They are
-**not measurable yet**: scores arrive on the reliable sub-stream, which the
-client acknowledges but does not parse, so a bot never learns who killed whom.
-The benchmark reports survival, reward and aim quality, all of which come from
-the frame stream that *is* decoded. Win rates need the reliable stream
-decoded — a separate piece of work, and the honest next step for 6c.
+They are measurable now. Scores, kills and player names travel on the
+**reliable sub-stream**, not the frame stream, which is why they were
+invisible for so long -- the bot was acknowledging that stream without ever
+looking inside it. [`reliable.py`](xpilot_bot/reliable.py) decodes it, and
+the benchmark reports the server's own kill and death counts.
+
+The honest caveat is that against the stock robots on `dodgers-robots.xp2`,
+**nobody dies** in a 300-step episode: neither policy kills, and neither gets
+killed. The benchmark says so in those words rather than reporting 0-0 as a
+draw. Getting real fights out of the robots is the next problem, and it is a
+game-configuration problem rather than a protocol one.
+
+What the reliable stream *does* give immediately is the server's own score,
+which is worth more than it sounds: it is computed by the game, entirely
+independent of the reward function in `env.py`. A policy that scores better
+by the server's reckoning is not merely satisfying the reward it was trained
+on.
 
 ## Status
 

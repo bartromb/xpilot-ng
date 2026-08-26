@@ -179,6 +179,34 @@ def packet_length(buf: bytes, i: int) -> int | None:
     return None
 
 
+def iter_reliable(buf: bytes):
+    """Yield every reliable segment in a datagram as (offset, loops, payload).
+
+    Reliable segments are not always datagrams of their own. The server
+    piggybacks them onto frame updates (`Send_end_of_frame` appends whatever
+    is queued once the frame is built), so during play a segment usually
+    arrives *inside* a datagram that begins with PKT_START. A client that
+    only inspects the first byte therefore sees the stream go silent the
+    moment frames start -- and, because it never acknowledges anything, the
+    server retransmits until it gives up and drops the connection.
+
+    Walking the datagram requires exact packet sizes, which is what
+    `packet_length` is for; an unknown type ends the walk rather than risking
+    a false match on what is really the middle of some other packet.
+    """
+    i, n = 0, len(buf)
+    while i < n:
+        length = packet_length(buf, i)
+        if length is None or length <= 0 or i + length > n:
+            return
+        if buf[i] == p.PKT_RELIABLE:
+            plen, rel, loops = struct.unpack(">hii", buf[i + 1 : i + 11])
+            payload = buf[i + 11 : i + 11 + plen]
+            if len(payload) == plen:
+                yield rel, loops, payload
+        i += length
+
+
 def decode_frame(buf: bytes) -> Frame:
     """Decode one datagram into a Frame.
 
