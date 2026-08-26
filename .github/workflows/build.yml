@@ -149,11 +149,7 @@ jobs:
               > bot-server.log 2>&1 &
           echo $! > bot-server.pid
           sleep 5
-          python -c "
-from xpilot_bot.bots import wanderer
-wanderer.run(host='localhost', port=15400, seconds=60.0)
-print('bot survived 60s')
-"
+          python -c "from xpilot_bot.bots import wanderer; wanderer.run(host='localhost', port=15400, seconds=60.0); print('bot survived 60s')"
           # The server is the authority on whether the bot actually played.
           grep -q 'Welcome Wanderer' bot-server.log
           grep -q 'Wanderer.*starts at startpos' bot-server.log
