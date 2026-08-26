@@ -27,6 +27,7 @@
 #include "sdlkeys.h"
 #include "glwidgets.h"
 #include "sdlpaint.h"
+#include "gamepad.h"
 #include "sdlinit.h"
 
 /* These are only needed for the polygon tessellation */
@@ -297,6 +298,8 @@ int Init_window(void)
     }
       
     Resolve_ui_scale();
+
+    Gamepad_init();
 
     /* hudSize has already been set from the user's hudScale preference by the
      * shared option handler; scale it so a dense display gets a

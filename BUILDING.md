@@ -113,6 +113,31 @@ Connect a client:
 
 `-noQuit` and `-idleRun` matter more than they look — see below.
 
+## Gamepad
+
+The SDL client picks up the first connected controller automatically, and
+handles plugging one in or out mid-game. The default mapping:
+
+| Control | Action |
+|---|---|
+| A / bottom face button | thrust |
+| B / right face button | fire |
+| X / left face button | shield |
+| Y / top face button | fire missile |
+| Left / right shoulder | turn left / right |
+| Left stick, horizontal | turn |
+| Right trigger | thrust |
+| Left trigger | shield |
+| D-pad up / down | lock next / previous |
+| Start | pause |
+| Back | toggle velocity display |
+
+SDL button names are positional, so "A" means the bottom face button whatever
+the pad happens to print on it.
+
+Note this mapping is unit-tested but has not been tried with a physical
+controller, so treat the choice of bindings as a starting point.
+
 ## Gotchas
 
 **The server exits when the last human player leaves.** By default

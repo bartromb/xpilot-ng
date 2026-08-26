@@ -349,7 +349,11 @@ Branch: per-feature (`phase4-<feature>`)
       downgrade still works. Lives in the shared `option.c`, so the X11 client gets it too. A
       missing config is now INFO rather than the ERROR it used to print on every launch.
 - [ ] Modern keybind defaults + in-client remapping
-- [ ] Gamepad support via SDL2 GameController API
+- [x] Gamepad support via SDL2 GameController API — `src/client/sdl/gamepad.c`. Buttons and
+      axes map onto the existing `Key_press`/`Key_release` action API, with hotplug handled and
+      a dead zone on the sticks. **The mapping is unit-tested (21 checks) but has never seen a
+      real controller** — no gamepad is attached to the reference machine — so the choice of
+      which button does what is unvalidated in play, even though the plumbing is not.
 - [ ] Package: .deb via CPack, optionally Flatpak manifest
 
 ## Phase 4b — Graphics modernization
