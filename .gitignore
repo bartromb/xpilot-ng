@@ -8,3 +8,8 @@
 *.dll
 *.exe
 *.log
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
