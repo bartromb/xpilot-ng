@@ -66,5 +66,10 @@ extern void Paint_select(void);
 
 extern SDL_Window   *MainSDLWindow;
 extern SDL_GLContext MainGLContext;
+extern double        ui_scale;
+extern int           UI_scaled(int v);
+extern float         hidpi_scale_x;
+extern float         hidpi_scale_y;
+extern void          Update_drawable_size(void);
 
 #endif

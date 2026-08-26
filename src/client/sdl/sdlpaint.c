@@ -148,12 +148,14 @@ GLWidget *Init_ScorelistWidget(void)
     }
 
     tmp->WIDGET     	= SCORELISTWIDGET;
-    tmp->bounds.x   	= 10;
-    tmp->bounds.y   	= 240;
-    tmp->bounds.w   	= 200;
-    tmp->bounds.h   	= 100;
+    /* Scaled so the panel keeps its proportions relative to the text it
+     * holds; at ui_scale 1.0 these are the original 10/240/200/100. */
+    tmp->bounds.x   	= UI_scaled(10);
+    tmp->bounds.y   	= UI_scaled(240);
+    tmp->bounds.w   	= UI_scaled(200);
+    tmp->bounds.h   	= UI_scaled(100);
 
-    scoreListFont = TTF_OpenFont(scoreListFontName, 11);
+    scoreListFont = TTF_OpenFont(scoreListFontName, UI_scaled(11));
     if (scoreListFont == NULL) {
 	error("opening font %s failed", scoreListFontName);
 	free(tmp);

@@ -134,6 +134,20 @@ shell command doing the check. Use `pgrep -x xpilot-ng-serve` or
 `ss -ulnp | grep :15000`. For the same reason, kill the server by saved PID
 rather than with `pkill -f`.
 
+**The interface is tiny on a high-density display.** Use `-uiScale`. The
+default of `0` auto-detects from the display DPI, which gives 1.0 on an
+ordinary monitor and about 2.0 on a HiDPI panel; pass an explicit value to
+override:
+
+```sh
+./build/bin/xpilot-ng-sdl -uiScale 1.5 -join -name you -port 15000 localhost
+```
+
+Note this is a different thing from SDL2's HiDPI drawable scaling. On X11 SDL2
+always reports a drawable scale of 1.0 regardless of how dense the panel is,
+so the game renders at native pixel density and the interface looks small;
+`-uiScale` is what fixes that.
+
 **Missing `~/.xpilotrc` is harmless.** Both clients print
 
 ```

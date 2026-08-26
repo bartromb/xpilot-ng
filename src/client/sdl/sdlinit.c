@@ -47,6 +47,83 @@ int videoFlags;
 SDL_Window *MainSDLWindow = NULL;
 SDL_GLContext MainGLContext = NULL;
 
+/*
+ * Ratio of drawable pixels to logical window units. 1.0 on an ordinary
+ * display; 2.0 on a typical HiDPI one. draw_width/draw_height are kept in
+ * drawable pixels so everything renders at full resolution, which means mouse
+ * coordinates — which SDL reports in logical units — have to be scaled up
+ * before they are tested against widget bounds. See Scale_mouse_event().
+ */
+float hidpi_scale_x = 1.0f;
+float hidpi_scale_y = 1.0f;
+
+/*
+ * User-interface scale. This is a separate concern from hidpi_scale_*: that
+ * one compensates for SDL reporting logical vs drawable coordinates, and is
+ * 1.0 on X11 no matter how dense the panel is. uiScale is about how large the
+ * text and HUD should be drawn, which on a 185 DPI display is the difference
+ * between readable and not.
+ *
+ * 0 means "derive it from the display DPI"; anything else is taken literally.
+ */
+double uiScale;
+double ui_scale = 1.0;
+
+/*
+ * Resolve uiScale into ui_scale. Auto-detection divides the display's
+ * diagonal DPI by 96 (the traditional baseline), clamps to something sane and
+ * rounds to a quarter step so that the result is a predictable 1.0/1.25/
+ * 1.5/1.75/2.0 rather than an arbitrary fraction.
+ */
+static void Resolve_ui_scale(void)
+{
+    float ddpi = 0.0f, hdpi = 0.0f, vdpi = 0.0f;
+
+    if (uiScale > 0.0) {
+	ui_scale = uiScale;
+	return;
+    }
+
+    if (SDL_GetDisplayDPI(0, &ddpi, &hdpi, &vdpi) != 0 || ddpi <= 0.0f) {
+	ui_scale = 1.0;
+	return;
+    }
+
+    ui_scale = ddpi / 96.0;
+    if (ui_scale < 1.0) ui_scale = 1.0;
+    if (ui_scale > 4.0) ui_scale = 4.0;
+    ui_scale = ((int)(ui_scale * 4.0 + 0.5)) / 4.0;
+}
+
+/* Scale a pixel/point measurement by the UI scale, never below 1. */
+int UI_scaled(int v)
+{
+    int r = (int)(v * ui_scale + 0.5);
+    return r < 1 ? 1 : r;
+}
+
+/*
+ * Refresh draw_width/draw_height from the window's actual drawable size.
+ * On a non-HiDPI display this is just the window size and the scales stay 1.
+ */
+void Update_drawable_size(void)
+{
+    int dw = 0, dh = 0, ww = 0, wh = 0;
+
+    if (MainSDLWindow == NULL)
+	return;
+
+    SDL_GL_GetDrawableSize(MainSDLWindow, &dw, &dh);
+    SDL_GetWindowSize(MainSDLWindow, &ww, &wh);
+    if (dw <= 0 || dh <= 0 || ww <= 0 || wh <= 0)
+	return;
+
+    draw_width = dw;
+    draw_height = dh;
+    hidpi_scale_x = (float)dw / (float)ww;
+    hidpi_scale_y = (float)dh / (float)wh;
+}
+
 font_data gamefont;
 font_data mapfont;
 int gameFontSize;
@@ -142,7 +219,7 @@ int Init_window(void)
     /* The SDL 1.2 hardware-surface flags (HWSURFACE, HWPALETTE, HWACCEL) and
      * the hw_available/blit_hw probes behind them do not exist in SDL2 and
      * had no effect on an OpenGL window anyway. */
-    videoFlags = SDL_WINDOW_OPENGL;
+    videoFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_ALLOW_HIGHDPI;
 #ifndef _WINDOWS
     videoFlags |= SDL_WINDOW_RESIZABLE;
 #else
@@ -178,6 +255,10 @@ int Init_window(void)
 	error("Could not create an OpenGL context: %s", SDL_GetError());
 	return -1;
     }
+
+    /* The window was created at a logical size; from here on draw_width and
+     * draw_height are drawable pixels. */
+    Update_drawable_size();
 
     SDL_GL_GetAttribute(SDL_GL_RED_SIZE, &value);
     printf("RGB bpp %d/", value);
@@ -215,13 +296,22 @@ int Init_window(void)
 	return -1;
     }
       
+    Resolve_ui_scale();
+
+    /* hudSize has already been set from the user's hudScale preference by the
+     * shared option handler; scale it so a dense display gets a
+     * proportionally larger HUD without the user having to find and re-tune
+     * hudScale themselves. Note that changing hudScale at runtime recomputes
+     * hudSize without the UI scale, so it takes a restart to reapply. */
+    hudSize = (int)(hudSize * ui_scale);
+
     if (gf_exists) {
-    	if (fontinit(&gamefont,gamefontname,gameFontSize)) {
+    	if (fontinit(&gamefont,gamefontname,UI_scaled(gameFontSize))) {
     	    error("Font initialization failed with %s", gamefontname);
 	} else gf_init = true;
     }
     if (!gf_init && df_exists) {
-    	if (fontinit(&gamefont,defaultfontname,gameFontSize)) {
+    	if (fontinit(&gamefont,defaultfontname,UI_scaled(gameFontSize))) {
     	    error("Default font initialization failed with %s", defaultfontname);
     	} else gf_init = true;
     }
@@ -232,12 +322,12 @@ int Init_window(void)
     }
     
     if (gf_exists) {
-    	if (fontinit(&mapfont,gamefontname,mapFontSize)) {
+    	if (fontinit(&mapfont,gamefontname,UI_scaled(mapFontSize))) {
     	    error("Font initialization failed with %s", gamefontname);
 	} else mf_init = true;
     }
     if (!mf_init && df_exists) {
-    	if (fontinit(&mapfont,defaultfontname,mapFontSize)) {
+    	if (fontinit(&mapfont,defaultfontname,UI_scaled(mapFontSize))) {
     	    error("Default font initialization failed with %s", defaultfontname);
     	} else mf_init = true;
     }
@@ -259,11 +349,6 @@ int Resize_Window( int width, int height )
 		if (!find_size(&width, &height))
 			return -1;
     
-    b.w = draw_width = width;
-    b.h = draw_height = height;
-    
-    SetBounds_GLWidget(MainWidget,&b);
-    
     if (MainSDLWindow == NULL)
 	return -1;
 
@@ -275,6 +360,15 @@ int Resize_Window( int width, int height )
      * follows the display and setting a size fights it. */
     if (!(videoFlags & SDL_WINDOW_FULLSCREEN_DESKTOP))
 	SDL_SetWindowSize(MainSDLWindow, width, height);
+
+    /* width/height are logical units; the drawable can be larger on HiDPI, so
+     * lay the widgets out against the drawable size rather than the request. */
+    Update_drawable_size();
+
+    b.w = draw_width;
+    b.h = draw_height;
+
+    SetBounds_GLWidget(MainWidget,&b);
     
 
     /* change to the projection matrix and set our viewing volume. */
@@ -358,6 +452,18 @@ static xp_option_t sdlinit_options[] = {
 	XP_OPTFLAG_DEFAULT,
 	"Set the initial window geometry.\n"),
     
+    XP_DOUBLE_OPTION(
+	"uiScale",
+	0.0, 0.0, 4.0,
+	&uiScale,
+	NULL,
+	XP_OPTFLAG_DEFAULT,
+	"Scale factor for interface text and the HUD.\n"
+	"Use this if the interface is too small to read on a high-density\n"
+	"display. 0 means auto-detect from the display DPI, which gives 1.0\n"
+	"on an ordinary monitor and around 2.0 on a HiDPI panel. Set an\n"
+	"explicit value such as 1.5 to override.\n"),
+
      XP_INT_OPTION(
         "gameFontSize",
 	16, 12, 32,
