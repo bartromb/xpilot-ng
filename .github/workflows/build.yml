@@ -172,7 +172,9 @@ jobs:
         # across segments -- are ordinary traffic rather than edge cases.
         run: |
           set -eux
-          pip install pytest
+          # The env tests import gymnasium and numpy, which live in the rl
+          # extra rather than in the client's (deliberately empty) base deps.
+          pip install "./ai[rl]" pytest
           python -m pytest ai/tests -q
           ./build/bin/xpilot-ng-server \
               -map lib/maps/dodgers-robots.xp2 \
