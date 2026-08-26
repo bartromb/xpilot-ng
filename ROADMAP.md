@@ -583,11 +583,23 @@ kind of decision from the rest of this phase.
       checked for the welcome and the spawn, so the bot cannot pass by merely not crashing.
 
 ### 6b — Gymnasium environment
-- [ ] Wrap the SDK in a Gymnasium interface: `reset()`, `step(action)`,
-      observation space, reward function
-- [ ] Use the server FPS option to run training at 10-20x realtime
-      (prior Xpilot-AI research relied on variable-framerate training)
-- [ ] Parallel environments: N servers + N bot clients per training run
+- [x] Gymnasium interface — `xpilot_bot.env.XPilotEnv`. 26-float observation (own fuel,
+      velocity, heading as cos/sin, damage flag, plus the four nearest ships with a presence
+      flag), 11 discrete actions as held-key combinations, and a deliberately plain reward.
+      Shaping is left to 6c's curriculum rather than baked in, where every experiment would
+      inherit it.
+      **Not seedable**, and `check_env` fails on `check_step_determinism` for that reason: it
+      wraps a live server with its own robots, so a seed cannot reproduce a game. Every other
+      applicable check passes (7 of 7): both spaces, reset return type and options, space
+      limits, and the passive reset/step checkers.
+- [x] Faster than realtime — measured **4x** at 200 fps. The catch is that raising
+      `-framesPerSecond` alone does nothing: the server sends at whatever rate the *client*
+      asked for, so the client must send `PKT_ASYNC_FPS` too. 255 is the hard ceiling because
+      the request is a single byte, so 10-20x is not reachable this way; getting there would
+      need a protocol change or several environments in parallel, which is the next item.
+- [x] Parallel environments — `make_parallel(n)` starts one server per environment, since
+      XPilot has no notion of separate matches inside one process. Measured **800 steps/sec
+      across 4 environments**, 4x realtime each.
 
 ### 6c — Learned agents
 - [ ] Baseline: PPO via Stable-Baselines3, self-play

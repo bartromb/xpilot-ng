@@ -2,12 +2,15 @@ README.md
 pyproject.toml
 xpilot_bot/__init__.py
 xpilot_bot/client.py
+xpilot_bot/env.py
+xpilot_bot/frames.py
 xpilot_bot/packet.py
 xpilot_bot/protocol.py
 xpilot_bot.egg-info/PKG-INFO
 xpilot_bot.egg-info/SOURCES.txt
 xpilot_bot.egg-info/dependency_links.txt
 xpilot_bot.egg-info/entry_points.txt
+xpilot_bot.egg-info/requires.txt
 xpilot_bot.egg-info/top_level.txt
 xpilot_bot/bots/__init__.py
 xpilot_bot/bots/hunter.py

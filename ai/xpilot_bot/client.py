@@ -54,6 +54,7 @@ class Client:
         user: str = "bot",
         view_width: int = 1024,
         view_height: int = 768,
+        fps: int = 50,
         team: int = 0xFFFF,
         timeout: float = 3.0,
     ) -> None:
@@ -66,6 +67,7 @@ class Client:
         # How much of the world the server should send us.
         self.view_width = view_width
         self.view_height = view_height
+        self.fps = fps
 
         self.status = Status()
         self._contact: socket.socket | None = None
@@ -90,6 +92,7 @@ class Client:
         self._open_game_socket()
         self._verify()
         self._start_play()
+        self.request_fps(self.fps)
         # Once playing, tell the server how much of the world to send. It is
         # in the server's playing-state table; sending it any earlier, during
         # setup or login, is a disconnect.
@@ -233,6 +236,20 @@ class Client:
             self._handle_datagram(data)
 
         return got
+
+    def request_fps(self, fps: int) -> None:
+        """Ask the server for a frame rate.
+
+        Without this the server sends at its own default regardless of how
+        fast it is actually running, so raising -framesPerSecond alone does
+        not speed a bot up. Raising both is what makes faster-than-realtime
+        training possible.
+
+        The value is one byte, so 255 is the ceiling.
+        """
+        assert self._game is not None
+        self.fps = max(1, min(255, int(fps)))
+        self._game.send(Writer().c(p.PKT_ASYNC_FPS).c(self.fps).bytes())
 
     def _send_display(self) -> None:
         """Tell the server how much of the world we want to see.

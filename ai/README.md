@@ -126,6 +126,76 @@ python3 ai/tools/gen_protocol.py
 Constants are extracted rather than transcribed so the bot cannot drift from
 the server it has to talk to. Re-run it after touching those headers.
 
+## Reinforcement learning
+
+```sh
+pip install "./ai[rl]"
+```
+
+```python
+from xpilot_bot.env import XPilotEnv, ServerProcess
+
+with ServerProcess(port=15345, robots=2, fps=200) as srv:
+    env = XPilotEnv(port=15345, fps=200, server=srv)
+    obs, info = env.reset()
+    for _ in range(1000):
+        obs, reward, terminated, truncated, info = env.step(env.action_space.sample())
+        if terminated or truncated:
+            obs, info = env.reset()
+    env.close()
+```
+
+**Observation** (26 floats): fuel, own velocity, heading as `(cos, sin)`, a
+damage flag, then the four nearest ships as relative position, distance,
+bearing error, and a presence flag. The presence flag is not padding for its
+own sake — without it, an empty slot of zeros is indistinguishable from a ship
+at exactly our position. Heading is `(cos, sin)` rather than a number because
+127 and 0 are adjacent headings but distant numbers.
+
+**Actions** (11): combinations of thrust, turn, fire and shield. XPilot keys
+are *held*, not tapped, so an action is the set of keys held for that step.
+
+**Reward** is deliberately plain — alive, fuel, facing the enemy. Shaping
+belongs in the training curriculum, not baked into the environment where every
+experiment would silently inherit it.
+
+### Faster than realtime
+
+Raise the frame rate on both ends. Raising only the server does nothing: it
+sends at whatever rate the client asked for.
+
+```python
+ServerProcess(port=15345, fps=200)     # server runs at 200
+XPilotEnv(port=15345, fps=200)         # and the client asks for 200
+```
+
+Measured 4x realtime at 200 fps. 255 is the ceiling, because the request is a
+single byte.
+
+### Parallel environments
+
+XPilot has no notion of separate matches inside one server, so N environments
+means N servers, each on its own port:
+
+```python
+from xpilot_bot.env import make_parallel
+envs, _ = make_parallel(4, base_port=15400, fps=200)
+```
+
+Measured 800 steps/sec across 4 environments.
+
+### Two honest limits
+
+**It is not seedable.** `gymnasium.utils.env_checker.check_env` fails on
+`check_step_determinism`, and correctly: this wraps a live server with its own
+robots, so the same seed cannot reproduce a game. Every other applicable check
+passes — observation and action spaces, reset return type and options, space
+limits, and the passive reset/step checkers.
+
+**Episodes only end by truncation.** There is no death detection yet: the
+frame stream carries a damage flag, which this uses, but working out that a
+life has ended needs more of the reliable stream decoded.
+
 ## Status
 
 Phase 6a of `ROADMAP.md` is met, and frame decoding is done: verified at 0
@@ -138,5 +208,6 @@ against roughly 32 for random, and is inside its firing cone about a quarter of
 the time. It has no lead, no evasion and no memory. Improving that is the point
 of Phase 6c.
 
-Phases 6b (Gymnasium environment) and 6c (learned agents) are now unblocked:
-`Frame` is the observation.
+Phase 6b is done: `xpilot_bot.env` is a Gymnasium environment, with
+accelerated and parallel execution. Phase 6c (learned agents) is unblocked --
+what it needs is a training script and patience, not more protocol work.
