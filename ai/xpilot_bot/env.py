@@ -37,7 +37,7 @@ except ImportError as exc:  # pragma: no cover
     ) from exc
 
 from .client import Client, ProtocolError
-from .frames import world_shots
+from .frames import world_shots, wrapped_delta
 from . import protocol as p
 
 #: Actions, as combinations of held keys. XPilot input is continuous -- keys
@@ -440,13 +440,8 @@ class XPilotEnv(gym.Env):
         Falls back to a plain difference when the world size is unknown,
         which is right for a map that does not wrap.
         """
-        dx, dy = bx - ax, by - ay
-        w, h = self._world_size()
-        if w and self.edge_wrap:
-            dx -= w * round(dx / w)
-        if h and self.edge_wrap:
-            dy -= h * round(dy / h)
-        return dx, dy
+        w, h = self._world_size() if self.edge_wrap else (0.0, 0.0)
+        return wrapped_delta(w, h, ax, ay, bx, by)
 
     def _observe(self, frame) -> np.ndarray:
         me = frame.self_
