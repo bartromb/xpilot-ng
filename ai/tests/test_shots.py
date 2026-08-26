@@ -98,3 +98,34 @@ def test_our_own_muzzle_flash_is_not_reported_as_a_threat():
     assert rows[4] == 1.0, "one shot should be reported"
     assert rows[2] * env.world_scale == pytest.approx(200, abs=1)
     assert rows[9] == 0.0, "and only one"
+
+
+# ----------------------------------------------------- ship controls
+
+
+def test_the_client_sends_ship_controls_on_connect():
+    """MIN_PLAYER_TURNSPEED is 0.0 and a player starts at the minimum, so a
+    client that never sends PKT_TURNSPEED has a ship welded to one heading.
+    Nothing reports it: the keys are accepted and the frames keep coming."""
+    from xpilot_bot import protocol as p
+    from xpilot_bot.client import Client
+
+    sent = []
+
+    class FakeSock:
+        def send(self, data):
+            sent.append(data)
+
+    c = Client.__new__(Client)
+    c._game = FakeSock()
+    c.power, c.turn_speed, c.turn_resistance = 55.0, 16.0, 0.0
+    c.send_ship_controls()
+
+    types = [d[0] for d in sent]
+    assert p.PKT_TURNSPEED in types, "without this the ship cannot turn"
+    assert p.PKT_POWER in types
+    assert p.PKT_TURNRESISTANCE in types
+
+    # "%c%hd" of value * 256, big-endian.
+    turn = next(d for d in sent if d[0] == p.PKT_TURNSPEED)
+    assert int.from_bytes(turn[1:3], "big") == int(16.0 * 256)

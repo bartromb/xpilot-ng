@@ -58,6 +58,9 @@ class Client:
         fps: int = 50,
         team: int = 0xFFFF,
         timeout: float = 3.0,
+        power: float = 55.0,
+        turn_speed: float = 16.0,
+        turn_resistance: float = 0.0,
     ) -> None:
         self.host = host
         self.port = port
@@ -69,6 +72,12 @@ class Client:
         self.view_width = view_width
         self.view_height = view_height
         self.fps = fps
+        # Ship handling. See send_ship_controls -- the turn speed in
+        # particular is load-bearing: leave it unsent and the ship is welded
+        # to one heading.
+        self.power = power
+        self.turn_speed = turn_speed
+        self.turn_resistance = turn_resistance
 
         self.status = Status()
         self._contact: socket.socket | None = None
@@ -102,6 +111,8 @@ class Client:
         # in the server's playing-state table; sending it any earlier, during
         # setup or login, is a disconnect.
         self._send_display()
+        # Without this the ship cannot turn. See send_ship_controls.
+        self.send_ship_controls()
         self.status.connected = True
 
     def _contact_server(self) -> None:
@@ -241,6 +252,40 @@ class Client:
             self._handle_datagram(data)
 
         return got
+
+    def send_ship_controls(self) -> None:
+        """Tell the server how the ship handles.
+
+        This is not optional and it is not tuning. `MIN_PLAYER_TURNSPEED` is
+        0.0, and a player starts at the minimum (`Player_init` in
+        src/server/player.c), so a client that never sends PKT_TURNSPEED has
+        a ship that **cannot turn at all**. Nothing reports this: the keys
+        are accepted, the frames keep coming, and the heading simply never
+        changes. Measured before this existed, a bot holding turn-right for
+        five seconds stayed at heading 32 the whole time.
+
+        The consequence for a learning agent is worse than a stuck ship. It
+        was being rewarded for pointing at its nearest opponent while having
+        no action available that could change where it pointed, so the aim
+        term was pure noise -- and the benchmark's aim column with it.
+
+        Engine power has the same shape: the default here is what the real
+        client sends (`power` 55.0, `turnSpeed` 16.0, `turnResistance` 0.0
+        in src/client/default.c). The `_s` variants are what the ship does
+        while the shift-modifier is held; the client sends both.
+        """
+        assert self._game is not None
+        for pkt, value in (
+            (p.PKT_POWER, self.power),
+            (p.PKT_POWER_S, self.power),
+            (p.PKT_TURNSPEED, self.turn_speed),
+            (p.PKT_TURNSPEED_S, self.turn_speed),
+            (p.PKT_TURNRESISTANCE, self.turn_resistance),
+            (p.PKT_TURNRESISTANCE_S, self.turn_resistance),
+        ):
+            # The wire format is a short of value * 256.
+            self._game.send(
+                Writer().c(pkt).hd(int(value * 256.0)).bytes())
 
     def request_fps(self, fps: int) -> None:
         """Ask the server for a frame rate.
