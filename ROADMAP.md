@@ -420,7 +420,22 @@ Hard rules for every item in this phase:
       scrolls at a fraction of the view (0.15 / 0.35 / 0.60), tiled on a 1024px grid.
       Verified view-linked rather than static: thrusting for 2.5s changed 2,849 pixels in a
       region of otherwise empty space.
-- [ ] Polish the existing SDL texture mode for ships/walls instead of rebuilding it
+- [x] Polish the existing SDL texture mode — four separate defects, none of them a rewrite:
+      textures uploaded with `GL_NEAREST` while `Image_paint_rotated` overrode to `GL_LINEAR`
+      on every draw, so rotated sprites were filtered differently from everything else *and*
+      texture state was reset per draw call; no wrap mode was set, leaving the default
+      `GL_REPEAT` so a sample near one edge of a power-of-two padded sprite pulled in the
+      opposite edge; and transparent pixels were stored as transparent *black*, so linear
+      filtering blended toward black and left dark fringes. Fixed with a single shared
+      `Image_set_filter`, `GL_CLAMP_TO_EDGE`, and an edge-bleed pass that gives transparent
+      pixels the colour of an opaque neighbour while keeping alpha at zero.
+      New `textureSmoothing` option (on); `classicRender` forces `GL_NEAREST`.
+      Worth knowing: at the default 1:1 scale this is nearly invisible (10 of 676 sprite
+      pixels differ), because linear and nearest agree when texels map to pixels. Scaled
+      down to 0.25 it is dramatic — 8,514 of 10,000 pixels differ, blocky stair-stepping
+      versus smooth gradients. Filter selection was verified directly rather than by
+      screenshot: defaults give LINEAR, `-textureSmoothing no` gives NEAREST, and
+      `-classicRender yes` gives NEAREST regardless of the smoothing setting.
 - [ ] Later / stretch: OpenGL 3.3 core shader pipeline with bloom post-processing
 - [ ] Later / stretch: dynamic lighting — shots and explosions tinting nearby walls
 
