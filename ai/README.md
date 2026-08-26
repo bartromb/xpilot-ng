@@ -283,10 +283,19 @@ The aim error is not: on two thousand samples per policy, the trained agent
 points *further* from its nearest opponent than chance does, which is a
 stronger statement than "it hasn't learned yet".
 
-The likeliest cause is simply scale: 60k steps split three ways is about ten
-PPO updates on the combat stage, which is nothing. But the run is reported
-rather than quietly rerun until it flatters, and this table gets updated with
-whatever the next run actually says.
+**That table was measured with a broken ruler and is kept only as a record.**
+Both policies were graded on a bearing that ignored the map wrapping, which
+put 40% of "which opponent is nearest" answers wrong. So the aim column
+compares two numbers that were each computed incorrectly, and the trained
+agent had additionally been *trained* on that bearing as a reward — which is
+the leading explanation for it aiming worse than chance, though that is a
+hypothesis until the next run tests it.
+
+A corrected random baseline, 20 episodes: mean reward 6.21 (sd 4.22), mean
+aim error 1.33 rad, 8 kills against 20 deaths, win rate 29%. Note that 1.33
+rather than π/2: a random *policy* does better than uniform here, because the
+nearest opponent is not uniformly distributed around the ship. That is the
+number a trained policy has to beat.
 
 The `hunter` example remains a demonstration rather than a good player:
 tracking one target it holds a mean aim error of about 19 heading units
