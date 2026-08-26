@@ -90,7 +90,8 @@ int DT_LoadFont(const char *BitmapName, int flags) {
 	/* Add a font to the list */
 	*CurrentFont = (BitFont *) malloc(sizeof(BitFont));
 
-	(*CurrentFont)->FontSurface = SDL_DisplayFormat(Temp);
+	(*CurrentFont)->FontSurface =
+	    SDL_ConvertSurfaceFormat(Temp, SDL_PIXELFORMAT_ARGB8888, 0);
 	SDL_FreeSurface(Temp);
 
 	(*CurrentFont)->CharWidth = (*CurrentFont)->FontSurface->w / 256;
@@ -104,7 +105,7 @@ int DT_LoadFont(const char *BitmapName, int flags) {
 	 * as transparent.
 	 */
 	if(flags & TRANS_FONT) {
-	    SDL_SetColorKey((*CurrentFont)->FontSurface, SDL_SRCCOLORKEY | SDL_RLEACCEL, SDL_MapRGB((*CurrentFont)->FontSurface->format, 255, 0, 255));
+	    SDL_SetColorKey((*CurrentFont)->FontSurface, SDL_TRUE, SDL_MapRGB((*CurrentFont)->FontSurface->format, 255, 0, 255));
 	}
 	return FontNumber;
 }

@@ -64,6 +64,7 @@ extern void Circle(Uint32 color, int x, int y, int radius, int filled);
 extern irec_t *select_bounds;
 extern void Paint_select(void);
 
-extern SDL_Surface  *MainSDLSurface;
+extern SDL_Window   *MainSDLWindow;
+extern SDL_GLContext MainGLContext;
 
 #endif

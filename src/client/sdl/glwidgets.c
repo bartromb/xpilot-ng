@@ -24,7 +24,6 @@
 #include "images.h"
 #include "text.h"
 #include "glwidgets.h"
-#include "scrap.h"
 
 /****************************************************/
 /* BEGIN: Main GLWidget stuff	    	    	    */
@@ -453,7 +452,7 @@ void load_textscrap(char *text)
     	if ( *cp == '\n' )
     	    *cp = '\r';
     }
-    put_scrap(TextScrap('T','E','X','T'), strlen(scrap), scrap);
+    SDL_SetClipboardText(scrap);
 }
 /****************************************************/
 /* END: Main GLWidget stuff 	    	    	    */
@@ -853,7 +852,9 @@ static void motion_ScrollbarWidget( Sint16 xrel, Sint16 yrel, Uint16 x, Uint16 y
     GLWidget *tmp;
     ScrollbarWidget *wid_info;
     GLWidget *slide;
-    Sint16 *coord1, coord2 = 0, min, max, size, move;
+    /* SDL_Rect fields are int in SDL2 (they were Sint16/Uint16 in 1.2), so
+     * these must match to be able to point at bounds.x / bounds.y. */
+    int *coord1, coord2 = 0, min, max, size, move;
     GLfloat oldpos;
 
     if (!data) return;
@@ -3290,7 +3291,7 @@ extern int Console_isVisible(void);
 extern void Paste_String_to_Console(char *text);
 static void button_MainWidget( Uint8 button, Uint8 state , Uint16 x , Uint16 y, void *data )
 {
-    int scraplen;
+    char *clip;
     
     if (!data) return;
 
@@ -3301,9 +3302,14 @@ static void button_MainWidget( Uint8 button, Uint8 state , Uint16 x , Uint16 y, 
 	if (button == 2) {
     	    if (Console_isVisible()) {
 	    	scraptarget = NULL;
-	    	get_scrap(TextScrap('T','E','X','T'), &scraplen, &scrap);
-		if ( scraplen == 0 ) return;
-		Paste_String_to_Console(scrap);
+		/* SDL2 owns the returned buffer; it must be SDL_free()d. */
+		clip = SDL_GetClipboardText();
+		if (clip == NULL || *clip == '\0') {
+		    SDL_free(clip);
+		    return;
+		}
+		Paste_String_to_Console(clip);
+		SDL_free(clip);
 	    }
 	}
     }

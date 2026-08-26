@@ -90,10 +90,18 @@ sdlpaint.c:508   lineRGBA
 radar.c:226      filledPolygonRGBA
 ```
 
-`libsdl2-gfx-dev` is packaged on Ubuntu (1.0.4) and provides `lineRGBA` and `filledPolygonRGBA`
-under **the same names and signatures**. Replacing the vendored copy with the packaged library is
-close to a drop-in: change the include, add the dependency, delete 6,764 lines. The three call
-sites should not need to change at all.
+**Correction (26 Aug, during the port).** This section originally claimed packaged SDL2_gfx was
+close to a drop-in because it provides `lineRGBA` and `filledPolygonRGBA` under the same names.
+The names match; the **signatures do not**. SDL2_gfx draws into an `SDL_Renderer *`, while the
+1.2 version draws into an `SDL_Surface *`, and this client has no renderer anywhere — it blits
+into surfaces and uploads them as GL textures. The original claim came from checking that the
+symbols existed without checking their first parameter.
+
+The vendored copy was therefore kept. It needed only two one-line fixes to build against SDL2
+(both in character-drawing code the client never calls), because it writes pixels into surfaces
+directly and barely touches the SDL API. Deleting it still looks worthwhile, but it means either
+wrapping each target surface in `SDL_CreateSoftwareRenderer` or reimplementing two functions —
+not a swap. Left as follow-up.
 
 ### `scrap.c` — 651 lines, obsoleted entirely
 

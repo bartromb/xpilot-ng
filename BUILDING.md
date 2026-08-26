@@ -25,7 +25,7 @@ Clang and GCC 14 have not been tried yet.
 sudo apt install build-essential \
     libx11-dev libsm-dev libice-dev \
     libgl-dev libglu1-mesa-dev \
-    libsdl1.2-dev libsdl-ttf2.0-dev libsdl-image1.2-dev \
+    libsdl2-dev libsdl2-ttf-dev libsdl2-image-dev \
     libexpat1-dev zlib1g-dev
 ```
 
@@ -35,15 +35,21 @@ What each one is for:
 |---|---|
 | `libx11-dev`, `libsm-dev`, `libice-dev` | X11 client (`-lX11 -lSM -lICE`) |
 | `libgl-dev`, `libglu1-mesa-dev` | SDL/OpenGL client (`-lGL -lGLU`) |
-| `libsdl1.2-dev` | SDL client; provides `sdl-config` |
-| `libsdl-ttf2.0-dev`, `libsdl-image1.2-dev` | SDL client fonts and textures |
+| `libsdl2-dev` | SDL client |
+| `libsdl2-ttf-dev`, `libsdl2-image-dev` | SDL client fonts and textures |
 | `libexpat1-dev` | XML map parsing (server *and* clients) |
 | `zlib1g-dev` | map and recording compression |
 
-Note that on Ubuntu 24.04 `libsdl1.2-dev` is **not** real SDL 1.2 — it is
-`sdl12-compat` (version 1.2.68), a shim that implements the SDL 1.2 API on top
-of SDL2. The client therefore already runs on SDL2 underneath, which is worth
-knowing before starting the Phase 2 port.
+The SDL client uses SDL2 directly as of Phase 2. It previously built against
+`libsdl1.2-dev`, which on Ubuntu 24.04 is `sdl12-compat` — a shim over SDL2 —
+so the client was already running on SDL2 indirectly; the port replaced the
+shim with the real API.
+
+The client still carries a vendored copy of the SDL 1.2 `SDL_gfxPrimitives`.
+It works unchanged under SDL2 because it writes pixels into surfaces directly.
+Packaged SDL2_gfx is **not** a drop-in replacement — it draws through an
+`SDL_Renderer`, which this client does not have — so `libsdl2-gfx-dev` is not
+a dependency.
 
 Autotools (`autoconf`, `automake`, `libtool`) is **not** required and is no
 longer used at all.

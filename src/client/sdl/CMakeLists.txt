@@ -16,7 +16,6 @@ add_executable(xpilot-ng-sdl
     images.c
     main.c
     radar.c
-    scrap.c
     SDL_console.c
     SDL_gfxPrimitives.c
     sdlevent.c
@@ -40,8 +39,8 @@ endif()
 target_link_libraries(xpilot-ng-sdl PRIVATE
     xpclient
     xpcommon
-    PkgConfig::SDL12
-    PkgConfig::SDL_TTF
+    PkgConfig::SDL2
+    PkgConfig::SDL2_TTF
     OpenGL::GL
     OpenGL::GLU
     X11::X11
@@ -50,8 +49,8 @@ target_link_libraries(xpilot-ng-sdl PRIVATE
     EXPAT::EXPAT
     ZLIB::ZLIB)
 
-if(SDL_IMAGE_FOUND)
-    target_link_libraries(xpilot-ng-sdl PRIVATE PkgConfig::SDL_IMAGE)
+if(SDL2_IMAGE_FOUND)
+    target_link_libraries(xpilot-ng-sdl PRIVATE PkgConfig::SDL2_IMAGE)
 endif()
 
 install(TARGETS xpilot-ng-sdl RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")

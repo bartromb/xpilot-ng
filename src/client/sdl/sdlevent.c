@@ -45,11 +45,11 @@ void Platform_specific_pointer_control_set_state(bool on)
 
     if (on) {
     	MainWidget_ShowMenu(MainWidget, false);
-	SDL_WM_GrabInput(SDL_GRAB_ON);
+	SDL_SetWindowGrab(MainSDLWindow, SDL_TRUE);
 	SDL_ShowCursor(SDL_DISABLE);
     } else {
     	MainWidget_ShowMenu(MainWidget, true);
-	SDL_WM_GrabInput(SDL_GRAB_OFF);
+	SDL_SetWindowGrab(MainSDLWindow, SDL_FALSE);
 	SDL_ShowCursor(SDL_ENABLE);
     }
     
@@ -86,6 +86,7 @@ void Toggle_radar_and_scorelist(void)
 
 #ifndef _WINDOWS
 extern int videoFlags;
+extern SDL_Window *MainSDLWindow;
 void Toggle_fullscreen(void)
 {
     static int initial_w = -1, initial_h = -1;
@@ -96,8 +97,8 @@ void Toggle_fullscreen(void)
 	initial_h = draw_height;
     }
 
-    if (videoFlags & SDL_FULLSCREEN) {
-	videoFlags ^= SDL_FULLSCREEN;
+    if (videoFlags & SDL_WINDOW_FULLSCREEN_DESKTOP) {
+	videoFlags &= ~SDL_WINDOW_FULLSCREEN_DESKTOP;
 	Resize_Window(initial_w, initial_h);
 	return;
     }
@@ -105,11 +106,11 @@ void Toggle_fullscreen(void)
     w = initial_w = draw_width;
     h = initial_h = draw_height;
 
-    videoFlags ^= SDL_FULLSCREEN;
+    videoFlags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
     if (Resize_Window(w, h) == 0)
 	return;
 
-    videoFlags ^= SDL_FULLSCREEN;
+    videoFlags &= ~SDL_WINDOW_FULLSCREEN_DESKTOP;
     Resize_Window(initial_w, initial_h);
     Add_message("Failed to change video mode. [*Client reply*]");
 }
@@ -205,9 +206,13 @@ int Process_event(SDL_Event *evt)
 	}
 	break;
 
-    case SDL_VIDEORESIZE:     
-        Resize_Window(evt->resize.w, evt->resize.h);          
-        break;
+    case SDL_WINDOWEVENT:
+	/* SDL 1.2's VIDEORESIZE and VIDEOEXPOSE both fold into WINDOWEVENT.
+	 * SIZE_CHANGED covers programmatic resizes as well as user ones. */
+	if (evt->window.event == SDL_WINDOWEVENT_SIZE_CHANGED
+	    || evt->window.event == SDL_WINDOWEVENT_RESIZED)
+	    Resize_Window(evt->window.data1, evt->window.data2);
+	break;
 
     default:
       break;

@@ -98,13 +98,11 @@ if(XPILOT_SDL_CLIENT)
         message(FATAL_ERROR "GLU is required (install libglu1-mesa-dev)")
     endif()
 
-    # SDL 1.2, which on current distributions is provided by sdl12-compat.
-    # Phase 2 replaces this with SDL2 outright.
     find_package(PkgConfig REQUIRED)
-    pkg_check_modules(SDL12 REQUIRED IMPORTED_TARGET sdl)
-    pkg_check_modules(SDL_TTF REQUIRED IMPORTED_TARGET SDL_ttf)
-    pkg_check_modules(SDL_IMAGE IMPORTED_TARGET SDL_image)
-    if(SDL_IMAGE_FOUND)
+    pkg_check_modules(SDL2 REQUIRED IMPORTED_TARGET sdl2)
+    pkg_check_modules(SDL2_TTF REQUIRED IMPORTED_TARGET SDL2_ttf)
+    pkg_check_modules(SDL2_IMAGE IMPORTED_TARGET SDL2_image)
+    if(SDL2_IMAGE_FOUND)
         set(HAVE_SDL_IMAGE TRUE)
     endif()
 endif()

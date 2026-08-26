@@ -82,7 +82,7 @@ GLuint SDL_GL_LoadTexture(SDL_Surface *surface, texcoord_t *texcoord)
     int w, h;
     SDL_Surface *image;
     SDL_Rect area;
-    Uint32 saved_flags;
+    SDL_BlendMode saved_blend;
     Uint8  saved_alpha;
 
     /* Use the surface width and height expanded to powers of 2 */
@@ -106,11 +106,13 @@ GLuint SDL_GL_LoadTexture(SDL_Surface *surface, texcoord_t *texcoord)
     	    return 0;
     }
 
-    /* Save the alpha blending attributes */
-    saved_flags = surface->flags&(SDL_SRCALPHA|SDL_RLEACCELOK);
-    saved_alpha = surface->format->alpha;
-    if ( (saved_flags & SDL_SRCALPHA) == SDL_SRCALPHA ) {
-    	    SDL_SetAlpha(surface, 0, 0);
+    /* Save the alpha blending attributes. SDL2 replaces the SRCALPHA surface
+     * flag with an explicit blend mode plus an alpha modulation value. */
+    SDL_GetSurfaceBlendMode(surface, &saved_blend);
+    SDL_GetSurfaceAlphaMod(surface, &saved_alpha);
+    if ( saved_blend != SDL_BLENDMODE_NONE ) {
+    	    SDL_SetSurfaceBlendMode(surface, SDL_BLENDMODE_NONE);
+    	    SDL_SetSurfaceAlphaMod(surface, 0xFF);
     }
 
     /* Copy the surface into the GL texture image */
@@ -121,8 +123,9 @@ GLuint SDL_GL_LoadTexture(SDL_Surface *surface, texcoord_t *texcoord)
     SDL_BlitSurface(surface, &area, image, &area);
 
     /* Restore the alpha blending attributes */
-    if ( (saved_flags & SDL_SRCALPHA) == SDL_SRCALPHA ) {
-    	    SDL_SetAlpha(surface, saved_flags, saved_alpha);
+    if ( saved_blend != SDL_BLENDMODE_NONE ) {
+    	    SDL_SetSurfaceBlendMode(surface, saved_blend);
+    	    SDL_SetSurfaceAlphaMod(surface, saved_alpha);
     }
 
     /* Create an OpenGL texture for the image */
@@ -400,7 +403,7 @@ bool render_text(font_data *ft_font, const char *text, string_tex_t *string_tex)
     	    src.h = dest.h = string_glyph->h;
 	    
     	    glyph = SDL_CreateRGBSurface(0,dest.w,dest.h,32,0,0,0,0);
-    	    SDL_SetColorKey(glyph, SDL_SRCCOLORKEY, 0x00000000);
+    	    SDL_SetColorKey(glyph, SDL_TRUE, 0x00000000);
     	    SDL_BlitSurface(string_glyph,&src,glyph,&dest);
     
   	    glGetError();
