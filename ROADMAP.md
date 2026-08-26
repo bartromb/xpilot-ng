@@ -506,7 +506,6 @@ kind of decision from the rest of this phase.
       `clientPortStart`/`clientPortEnd` pin that range. Any packaging in this phase should
       set them by default. Notably the protocol embeds **no IP addresses**, only a port, so
       it avoids the FTP-style NAT breakage entirely.
-- [ ] Self-hostable metaserver replacement (tiny HTTP JSON service) since original metaservers are dead
 - [x] systemd unit + Docker image — `packaging/xpilot-ng-server.service` and
       `packaging/Dockerfile`. Both **pin `clientPortStart`/`clientPortEnd`**, because the NAT
       audit showed the default ephemeral per-connection ports produce a login that succeeds
@@ -523,7 +522,29 @@ kind of decision from the rest of this phase.
       `objdump -p` confirms is the binary's complete dependency set — `ldd` on this host
       additionally reports X11 libraries, but those come from an unrelated
       `/etc/ld.so.preload` entry, not from the build.
-- [ ] Security pass on server input parsing (1990s C parsing network packets — fuzz it: AFL++ on packet handlers)
+- [x] Security pass on server input parsing — `tests/fuzz_packet_scanf.c`, targeting
+      `Packet_scanf` because the pre-auth contact path and every `PKT_*` handler funnel
+      through it. **Found and fixed three undefined-behaviour sites reachable from
+      attacker-controlled bytes**, plus two more of the same shape found by reading:
+      `sbuf->ptr` is `char *`, signed on x86, so `ptr[j++] << 24` shifts a negative value for
+      any byte ≥ 0x80, and the `%u` case overflows `int` even when masked. The tell was that
+      the *following* bytes in each expression are masked with `& 0xFF` and only the top byte
+      is not.
+      GCC has emitted the intended result for 30 years, which is why nobody noticed; it is
+      still UB and is exactly what breaks under a different compiler or optimisation level.
+      Verified for behaviour as well as UB — a 34-case round-trip recovers every value
+      bit-for-bit, so wire compatibility is untouched — and re-fuzzing reports zero errors
+      over 1.6M parses.
+      AFL++ is not installed here, so this was dumb random fuzzing under UBSan; the harness
+      is AFL-ready and `tests/README.md` has the command. **ASan cannot be used on this
+      machine at all**: a trivial `printf` built with `-fsanitize=address` segfaults, because
+      `/etc/ld.so.preload` injects `libAppProtection.so` into every process and collides with
+      ASan's shadow memory. Worth running the harness under ASan in a container.
+- [ ] Self-hostable metaserver replacement — **not started.** `docs/protocol.md` documents
+      what it must do (UDP 5500, plain text, `Meta_send()` format) and notes that the
+      metaserver addresses are compiled into `metaserver.h`, so pointing at a self-hosted one
+      currently needs a recompile — making that an option is a prerequisite worth doing
+      first. `lmartinking/xpilot-metaserver` remains the sensible starting point.
 
 ---
 
