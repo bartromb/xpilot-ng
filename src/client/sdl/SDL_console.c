@@ -595,9 +595,12 @@ void DrawCommandLine()
     /* first add prompt to visible part */
     strcpy(Topmost->VCommand, Topmost->Prompt);
 
-    /* then add the visible part of the command */
+    /* then add the visible part of the command.
+     * Bound by what is left in VCommand, not by the source length: with the
+     * cursor at Home, Offset is 0 and the whole command gets appended after
+     * the prompt, which overflows VCommand. */
     strncat(Topmost->VCommand, &Topmost->Command[Topmost->Offset],
-	    strlen(&Topmost->Command[Topmost->Offset]));
+	    sizeof(Topmost->VCommand) - strlen(Topmost->VCommand) - 1);
 
 
     /* first of all restore InputBackground */
@@ -1023,7 +1026,8 @@ void Cursor_Home(ConsoleInformation * console)
     Topmost->CursorPos = 0;
     strcpy(temp, Topmost->RCommand);
     strcpy(Topmost->RCommand, Topmost->LCommand);
-    strncat(Topmost->RCommand, temp, strlen(temp));
+    strncat(Topmost->RCommand, temp,
+	    sizeof(Topmost->RCommand) - strlen(Topmost->RCommand) - 1);
     memset(Topmost->LCommand, 0, CON_CHARS_PER_LINE + 1);
 }
 
@@ -1031,7 +1035,7 @@ void Cursor_End(ConsoleInformation * console)
 {
     Topmost->CursorPos = strlen(Topmost->Command);
     strncat(Topmost->LCommand, Topmost->RCommand,
-	    strlen(Topmost->RCommand));
+	    sizeof(Topmost->LCommand) - strlen(Topmost->LCommand) - 1);
     memset(Topmost->RCommand, 0, CON_CHARS_PER_LINE + 1);
 }
 
