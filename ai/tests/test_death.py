@@ -19,6 +19,7 @@ needed for is confirming the signal exists at all, which is
 `ai/tools/check_reliable.py`'s job.
 """
 
+import pytest
 import struct
 
 import numpy as np
@@ -166,3 +167,67 @@ def test_a_kill_is_rewarded_once():
     r_after = env._reward(_alive())
     assert r_kill > r_before + 4.0, "the kill step should be worth ~5"
     assert abs(r_after - r_before) < 1e-6, "and only that step"
+
+
+# --------------------------------------------------- wrapping worlds
+
+
+class _Setup:
+    width = 3150
+    height = 3150
+    map_data_len = 1
+    mode = lives = fps = 0
+    name = author = data_url = ""
+
+
+def _env_on_a_wrapping_map():
+    env = _env_with([_alive()])
+    env._client.reliable.board.setup = _Setup()
+    return env
+
+
+def test_distance_goes_the_short_way_round():
+    """`edgeWrap="yes"` is set on dodgers-robots.xp2 and most XPilot maps:
+    fly off the right edge and you come back on the left. Two ships either
+    side of the seam are close, not maximally far apart."""
+    env = _env_on_a_wrapping_map()
+    dx, dy = env._delta(50, 50, 3100, 3100)
+    assert (dx, dy) == (-100, -100), "must cross the seam, not the map"
+
+
+def test_bearing_across_the_seam_points_the_right_way():
+    env = _env_on_a_wrapping_map()
+    # A ship just over the left edge from us: it is 100px to our *left*.
+    dx, _dy = env._delta(3100, 100, 50, 100)
+    assert dx == 100, f"expected +100 across the seam, got {dx}"
+    # Naively subtracting gives -3050, which points a full 180 degrees wrong.
+    assert dx != 50 - 3100
+
+
+def test_no_wrapping_when_the_world_size_is_unknown():
+    """Before the setup blob arrives there is nothing to wrap against, and
+    guessing a size would be worse than not wrapping."""
+    env = _env_with([_alive()])
+    assert env._world_size() == (0.0, 0.0)
+    assert env._delta(50, 50, 3100, 3100) == (3050, 3050)
+
+
+def test_wrapping_can_be_turned_off_for_maps_that_do_not():
+    env = _env_on_a_wrapping_map()
+    env.edge_wrap = False
+    assert env._delta(50, 50, 3100, 3100) == (3050, 3050)
+
+
+def test_the_nearest_ship_is_chosen_across_the_seam():
+    """Picking the nearest ship with raw coordinates picks the wrong one."""
+    from xpilot_bot.frames import Ship
+    env = _env_on_a_wrapping_map()
+    f = _alive()
+    f.self_.x, f.self_.y = 3100, 100
+    near_across_seam = Ship(x=50, y=100, id=2, heading=0)     # 100px away
+    far_but_looks_near = Ship(x=2000, y=100, id=3, heading=0)  # 1100px away
+    f.ships = [far_but_looks_near, near_across_seam]
+    obs = env._observe(f)
+    # The first tracked ship's distance is obs[8] (6 self fields, then
+    # dx, dy, dist per ship).
+    assert obs[8] * env.world_scale == pytest.approx(100, abs=1)

@@ -172,6 +172,7 @@ class XPilotEnv(gym.Env):
         death_frames: int = 15,
         death_penalty: float = 1.0,
         reuse_connection: bool = True,
+        edge_wrap: bool = True,
         stage: str = "combat",
         server: ServerProcess | None = None,
     ) -> None:
@@ -196,6 +197,7 @@ class XPilotEnv(gym.Env):
         self.death_frames = death_frames
         self.death_penalty = death_penalty
         self.reuse_connection = reuse_connection
+        self.edge_wrap = edge_wrap
         if stage not in STAGES:
             raise ValueError(f"unknown stage {stage!r}; expected one of "
                              f"{sorted(STAGES)}")
@@ -387,6 +389,39 @@ class XPilotEnv(gym.Env):
         me = rel.board.me
         return me.kills if me is not None else 0
 
+    def _world_size(self) -> tuple[float, float]:
+        """Map dimensions in pixels, from the setup blob the server sent.
+
+        Another thing that only exists because the reliable stream is
+        decoded: the frame stream never says how big the world is.
+        """
+        rel = getattr(self._client, "reliable", None)
+        setup = rel.board.setup if rel is not None else None
+        if setup is None or setup.width <= 0 or setup.height <= 0:
+            return (0.0, 0.0)
+        return (float(setup.width), float(setup.height))
+
+    def _delta(self, ax, ay, bx, by):
+        """Vector from a to b, the short way round a wrapping world.
+
+        `dodgers-robots.xp2` sets `edgeWrap="yes"`, and most XPilot maps do:
+        flying off the right edge brings you back on the left. Subtracting
+        coordinates therefore gives the wrong answer for any pair more than
+        half the map apart -- and gives it confidently, as a bearing that can
+        be a full 180 degrees off. Two ships closing on each other across the
+        seam read as the furthest apart on the map.
+
+        Falls back to a plain difference when the world size is unknown,
+        which is right for a map that does not wrap.
+        """
+        dx, dy = bx - ax, by - ay
+        w, h = self._world_size()
+        if w and self.edge_wrap:
+            dx -= w * round(dx / w)
+        if h and self.edge_wrap:
+            dy -= h * round(dy / h)
+        return dx, dy
+
     def _observe(self, frame) -> np.ndarray:
         me = frame.self_
         s = self.world_scale
@@ -402,12 +437,13 @@ class XPilotEnv(gym.Env):
         ]
 
         others = [sh for sh in frame.ships if (sh.x, sh.y) != (me.x, me.y)]
-        others.sort(key=lambda sh: (sh.x - me.x) ** 2 + (sh.y - me.y) ** 2)
+        deltas = {id(sh): self._delta(me.x, me.y, sh.x, sh.y) for sh in others}
+        others.sort(key=lambda sh: deltas[id(sh)][0] ** 2 + deltas[id(sh)][1] ** 2)
 
         for i in range(MAX_TRACKED_SHIPS):
             if i < len(others):
                 sh = others[i]
-                dx, dy = sh.x - me.x, sh.y - me.y
+                dx, dy = deltas[id(sh)]
                 dist = math.hypot(dx, dy)
                 bearing = math.atan2(dy, dx)
                 err = (bearing - heading + math.pi) % (2 * math.pi) - math.pi
@@ -456,11 +492,14 @@ class XPilotEnv(gym.Env):
             others = [sh for sh in frame.ships
                       if (sh.x, sh.y) != (me.x, me.y)]
             if others:
+                deltas = {id(sh): self._delta(me.x, me.y, sh.x, sh.y)
+                          for sh in others}
                 nearest = min(
                     others,
-                    key=lambda sh: (sh.x - me.x) ** 2 + (sh.y - me.y) ** 2)
+                    key=lambda sh: deltas[id(sh)][0] ** 2 + deltas[id(sh)][1] ** 2)
                 heading = 2 * math.pi * me.heading / HEADING_STEPS
-                bearing = math.atan2(nearest.y - me.y, nearest.x - me.x)
+                dx, dy = deltas[id(nearest)]
+                bearing = math.atan2(dy, dx)
                 err = abs((bearing - heading + math.pi) % (2 * math.pi)
                           - math.pi)
                 reward += w["aim"] * (1.0 - err / math.pi)
