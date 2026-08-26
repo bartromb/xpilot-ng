@@ -120,6 +120,11 @@ Several of these had been in the code for decades:
   turn keys are accepted, acknowledged, and do nothing — no error anywhere.
   Engine power behaves the same way, sitting at 5.0 instead of 55.0. Easy to
   mistake for bad flying.
+- **A joined ship ignores the controls for ~5 seconds.** Keyboard packets are
+  accepted and acknowledged in every frame the whole time; the ship simply
+  does not move. Re-sending does not help — the server skips any key update
+  whose change counter it has already seen, so only a real press or release
+  counts.
 - **The world wraps, and the protocol never says so.** Most maps set
   `edgeWrap="yes"`, so subtracting two positions returns the long way round
   once they are more than half a map apart. Measured on a live game, that

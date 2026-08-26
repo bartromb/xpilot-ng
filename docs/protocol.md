@@ -186,6 +186,32 @@ The real client's defaults, from `src/client/default.c`:
 | `turnSpeed` | 16.0 | 0–64 |
 | `turnResistance` | 0.0 | 0.0–1.0 |
 
+## A joined ship ignores the controls for about five seconds
+
+Joining is not the same as being able to fly. For roughly five seconds after
+the handshake completes, `PKT_KEYBOARD` is accepted, echoed back in every
+frame's `key_ack`, and has no effect whatsoever. Measured across trials, the
+ship starts responding at 5.0–5.1 s.
+
+Nothing marks the transition. It presents as a ship that ignores the
+controls, which invites every wrong diagnosis in turn — a wedged spawn, a
+bad key index, lost packets, the anti-macro check.
+
+Re-sending the same key state does not work around it. `Receive_keyboard`
+skips any update whose change counter it has already seen:
+
+```c
+if (change <= connp->last_key_change)
+    /* We already have this key. Nothing to do. */
+```
+
+so only a genuine press or release produces an event. To probe for readiness,
+*toggle* a key and watch whether the heading moves.
+
+This is easy to miss interactively — a human presses keys repeatedly and
+never notices the first second — and easy to be bitten by programmatically,
+where a short episode can be over before it ends.
+
 ## The world wraps
 
 Most XPilot maps set `edgeWrap="yes"` — `dodgers-robots.xp2` does — and the
