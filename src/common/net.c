@@ -582,7 +582,11 @@ int Packet_scanf(sockbuf_t *sbuf, const char *fmt, ...)
 		    }
 		}
 		iptr = va_arg(ap, int *);
-		*iptr = sbuf->ptr[j++] << 24;
+		/* Shift as unsigned: sbuf->ptr is char, which is signed on
+		 * most platforms, and shifting a negative value left is
+		 * undefined behaviour. The cast back preserves the intended
+		 * sign extension. Found by fuzzing; see tests/. */
+		*iptr = (int)((unsigned)(sbuf->ptr[j++] & 0xFF) << 24);
 		*iptr |= (sbuf->ptr[j++] & 0xFF) << 16;
 		*iptr |= (sbuf->ptr[j++] & 0xFF) << 8;
 		*iptr |= (sbuf->ptr[j++] & 0xFF);
@@ -603,7 +607,7 @@ int Packet_scanf(sockbuf_t *sbuf, const char *fmt, ...)
 		    }
 		}
 		uptr = va_arg(ap, unsigned *);
-		*uptr = (sbuf->ptr[j++] & 0xFF) << 24;
+		*uptr = (unsigned)(sbuf->ptr[j++] & 0xFF) << 24;
 		*uptr |= (sbuf->ptr[j++] & 0xFF) << 16;
 		*uptr |= (sbuf->ptr[j++] & 0xFF) << 8;
 		*uptr |= (sbuf->ptr[j++] & 0xFF);
@@ -626,12 +630,13 @@ int Packet_scanf(sockbuf_t *sbuf, const char *fmt, ...)
 		switch (fmt[++i]) {
 		case 'd':
 		    sptr = va_arg(ap, short *);
-		    *sptr = sbuf->ptr[j++] << 8;
+		    /* See the %d case: shift as unsigned to avoid UB. */
+		    *sptr = (short)((unsigned)(sbuf->ptr[j++] & 0xFF) << 8);
 		    *sptr |= (sbuf->ptr[j++] & 0xFF);
 		    break;
 		case 'u':
 		    usptr = va_arg(ap, unsigned short *);
-		    *usptr = (sbuf->ptr[j++] & 0xFF) << 8;
+		    *usptr = (unsigned short)((unsigned)(sbuf->ptr[j++] & 0xFF) << 8);
 		    *usptr |= (sbuf->ptr[j++] & 0xFF);
 		    break;
 		default:
@@ -657,14 +662,15 @@ int Packet_scanf(sockbuf_t *sbuf, const char *fmt, ...)
 		switch (fmt[++i]) {
 		case 'd':
 		    lptr = va_arg(ap, long *);
-		    *lptr = sbuf->ptr[j++] << 24;
+		    /* See the %d case: shift as unsigned to avoid UB. */
+		    *lptr = (long)(int)((unsigned)(sbuf->ptr[j++] & 0xFF) << 24);
 		    *lptr |= (sbuf->ptr[j++] & 0xFF) << 16;
 		    *lptr |= (sbuf->ptr[j++] & 0xFF) << 8;
 		    *lptr |= (sbuf->ptr[j++] & 0xFF);
 		    break;
 		case 'u':
 		    ulptr = va_arg(ap, unsigned long *);
-		    *ulptr = (sbuf->ptr[j++] & 0xFF) << 24;
+		    *ulptr = (unsigned long)(sbuf->ptr[j++] & 0xFF) << 24;
 		    *ulptr |= (sbuf->ptr[j++] & 0xFF) << 16;
 		    *ulptr |= (sbuf->ptr[j++] & 0xFF) << 8;
 		    *ulptr |= (sbuf->ptr[j++] & 0xFF);
