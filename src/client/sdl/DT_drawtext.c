@@ -75,7 +75,7 @@ int DT_LoadFont(const char *BitmapName, int flags) {
 
 	/* load the font bitmap */
 
-#ifdef HAVE_SDLIMAGE
+#ifdef HAVE_SDL_IMAGE
 	Temp = IMG_Load(BitmapName);
 #else
 	Temp = SDL_LoadBMP(BitmapName);
