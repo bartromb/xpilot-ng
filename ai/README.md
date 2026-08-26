@@ -261,16 +261,17 @@ player could type a death notice and be believed.
 
 ## Status
 
-Phase 6a of `ROADMAP.md` is met, and frame decoding is done: verified at 0
-truncated frames out of 2,250 against a live server with four robots, tracking
-five ships at once.
+Phases 6a and 6b are met. Both of the game's packet streams decode: frames at
+0 truncated out of 2,250 against a live server with four robots, and the
+reliable sub-stream cleanly through setup and play, checked continuously in
+CI by `tools/check_reliable.py`.
 
-The `hunter` example is honest about being a demonstration rather than a good
-player: tracking one target it holds a mean aim error of about 19 heading units
-against roughly 32 for random, and is inside its firing cone about a quarter of
-the time. It has no lead, no evasion and no memory. Improving that is the point
-of Phase 6c.
+Phase 6c has a working training and benchmark loop. What can be said about
+the results is kept in the benchmark's own output rather than summarised
+here, because the numbers move with every run and a README is a bad place to
+keep a scoreboard. Run `--random` alongside anything else and compare.
 
-Phase 6b is done: `xpilot_bot.env` is a Gymnasium environment, with
-accelerated and parallel execution. Phase 6c (learned agents) is unblocked --
-what it needs is a training script and patience, not more protocol work.
+The `hunter` example remains a demonstration rather than a good player:
+tracking one target it holds a mean aim error of about 19 heading units
+against roughly 32 for random, and is inside its firing cone about a quarter
+of the time. It has no lead, no evasion and no memory.
