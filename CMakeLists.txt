@@ -55,7 +55,7 @@ option(XPILOT_X11_CLIENT   "Build the X11 client"                ON)
 option(XPILOT_SDL_CLIENT   "Build the SDL/OpenGL client"         ON)
 option(XPILOT_REPLAY       "Build the replay tool"               ON)
 option(XPILOT_MAPEDIT      "Build the map editor"                ON)
-option(XPILOT_SOUND        "Enable OpenAL sound"                 OFF)
+option(XPILOT_SOUND        "Enable sound (SDL2_mixer)"           OFF)
 option(XPILOT_SDL_GAMELOOP "Use the SDL game loop (not the X11-optimised one)" OFF)
 option(XPILOT_DBE          "X Double Buffer Extension support"   OFF)
 option(XPILOT_MBX          "X Multibuffer Extension support"     OFF)
@@ -108,15 +108,21 @@ if(XPILOT_SDL_CLIENT)
 endif()
 
 if(XPILOT_SOUND)
-    find_package(OpenAL REQUIRED)
-    find_library(ALUT_LIBRARY NAMES alut)
-    find_path(ALUT_INCLUDE_DIR NAMES AL/alut.h)
-    if(NOT ALUT_LIBRARY OR NOT ALUT_INCLUDE_DIR)
-        # Autotools downgrades this to a warning and silently builds without
-        # sound, which is easy to miss. Fail loudly instead.
+    # Audio is SDL2_mixer as of Phase 3; the OpenAL/freealut backend is gone.
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(SDL2_MIXER IMPORTED_TARGET SDL2_mixer)
+    if(NOT SDL2_MIXER_FOUND)
+        # Autotools downgraded a missing audio library to a warning and
+        # silently produced a mute binary, which was easy to miss. Fail loudly.
         message(FATAL_ERROR
-            "XPILOT_SOUND=ON but freealut was not found (install libalut-dev). "
+            "XPILOT_SOUND=ON but SDL2_mixer was not found "
+            "(install libsdl2-mixer-dev). "
             "Configure with -DXPILOT_SOUND=OFF to build without sound.")
+    endif()
+    if(NOT XPILOT_SDL_CLIENT)
+        message(FATAL_ERROR
+            "XPILOT_SOUND=ON requires the SDL client (XPILOT_SDL_CLIENT=ON); "
+            "the audio backend is built on SDL2.")
     endif()
     set(SOUND TRUE)
 endif()
@@ -435,6 +441,6 @@ message(STATUS "  X11 client .......... ${XPILOT_X11_CLIENT}")
 message(STATUS "  SDL client .......... ${XPILOT_SDL_CLIENT}")
 message(STATUS "  replay tool ......... ${XPILOT_REPLAY}")
 message(STATUS "  map editor .......... ${XPILOT_MAPEDIT}")
-message(STATUS "  sound (OpenAL) ...... ${XPILOT_SOUND}")
+message(STATUS "  sound (SDL2_mixer) .. ${XPILOT_SOUND}")
 message(STATUS "  data directory ...... ${XP_DATADIR}")
 message(STATUS "")
