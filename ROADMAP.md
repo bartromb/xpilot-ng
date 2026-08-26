@@ -354,7 +354,15 @@ Branch: per-feature (`phase4-<feature>`)
       a dead zone on the sticks. **The mapping is unit-tested (21 checks) but has never seen a
       real controller** — no gamepad is attached to the reference machine — so the choice of
       which button does what is unvalidated in play, even though the plumbing is not.
-- [ ] Package: .deb via CPack, optionally Flatpak manifest
+- [x] Package: .deb via CPack — `cpack -G DEB` from the build directory produces
+      `xpilot-ng_4.7.3_amd64.deb` (~2 MB, 5 binaries, 5 man pages, all data files).
+      Dependencies are derived by `dpkg-shlibdeps` from what actually got linked rather than
+      hand-maintained, which is also a useful check on the port: the generated Depends line
+      names libsdl2, not SDL 1.2. Verified by extracting the package and running the server
+      out of it against its own packaged map.
+- [ ] Flatpak manifest — not done. It was optional in this list; a `.deb` covers the
+      immediate need and Flatpak wants a manifest plus a runtime choice worth deciding
+      deliberately.
 
 ## Phase 4b — Graphics modernization
 
