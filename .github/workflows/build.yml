@@ -134,6 +134,31 @@ jobs:
           done
           kill "$(cat server.pid)" || true
 
+      - name: Smoke test — Python bot joins and survives 60s
+        # Phase 6a's acceptance test. This exercises the whole handshake
+        # against a real server: contact, queue, login port, verify, setup
+        # drain, play. Each of those steps was a separate way to get silently
+        # disconnected while writing it, so a regression here is likely and
+        # worth catching.
+        run: |
+          set -eux
+          pip install ./ai
+          ./build/bin/xpilot-ng-server \
+              -map lib/maps/blood-music.xp2 \
+              -maxRobots 2 -minRobots 2 -port 15400 -noQuit -idleRun \
+              > bot-server.log 2>&1 &
+          echo $! > bot-server.pid
+          sleep 5
+          python -c "
+from xpilot_bot.bots import wanderer
+wanderer.run(host='localhost', port=15400, seconds=60.0)
+print('bot survived 60s')
+"
+          # The server is the authority on whether the bot actually played.
+          grep -q 'Welcome Wanderer' bot-server.log
+          grep -q 'Wanderer.*starts at startpos' bot-server.log
+          kill "$(cat bot-server.pid)" || true
+
       - name: Upload logs on failure
         if: failure()
         uses: actions/upload-artifact@v4

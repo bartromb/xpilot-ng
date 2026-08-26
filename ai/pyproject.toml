@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xpilot-bot"
+version = "0.1.0"
+description = "Headless Python client for XPilot NG, for writing bots"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "GPL-2.0-or-later" }
+authors = [{ name = "XPilot NG contributors" }]
+keywords = ["xpilot", "game", "bot", "reinforcement-learning"]
+
+# No dependencies on purpose: the protocol is UDP and struct, and a bot SDK
+# that drags in a stack is harder to embed in a training loop.
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/bartromb/xpilot-ng"
+
+[project.scripts]
+xpilot-bot-idle = "xpilot_bot.bots.idle:run"
+xpilot-bot-wanderer = "xpilot_bot.bots.wanderer:run"
+xpilot-bot-hunter = "xpilot_bot.bots.hunter:run"
+
+[tool.setuptools.packages.find]
+include = ["xpilot_bot*"]

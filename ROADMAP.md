@@ -555,12 +555,17 @@ bots are external clients speaking the documented network protocol (same
 information a human player gets — no reading internal server state).
 
 ### 6a — Python bot SDK (first milestone)
-- [ ] Implement the client network protocol as a Python library (`xpilot_bot`):
-      connect/join, decode game state into typed dataclasses, send actions
-      (turn / thrust / fire / special)
-- [ ] Headless operation — no rendering dependency
-- [ ] Example bots: `idle`, `wanderer`, simple rule-based `hunter` (~20 lines each)
-- [ ] Smoke test in CI: bot joins local server, survives 60s against 2 robots
+- [x] Python library `xpilot_bot` — join and actions **done**; **game-state decoding is
+      not**. The join handshake and the keyboard vector (all 72 protocol keys) work against
+      an unmodified server. The frame stream is read and acknowledged but not interpreted, so
+      a bot can act but cannot perceive. `protocol.py` is generated from the C headers by
+      `ai/tools/gen_protocol.py` so it cannot drift.
+- [x] Headless operation — no dependencies at all, not merely no rendering ones.
+- [x] Example bots: `idle`, `wanderer`, `hunter`, each about 20 lines. `hunter` sweeps and
+      fires rather than aiming, because aiming needs the frame decoding above; the docstring
+      says so.
+- [x] Smoke test in CI: bot joins, survives 60s against 2 robots, and the **server log** is
+      checked for the welcome and the spawn, so the bot cannot pass by merely not crashing.
 
 ### 6b — Gymnasium environment
 - [ ] Wrap the SDK in a Gymnasium interface: `reset()`, `step(action)`,
