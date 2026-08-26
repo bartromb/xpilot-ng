@@ -192,9 +192,14 @@ robots, so the same seed cannot reproduce a game. Every other applicable check
 passes — observation and action spaces, reset return type and options, space
 limits, and the passive reset/step checkers.
 
-**Episodes only end by truncation.** There is no death detection yet: the
-frame stream carries a damage flag, which this uses, but working out that a
-life has ended needs more of the reliable stream decoded.
+**Death detection is by absence.** The protocol has no "you died" packet;
+what it has is a frame with no own-ship state, which `Receive_self` in the C
+notes means "not actively playing: damaged, dead, paused or game over". A run
+of `death_frames` such frames ends the episode. The mechanism is unit-tested
+against synthetic frames (`ai/tests/test_death.py`); it has **not** been seen
+to fire against a live server, because provoking a death on demand proved
+unreliable -- holding self-destruct for thirty seconds produced none, and the
+built-in robots never killed the bot in several thousand steps.
 
 ## Status
 

@@ -141,8 +141,10 @@ Stated plainly, because they decide what is safe to rely on:
 - **The 144 fps target is unmeasured**, because the reference machine was under
   heavy unrelated load whenever it was tried.
 - **Bots perceive, but the example bot is not good.** Frame decoding is
-  complete; the `hunter` example aims better than chance and no more. Making it
-  play well is Phase 6c.
+  complete; the `hunter` example aims better than chance and no more.
+- **Death detection has never fired in a real game.** It works on synthetic
+  frames, but the built-in robots did not kill the bot in thousands of steps
+  and self-destruct did not either, so the live path is unproven.
 
 ## Licence
 

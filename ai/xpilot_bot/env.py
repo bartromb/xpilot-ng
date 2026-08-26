@@ -148,6 +148,8 @@ class XPilotEnv(gym.Env):
         max_steps: int = 2000,
         frames_per_step: int = 1,
         world_scale: float = 3000.0,
+        death_frames: int = 15,
+        death_penalty: float = 1.0,
         server: ServerProcess | None = None,
     ) -> None:
         super().__init__()
@@ -158,6 +160,12 @@ class XPilotEnv(gym.Env):
         self.max_steps = max_steps
         self.frames_per_step = frames_per_step
         self.world_scale = world_scale
+        # A frame with no PKT_SELF means "not actively playing": dead,
+        # damaged, paused or game over (see Receive_self in netclient.c).
+        # A run of them is how death is detected -- the protocol has no
+        # "you died" packet the client can simply read.
+        self.death_frames = death_frames
+        self.death_penalty = death_penalty
         self._server = server
 
         self.action_space = spaces.Discrete(len(ACTIONS))
@@ -170,6 +178,7 @@ class XPilotEnv(gym.Env):
         self._steps = 0
         self._prev_fuel: float | None = None
         self._prev_damaged = False
+        self._last_obs: np.ndarray | None = None
 
     # ------------------------------------------------------------ gym API
 
@@ -187,7 +196,9 @@ class XPilotEnv(gym.Env):
         self._prev_damaged = False
 
         frame = self._await_frame()
-        return self._observe(frame), {}
+        obs = self._observe(frame)
+        self._last_obs = obs
+        return obs, {}
 
     def step(self, action: int):
         if self._client is None:
@@ -202,7 +213,16 @@ class XPilotEnv(gym.Env):
             self._client.send_keys()
             frame = None
             for _ in range(self.frames_per_step):
-                frame = self._await_frame()
+                frame, died = self._next_frame()
+                if died:
+                    # Repeat the last observation rather than inventing one:
+                    # there is no own-ship state to report while dead.
+                    obs = (self._last_obs
+                           if self._last_obs is not None
+                           else np.zeros(self.observation_space.shape,
+                                         dtype=np.float32))
+                    self._steps += 1
+                    return obs, -self.death_penalty, True, False, {"died": True}
         except ProtocolError:
             # Dropped mid-episode. Ending it is honest; pretending otherwise
             # would feed the agent an observation that never happened.
@@ -211,6 +231,7 @@ class XPilotEnv(gym.Env):
 
         self._steps += 1
         obs = self._observe(frame)
+        self._last_obs = obs
         reward = self._reward(frame)
         truncated = self._steps >= self.max_steps
         return obs, reward, False, truncated, {"frame": frame.loops}
@@ -232,17 +253,34 @@ class XPilotEnv(gym.Env):
             self._client = None
 
     def _await_frame(self, timeout: float = 5.0):
-        """Block until a frame with own-ship state arrives.
-
-        Frames without a PKT_SELF happen while dead, paused or between
-        lives, and carry no position to act on.
-        """
+        """Block until a frame carrying own-ship state arrives."""
         assert self._client is not None
         deadline = time.time() + timeout
         while time.time() < deadline:
             frame = self._client.poll()
             if frame is not None and frame.self_ is not None:
                 return frame
+        raise ProtocolError("no frame from the server within the timeout")
+
+    def _next_frame(self, timeout: float = 5.0):
+        """Return (frame, died).
+
+        `died` is True once `death_frames` frames in a row have arrived with
+        no own-ship state. A short run of them is normal -- it happens between
+        lives and while paused -- so a single missing frame is not death.
+        """
+        assert self._client is not None
+        missing = 0
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            frame = self._client.poll()
+            if frame is None:
+                continue
+            if frame.self_ is not None:
+                return frame, False
+            missing += 1
+            if missing >= self.death_frames:
+                return frame, True
         raise ProtocolError("no frame from the server within the timeout")
 
     def _observe(self, frame) -> np.ndarray:
