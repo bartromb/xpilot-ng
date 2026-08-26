@@ -716,7 +716,7 @@ int CON_Background(ConsoleInformation * console, const char *image, int x,
     }
 
     /* Load a new background */
-#ifdef HAVE_SDLIMAGE
+#ifdef HAVE_SDL_IMAGE
     temp = IMG_Load(image);
 #else
     temp = SDL_LoadBMP(image);
