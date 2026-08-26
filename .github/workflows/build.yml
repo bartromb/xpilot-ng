@@ -47,6 +47,20 @@ jobs:
             test -x "build/bin/$b"
           done
 
+      - name: Build with sound enabled
+        # The audio path is off by default, so without this it would never be
+        # compiled in CI. That is exactly how the original audio code rotted:
+        # SOUND was undefined for years and nobody noticed it had stopped
+        # building. Compile-only; CI has no audio device to play through.
+        run: |
+          set -eux
+          sudo apt-get install -y --no-install-recommends libsdl2-mixer-dev
+          cmake -B build-sound -S . -DXPILOT_SOUND=ON
+          cmake --build build-sound -j"$(nproc)"
+          # The whole point of the phase: nothing links freealut any more.
+          ! ldd build-sound/bin/xpilot-ng-sdl | grep -qiE 'openal|alut'
+          ldd build-sound/bin/xpilot-ng-sdl | grep -q 'libSDL2_mixer'
+
       - name: Install
         # The clients look for textures and fonts under CONF_DATADIR
         # (/usr/local/share/xpilot-ng/), so install before smoke-testing them.
