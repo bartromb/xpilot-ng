@@ -1,0 +1,4 @@
+[console_scripts]
+xpilot-bot-hunter = xpilot_bot.bots.hunter:run
+xpilot-bot-idle = xpilot_bot.bots.idle:run
+xpilot-bot-wanderer = xpilot_bot.bots.wanderer:run

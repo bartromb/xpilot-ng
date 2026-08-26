@@ -1,0 +1,110 @@
+# xpilot_bot
+
+A headless Python client for XPilot NG. It speaks the original wire protocol,
+so bots play against **unmodified servers** — nothing is patched into the game
+to support them, and a bot sees only what a human player's client is sent.
+
+No dependencies. Python 3.9+.
+
+## Getting a bot flying
+
+Start a server (from a built checkout):
+
+```sh
+./build/bin/xpilot-ng-server -map lib/maps/blood-music.xp2 \
+    -maxRobots 2 -minRobots 2 -port 15345 -noQuit -idleRun &
+```
+
+`-noQuit -idleRun` matter: without them the server exits the moment the last
+human leaves, and a bot-only server will not stay up.
+
+Install and run:
+
+```sh
+pip install ./ai
+xpilot-bot-wanderer
+```
+
+That is a bot flying in arcs on your server. To watch it, connect a real
+client to the same server.
+
+## Writing your own
+
+```python
+from xpilot_bot import Client, protocol as p
+
+with Client(host="localhost", port=15345, nick="mybot") as c:
+    for _ in range(600):
+        c.release_all()
+        c.press(p.KEY_THRUST)
+        c.press(p.KEY_TURN_LEFT)
+        c.press(p.KEY_FIRE_SHOT)
+        c.send_keys()     # nothing happens until you send
+        c.poll()          # read a datagram; also keeps the connection healthy
+```
+
+Two things to know:
+
+- **Actions are held, not pulsed.** `press` sets a key down and it stays down
+  until `release`. That mirrors the protocol, which sends a bitmap of held
+  keys rather than events.
+- **You must call `poll()` regularly.** It acknowledges the server's reliable
+  stream. A client that never acknowledges gets dropped.
+
+Every key in `keys.h` is available as `protocol.KEY_*` — `KEY_THRUST`,
+`KEY_FIRE_SHOT`, `KEY_TURN_LEFT`, `KEY_SHIELD`, `KEY_FIRE_MISSILE` and 67
+others.
+
+## What this does and does not do
+
+**Does:** the full join handshake (contact, queue, login port, verify, setup
+drain, play), the keyboard vector so a bot can take any action a human can,
+and reliable-stream acknowledgement so the connection stays up.
+
+**Does not:** decode the frame stream. There are 93 packet types, and this
+client reads and acknowledges them without interpreting the contents. So a bot
+can currently *act* but cannot *perceive* — `poll()` hands you raw bytes if
+you want to experiment.
+
+That is a real limit and it is the next piece of work. It is called out here
+rather than buried because it decides what you can build today: reactive and
+scripted bots, yes; anything that aims, no.
+
+## The handshake, and why it is fiddly
+
+Worth knowing if you extend this, because each step below was discovered by
+having the server hang up:
+
+1. **Contact** on UDP 15345 with `CONTACT_pack`.
+2. **Ask to join** with `ENTER_QUEUE_pack`. The reply carries a *different*
+   port — the game does not run on 15345.
+3. **Verify** on that second port with `PKT_VERIFY`.
+4. **Drain setup.** The server pushes the map down the reliable stream and
+   stays in `CONN_SETUP` until the client has acknowledged all of it. Send
+   anything else here — a keyboard packet, say — and the server logs "unknown
+   packet type" and destroys the connection.
+5. **Request play** with `PKT_PLAY`, and wait for the server to start sending
+   frames (`PKT_START`). Do not probe readiness by sending input: while still
+   in setup that is precisely the packet that gets you disconnected, so the
+   probe destroys what it measures.
+
+`docs/protocol.md` in the repository root has the wire formats.
+
+## Keeping in step with the C
+
+`xpilot_bot/protocol.py` is generated from `src/common/{keys,packet,pack}.h`:
+
+```sh
+python3 ai/tools/gen_protocol.py
+```
+
+Constants are extracted rather than transcribed so the bot cannot drift from
+the server it has to talk to. Re-run it after touching those headers.
+
+## Status
+
+Phase 6a of `ROADMAP.md`. The milestone — a third party gets a moving,
+shooting bot on a local server from this README — is met. Phases 6b
+(Gymnasium environment) and 6c (learned agents) both need the frame decoding
+above first, since an RL environment cannot produce an observation from
+undecoded bytes.

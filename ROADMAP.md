@@ -240,6 +240,13 @@ Branch: `phase2-sdl2`
       appear on the pre-HiDPI build), so not a port regression. The client deliberately clears
       with a full-screen quad rather than `glClear`, only when `damaged <= 0`; that conditional
       is the likely culprit and is where to start.
+- [x] Fixed a real startup race found by CI: the client created its OpenGL context *between*
+      the contact reply and the login handshake, while the server held a half-open connection
+      on a short timeout. On hardware that gap is milliseconds; under software rendering it
+      was long enough for the server to drop the connection with "timeout 01", which presents
+      as a successful login followed by silence. The window is now created before contacting,
+      removing the gap. This was intermittently failing CI and would have affected anyone on
+      a slow or virtualised machine.
 - [ ] Verify fullscreen toggle, alt-tab, multi-monitor on Wayland — **not done, and blocked by
       the default game loop.** `gameloop_x.c` selects on the X connection fd, so it needs an X11
       video driver; it now says so and points at `-DXPILOT_SDL_GAMELOOP=ON` rather than failing
@@ -555,12 +562,17 @@ bots are external clients speaking the documented network protocol (same
 information a human player gets — no reading internal server state).
 
 ### 6a — Python bot SDK (first milestone)
-- [ ] Implement the client network protocol as a Python library (`xpilot_bot`):
-      connect/join, decode game state into typed dataclasses, send actions
-      (turn / thrust / fire / special)
-- [ ] Headless operation — no rendering dependency
-- [ ] Example bots: `idle`, `wanderer`, simple rule-based `hunter` (~20 lines each)
-- [ ] Smoke test in CI: bot joins local server, survives 60s against 2 robots
+- [x] Python library `xpilot_bot` — join and actions **done**; **game-state decoding is
+      not**. The join handshake and the keyboard vector (all 72 protocol keys) work against
+      an unmodified server. The frame stream is read and acknowledged but not interpreted, so
+      a bot can act but cannot perceive. `protocol.py` is generated from the C headers by
+      `ai/tools/gen_protocol.py` so it cannot drift.
+- [x] Headless operation — no dependencies at all, not merely no rendering ones.
+- [x] Example bots: `idle`, `wanderer`, `hunter`, each about 20 lines. `hunter` sweeps and
+      fires rather than aiming, because aiming needs the frame decoding above; the docstring
+      says so.
+- [x] Smoke test in CI: bot joins, survives 60s against 2 robots, and the **server log** is
+      checked for the welcome and the spawn, so the bot cannot pass by merely not crashing.
 
 ### 6b — Gymnasium environment
 - [ ] Wrap the SDK in a Gymnasium interface: `reset()`, `step(action)`,
