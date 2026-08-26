@@ -954,6 +954,36 @@ static void Xpilotrc_write_line(FILE *fp, const char *buf)
     fprintf(fp, "%s%s", buf, endline);
 }
 
+#ifndef _WINDOWS
+static bool Mkdir_p(const char *dir);
+#endif
+
+/*
+ * Ensure the directory holding `path` exists. Writing the config is the first
+ * thing that needs it on a fresh account: the migration path creates the
+ * directory as a side effect, but a user who never had a ~/.xpilotrc reaches
+ * the XDG path with no directory behind it.
+ */
+static void Ensure_parent_dir(const char *path)
+{
+#ifndef _WINDOWS
+    char dir[PATH_MAX];
+    char *slash;
+
+    if (strlcpy(dir, path, sizeof(dir)) >= sizeof(dir))
+	return;
+
+    slash = strrchr(dir, '/');
+    if (slash == NULL || slash == dir)
+	return;		/* no directory part, or the root */
+
+    *slash = '\0';
+    Mkdir_p(dir);
+#else
+    UNUSED_PARAM(path);
+#endif
+}
+
 int Xpilotrc_write(const char *path)
 {
     FILE *fp;
@@ -964,6 +994,8 @@ int Xpilotrc_write(const char *path)
 	warn("Xpilotrc_write: Zero length filename.");
 	return -1;
     }
+
+    Ensure_parent_dir(path);
 
     fp = fopen(path, "w");
     if (fp == NULL) {

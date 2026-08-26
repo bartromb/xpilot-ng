@@ -348,7 +348,13 @@ Branch: per-feature (`phase4-<feature>`)
       the XDG location the first time it is found alone. The original is deliberately kept so a
       downgrade still works. Lives in the shared `option.c`, so the X11 client gets it too. A
       missing config is now INFO rather than the ERROR it used to print on every launch.
-- [ ] Modern keybind defaults + in-client remapping
+- [x] In-client remapping — console commands `/keys [filter]`, `/bind <option> <key>`,
+      `/save`, `/help`. Anything not starting with `/` is still chat. Verified end to end by
+      driving the console with synthetic key events: bind, save, restart, and the binding is
+      read back.
+- [ ] Modern keybind defaults — **deliberately not done.** Changing defaults alters muscle
+      memory built over 30 years, and the standing instruction is to prefer minimal diffs.
+      Remapping is now available for anyone who wants different keys.
 - [x] Gamepad support via SDL2 GameController API — `src/client/sdl/gamepad.c`. Buttons and
       axes map onto the existing `Key_press`/`Key_release` action API, with hotplug handled and
       a dead zone on the sticks. **The mapping is unit-tested (21 checks) but has never seen a
