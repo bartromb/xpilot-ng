@@ -266,10 +266,27 @@ Phases 6a and 6b are met. Both of the game's packet streams decode: frames at
 reliable sub-stream cleanly through setup and play, checked continuously in
 CI by `tools/check_reliable.py`.
 
-Phase 6c has a working training and benchmark loop. What can be said about
-the results is kept in the benchmark's own output rather than summarised
-here, because the numbers move with every run and a README is a bad place to
-keep a scoreboard. Run `--random` alongside anything else and compare.
+Phase 6c has a working training and benchmark loop, and **no trained policy
+has yet beaten acting at random**. That is the honest state of it. The most
+recent comparison, 20 episodes each on `dodgers-robots.xp2`:
+
+| | random | trained (60k steps) |
+|---|---|---|
+| mean reward | 5.16 (sd 3.25) | 3.89 (sd 3.12) |
+| mean episode length | 131 steps | 137 steps |
+| mean aim error | 1.57 rad | 1.88 rad |
+| kills / deaths | 6 / 20 | 4 / 20 |
+| win rate | 23% | 17% |
+
+The reward difference is within noise (Welch t = −1.23 on 20 episodes each).
+The aim error is not: on two thousand samples per policy, the trained agent
+points *further* from its nearest opponent than chance does, which is a
+stronger statement than "it hasn't learned yet".
+
+The likeliest cause is simply scale: 60k steps split three ways is about ten
+PPO updates on the combat stage, which is nothing. But the run is reported
+rather than quietly rerun until it flatters, and this table gets updated with
+whatever the next run actually says.
 
 The `hunter` example remains a demonstration rather than a good player:
 tracking one target it holds a mean aim error of about 19 heading units
