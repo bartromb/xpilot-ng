@@ -228,7 +228,7 @@ the headless client smoke tests under `xvfb-run` with software GLX. Run
 
 Branch: `phase2-sdl2`
 
-- [ ] Audit SDL 1.2 API usage in the SDL client (`grep -rn "SDL_" src/client/sdl/` → categorized list)
+- [x] Audit SDL 1.2 API usage in the SDL client → `docs/sdl2-port-audit.md`
 - [ ] Port video: `SDL_SetVideoMode` → `SDL_Window` + `SDL_GL_CreateContext`
 - [ ] Port event loop (keysym changes, text input API, window events)
 - [ ] Port surfaces/blitting used for HUD and textures
@@ -237,6 +237,35 @@ Branch: `phase2-sdl2`
 - [ ] Retire the raw X11 client OR keep it compiling but mark unmaintained
 
 Acceptance: SDL2 client plays a full robot match on Wayland with correct input and no rendering glitches.
+
+### What the audit changed about this phase (26 Aug 2026)
+
+Full detail in `docs/sdl2-port-audit.md`; the two things that alter the plan:
+
+**The client already runs on SDL2.** `libsdl1.2-dev` on Ubuntu 24.04 is `sdl12-compat`, a shim
+over SDL2. So this phase does not buy "works on SDL2" — it buys access to APIs the shim cannot
+expose (high-DPI, real window events, `SDL_TEXTINPUT`, GameController). Worth keeping in mind
+when deciding how much shim-compatible code is worth rewriting: the answer is "only what blocks
+those capabilities".
+
+**Most of the work is deletion, not porting.** 77% of `src/client/sdl/` is vendored 1.2-era
+third-party code, and it is barely used:
+
+| Vendored | Lines | Actually used | Disposition |
+|---|---|---|---|
+| `SDL_gfxPrimitives.c` + font header | 6,764 | 3 call sites | swap for packaged `libsdl2-gfx` (same function names) |
+| `scrap.c` | 651 | 4 functions | delete — SDL2 has a clipboard API |
+| `SDL_console.c` + `DT_drawtext.c` | 1,372 | 14 entry points | port properly |
+
+Roughly 7,400 of 8,787 vendored lines can go. Only 58 call sites across 11 files need changing,
+and 60 of the 99 SDL symbols in use are unchanged in SDL2.
+
+Keybindings are **not** a compatibility risk: they are stored by name and resolved through a
+table, so SDL2 renumbering `SDLK_*` does not break existing `~/.xpilotrc` files.
+
+**Blocked on dependencies.** The port needs `libsdl2-ttf-dev`, `libsdl2-image-dev` and
+`libsdl2-gfx-dev`, none of which are installed (`libsdl2-dev` itself already is). Nothing past
+the audit can be compiled or smoke-tested until they are.
 
 ## Phase 3 — Audio: OpenAL/freealut → SDL2_mixer (or miniaudio)
 
