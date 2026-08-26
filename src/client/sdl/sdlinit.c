@@ -58,6 +58,51 @@ float hidpi_scale_x = 1.0f;
 float hidpi_scale_y = 1.0f;
 
 /*
+ * User-interface scale. This is a separate concern from hidpi_scale_*: that
+ * one compensates for SDL reporting logical vs drawable coordinates, and is
+ * 1.0 on X11 no matter how dense the panel is. uiScale is about how large the
+ * text and HUD should be drawn, which on a 185 DPI display is the difference
+ * between readable and not.
+ *
+ * 0 means "derive it from the display DPI"; anything else is taken literally.
+ */
+double uiScale;
+double ui_scale = 1.0;
+
+/*
+ * Resolve uiScale into ui_scale. Auto-detection divides the display's
+ * diagonal DPI by 96 (the traditional baseline), clamps to something sane and
+ * rounds to a quarter step so that the result is a predictable 1.0/1.25/
+ * 1.5/1.75/2.0 rather than an arbitrary fraction.
+ */
+static void Resolve_ui_scale(void)
+{
+    float ddpi = 0.0f, hdpi = 0.0f, vdpi = 0.0f;
+
+    if (uiScale > 0.0) {
+	ui_scale = uiScale;
+	return;
+    }
+
+    if (SDL_GetDisplayDPI(0, &ddpi, &hdpi, &vdpi) != 0 || ddpi <= 0.0f) {
+	ui_scale = 1.0;
+	return;
+    }
+
+    ui_scale = ddpi / 96.0;
+    if (ui_scale < 1.0) ui_scale = 1.0;
+    if (ui_scale > 4.0) ui_scale = 4.0;
+    ui_scale = ((int)(ui_scale * 4.0 + 0.5)) / 4.0;
+}
+
+/* Scale a pixel/point measurement by the UI scale, never below 1. */
+int UI_scaled(int v)
+{
+    int r = (int)(v * ui_scale + 0.5);
+    return r < 1 ? 1 : r;
+}
+
+/*
  * Refresh draw_width/draw_height from the window's actual drawable size.
  * On a non-HiDPI display this is just the window size and the scales stay 1.
  */
@@ -251,13 +296,22 @@ int Init_window(void)
 	return -1;
     }
       
+    Resolve_ui_scale();
+
+    /* hudSize has already been set from the user's hudScale preference by the
+     * shared option handler; scale it so a dense display gets a
+     * proportionally larger HUD without the user having to find and re-tune
+     * hudScale themselves. Note that changing hudScale at runtime recomputes
+     * hudSize without the UI scale, so it takes a restart to reapply. */
+    hudSize = (int)(hudSize * ui_scale);
+
     if (gf_exists) {
-    	if (fontinit(&gamefont,gamefontname,gameFontSize)) {
+    	if (fontinit(&gamefont,gamefontname,UI_scaled(gameFontSize))) {
     	    error("Font initialization failed with %s", gamefontname);
 	} else gf_init = true;
     }
     if (!gf_init && df_exists) {
-    	if (fontinit(&gamefont,defaultfontname,gameFontSize)) {
+    	if (fontinit(&gamefont,defaultfontname,UI_scaled(gameFontSize))) {
     	    error("Default font initialization failed with %s", defaultfontname);
     	} else gf_init = true;
     }
@@ -268,12 +322,12 @@ int Init_window(void)
     }
     
     if (gf_exists) {
-    	if (fontinit(&mapfont,gamefontname,mapFontSize)) {
+    	if (fontinit(&mapfont,gamefontname,UI_scaled(mapFontSize))) {
     	    error("Font initialization failed with %s", gamefontname);
 	} else mf_init = true;
     }
     if (!mf_init && df_exists) {
-    	if (fontinit(&mapfont,defaultfontname,mapFontSize)) {
+    	if (fontinit(&mapfont,defaultfontname,UI_scaled(mapFontSize))) {
     	    error("Default font initialization failed with %s", defaultfontname);
     	} else mf_init = true;
     }
@@ -398,6 +452,18 @@ static xp_option_t sdlinit_options[] = {
 	XP_OPTFLAG_DEFAULT,
 	"Set the initial window geometry.\n"),
     
+    XP_DOUBLE_OPTION(
+	"uiScale",
+	0.0, 0.0, 4.0,
+	&uiScale,
+	NULL,
+	XP_OPTFLAG_DEFAULT,
+	"Scale factor for interface text and the HUD.\n"
+	"Use this if the interface is too small to read on a high-density\n"
+	"display. 0 means auto-detect from the display DPI, which gives 1.0\n"
+	"on an ordinary monitor and around 2.0 on a HiDPI panel. Set an\n"
+	"explicit value such as 1.5 to override.\n"),
+
      XP_INT_OPTION(
         "gameFontSize",
 	16, 12, 32,

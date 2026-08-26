@@ -1486,12 +1486,15 @@ void Paint_HUD_values(void)
     if (!hudColorRGBA)
 	return;
 
-    x = draw_width - 20;
+    x = draw_width - UI_scaled(20);
     /* Better make sure it's below the meters */
     y = draw_height - 9*(MAX((GLuint)meterHeight,gamefont.h) + 6);
 
+    /* Space the two lines by the actual font height. This used to be a fixed
+     * 20 pixels, which overlapped as soon as the font was scaled up. */
     HUDprint(&gamefont,hudColorRGBA,RIGHT,DOWN,x,y,"FPS: %.3f",clientFPS);
-    HUDprint(&gamefont,hudColorRGBA,RIGHT,DOWN,x,y-20,"CL.LAG : %.1f ms", clData.clientLag);
+    HUDprint(&gamefont,hudColorRGBA,RIGHT,DOWN,x,y - (int)gamefont.h - 4,
+	     "CL.LAG : %.1f ms", clData.clientLag);
 }
 
 static void Paint_meter(int xoff, int y, string_tex_t *tex, int val, int max,

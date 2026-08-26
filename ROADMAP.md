@@ -333,7 +333,15 @@ Acceptance: all game sounds play; build no longer links freealut.
 
 Branch: per-feature (`phase4-<feature>`)
 
-- [ ] Scalable HUD/fonts for 1440p/4K
+- [x] Scalable HUD/fonts for 1440p/4K — new `uiScale` option in the SDL client. `0` (the
+      default) auto-detects from the display DPI: 1.0 on an ordinary monitor, ~2.0 on a HiDPI
+      panel. Any explicit value overrides. It scales the game and map fonts, the score list
+      font and panel, and `hudSize`. Verified on the 185 DPI reference display: auto picks 2.0
+      and the interface becomes readable, while `-uiScale 1.0` is pixel-identical to the
+      previous build. Fixed a latent bug it exposed: the FPS and lag readouts were spaced by a
+      hardcoded 20 pixels and overlapped as soon as the font grew; they now space by font
+      height. Known limit: changing `hudScale` at runtime recomputes `hudSize` without the UI
+      scale, so that needs a restart to reapply.
 - [ ] Config: respect XDG dirs (`~/.config/xpilot-ng/`) instead of `~/.xpilotrc` (with migration)
 - [ ] Modern keybind defaults + in-client remapping
 - [ ] Gamepad support via SDL2 GameController API
