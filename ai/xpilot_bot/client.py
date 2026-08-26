@@ -21,6 +21,7 @@ import time
 from dataclasses import dataclass, field
 
 from . import protocol as p
+from .frames import Frame, decode_frame
 from .packet import Reader, Writer
 
 
@@ -38,6 +39,7 @@ class Status:
 
     connected: bool = False
     frame: int = 0
+    truncated_frames: int = 0
     login_port: int = 0
     server_version: int = 0
     keys_held: set = field(default_factory=set)
@@ -50,6 +52,8 @@ class Client:
         port: int = p.SERVER_PORT,
         nick: str = "bot",
         user: str = "bot",
+        view_width: int = 1024,
+        view_height: int = 768,
         team: int = 0xFFFF,
         timeout: float = 3.0,
     ) -> None:
@@ -59,6 +63,9 @@ class Client:
         self.user = user[: p.MAX_CHARS - 1]
         self.team = team
         self.timeout = timeout
+        # How much of the world the server should send us.
+        self.view_width = view_width
+        self.view_height = view_height
 
         self.status = Status()
         self._contact: socket.socket | None = None
@@ -70,6 +77,9 @@ class Client:
         # is not optional even for a bot that ignores the content.
         self._reliable_offset = 0
         self._last_loops = 0
+        #: The most recently decoded frame, and the bytes it came from.
+        self.frame: Frame | None = None
+        self.last_raw: bytes | None = None
 
     # ---------------------------------------------------------------- join
 
@@ -80,6 +90,10 @@ class Client:
         self._open_game_socket()
         self._verify()
         self._start_play()
+        # Once playing, tell the server how much of the world to send. It is
+        # in the server's playing-state table; sending it any earlier, during
+        # setup or login, is a disconnect.
+        self._send_display()
         self.status.connected = True
 
     def _contact_server(self) -> None:
@@ -220,6 +234,25 @@ class Client:
 
         return got
 
+    def _send_display(self) -> None:
+        """Tell the server how much of the world we want to see.
+
+        This is not cosmetic. The server culls objects to the client's
+        declared view, so a client that never sends PKT_DISPLAY is shown
+        nothing but its own ship -- which looks exactly like an empty map and
+        is a thoroughly confusing way to discover the packet exists.
+        """
+        assert self._game is not None
+        self._game.send(
+            Writer()
+            .c(p.PKT_DISPLAY)
+            .hd(self.view_width)
+            .hd(self.view_height)
+            .c(0)      # sparks: a bot does not need them
+            .c(0)      # spark colours
+            .bytes()
+        )
+
     def _start_play(self) -> None:
         """Ask to be put into play, once setup has been drained.
 
@@ -329,12 +362,15 @@ class Client:
 
     # --------------------------------------------------------------- frames
 
-    def poll(self) -> bytes | None:
-        """Read one datagram from the server, if one is waiting.
+    def poll(self) -> Frame | None:
+        """Read and decode one frame from the server, if one is waiting.
 
-        The frame stream is not decoded; see the module docstring. Returning
-        the raw bytes lets a caller experiment without this library pretending
-        to understand more than it does.
+        Returns a decoded Frame, or None if nothing arrived. Also
+        acknowledges the reliable stream, so this must be called regularly
+        even by a bot that ignores the contents.
+
+        The raw bytes remain available as `last_raw` for anything this
+        decoder does not yet cover.
         """
         assert self._game is not None
         try:
@@ -345,9 +381,16 @@ class Client:
             # ICMP port unreachable: the server has dropped us.
             self.status.connected = False
             raise ProtocolError("server closed the connection")
+
         self.status.frame += 1
         self._handle_datagram(data)
-        return data
+        self.last_raw = data
+
+        frame = decode_frame(data)
+        if frame.truncated:
+            self.status.truncated_frames += 1
+        self.frame = frame
+        return frame
 
     def close(self) -> None:
         try:

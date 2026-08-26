@@ -57,18 +57,40 @@ others.
 
 ## What this does and does not do
 
-**Does:** the full join handshake (contact, queue, login port, verify, setup
-drain, play), the keyboard vector so a bot can take any action a human can,
-and reliable-stream acknowledgement so the connection stays up.
+**Does:** the full join handshake, the keyboard vector so a bot can take any
+action a human can, reliable-stream acknowledgement, and **frame decoding** —
+`poll()` returns a `Frame` with your own ship's position, velocity, heading
+and fuel, plus the other ships, shots, items, balls and mines in view.
 
-**Does not:** decode the frame stream. There are 93 packet types, and this
-client reads and acknowledges them without interpreting the contents. So a bot
-can currently *act* but cannot *perceive* — `poll()` hands you raw bytes if
-you want to experiment.
+**Does not:** interpret every packet type. Everything the server sends during
+play is sized correctly, so decoding stays in sync, but only the types listed
+above are turned into objects. `Frame.truncated` tells you when decoding
+stopped early, and `last_raw` gives you the bytes.
 
-That is a real limit and it is the next piece of work. It is called out here
-rather than buried because it decides what you can build today: reactive and
-scripted bots, yes; anything that aims, no.
+That distinction matters more than it sounds. Packets are concatenated with no
+length prefix, so an unknown type cannot be skipped — it desynchronises
+everything after it. A frame that decodes at all decodes correctly.
+
+## Perceiving
+
+```python
+frame = c.poll()
+if frame and frame.self_:
+    me = frame.self_
+    print(me.x, me.y, me.heading, me.fuel)
+    for ship in frame.ships:        # other players, in world coordinates
+        print(ship.id, ship.x, ship.y, ship.heading, ship.shield)
+```
+
+Headings are **0..127, not degrees**, and increase counter-clockwise from the
++X axis, matching `atan2(dy, dx)`. That was verified rather than assumed: when
+thrusting in a straight line, `atan2(vy, vx)` in those units equals the
+reported heading exactly.
+
+**You must tell the server how much to send you.** The client does this during
+the handshake (`view_width`/`view_height`, default 1024x768). Without it the
+server culls everything and you see only your own ship — which looks exactly
+like an empty map, and is a memorable way to lose an hour.
 
 ## The handshake, and why it is fiddly
 
@@ -87,6 +109,9 @@ having the server hang up:
    frames (`PKT_START`). Do not probe readiness by sending input: while still
    in setup that is precisely the packet that gets you disconnected, so the
    probe destroys what it measures.
+6. **Send `PKT_DISPLAY`** once playing, to declare the view size. The server
+   has separate packet tables per connection state and this one is only in the
+   playing table, so sending it earlier is another disconnect.
 
 `docs/protocol.md` in the repository root has the wire formats.
 
@@ -103,8 +128,15 @@ the server it has to talk to. Re-run it after touching those headers.
 
 ## Status
 
-Phase 6a of `ROADMAP.md`. The milestone — a third party gets a moving,
-shooting bot on a local server from this README — is met. Phases 6b
-(Gymnasium environment) and 6c (learned agents) both need the frame decoding
-above first, since an RL environment cannot produce an observation from
-undecoded bytes.
+Phase 6a of `ROADMAP.md` is met, and frame decoding is done: verified at 0
+truncated frames out of 2,250 against a live server with four robots, tracking
+five ships at once.
+
+The `hunter` example is honest about being a demonstration rather than a good
+player: tracking one target it holds a mean aim error of about 19 heading units
+against roughly 32 for random, and is inside its firing cone about a quarter of
+the time. It has no lead, no evasion and no memory. Improving that is the point
+of Phase 6c.
+
+Phases 6b (Gymnasium environment) and 6c (learned agents) are now unblocked:
+`Frame` is the observation.
