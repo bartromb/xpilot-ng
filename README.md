@@ -23,6 +23,7 @@ development since 2010 and is kept here only as a provenance link.
 | 4b | Graphics modernization | **Done** to the stretch line |
 | 5 | Network & hosting | **Done** — including a self-hostable metaserver |
 | 6a | Python bot SDK | **Done** — including frame decoding |
+| 6b | Gymnasium RL environment | **Done** — accelerated and parallel |
 
 Full detail, including everything deliberately *not* done and why, is in
 [`ROADMAP.md`](ROADMAP.md).
@@ -89,7 +90,9 @@ addresses used to be compiled in.
 **Bots.** [`ai/`](ai/README.md) is a dependency-free Python client that speaks
 the original protocol, so bots play against unmodified servers seeing only what
 a human's client sees. Frames are decoded into world state — own ship, other
-ships, shots, items — so a bot can perceive as well as act.
+ships, shots, items — so a bot can perceive as well as act. There is a
+Gymnasium environment on top of it for reinforcement learning, which runs
+faster than realtime and in parallel.
 
 ## Bugs found and fixed
 
