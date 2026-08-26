@@ -21,6 +21,7 @@ import argparse
 import sys
 import time
 
+from xpilot_bot import protocol as p
 from xpilot_bot.client import Client
 
 
@@ -36,15 +37,34 @@ def main(argv=None) -> int:
     c.connect()
     board = c.reliable.board
 
+    # Hold a turn for the whole run. A ship that never sends PKT_TURNSPEED
+    # cannot turn, and nothing anywhere says so -- the keys are accepted and
+    # the heading just never changes. Checking it here costs nothing.
+    c.press(p.KEY_TURN_RIGHT)
+    c.send_keys()
+
     ship_ids = set()
+    headings = set()
     end = time.time() + args.seconds
     while time.time() < end:
         frame = c.poll()
         if frame is not None:
             ship_ids.update(s.id for s in frame.ships)
+            if frame.self_ is not None:
+                headings.add(frame.self_.heading)
+    turnspeed = c.frame.self_.turnspeed if c.frame and c.frame.self_ else 0
+    power = c.frame.self_.power if c.frame and c.frame.self_ else 0
+    c.release_all()
+    c.send_keys()
     c.close()
 
     problems = []
+
+    if len(headings) < 8:
+        problems.append(
+            f"held turn-right for {args.seconds:.0f}s and saw only "
+            f"{len(headings)} distinct heading(s): the ship cannot turn. "
+            f"turnspeed={turnspeed}, power={power} -- see send_ship_controls")
 
     # A truncated frame is no longer merely a gap in perception. Finding a
     # piggybacked reliable segment means walking the datagram packet by
@@ -83,6 +103,8 @@ def main(argv=None) -> int:
           f"{board.setup.height if board.setup else '?'}")
     print(f"players:  {{{', '.join(f'{i}: {pl.nick!r}' for i, pl in sorted(board.players.items()))}}}")
     print(f"messages: {len(board.messages)}")
+    print(f"handling: turnspeed={turnspeed} power={power}, "
+          f"{len(headings)} distinct headings while turning")
     print(f"counts:   { {k: v for k, v in sorted(board.counts.items())} }")
 
     if problems:

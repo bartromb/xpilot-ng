@@ -161,6 +161,31 @@ simply *type* a death notice. The server appends `" [nick]"` to everything a
 player says and to nothing it says itself, so a message ending in `]` is
 chat and must not be counted.
 
+## The ship is inert until you configure it
+
+A client must tell the server how its ship handles, with `PKT_POWER`,
+`PKT_TURNSPEED` and `PKT_TURNRESISTANCE` (plus `_S` variants for the
+shift-modifier), each `%c%hd` carrying the value times 256.
+
+This reads like tuning and is not. `MIN_PLAYER_TURNSPEED` is **0.0**, and
+`Player_init` starts a player at the minimum, so a client that never sends
+`PKT_TURNSPEED` has a ship that **cannot turn at all**. `MIN_PLAYER_POWER`
+is 5.0 against a real-client default of 55.0, so thrust is feeble for the
+same reason.
+
+Nothing reports either condition. `PKT_KEYBOARD` is accepted, the server
+acknowledges it, frames keep arriving, and the heading simply never changes.
+It presents as a ship that handles badly, which is an easy thing to blame on
+the map, the physics, or one's own flying.
+
+The real client's defaults, from `src/client/default.c`:
+
+| option | default | range |
+|---|---|---|
+| `power` | 55.0 | 5–55 |
+| `turnSpeed` | 16.0 | 0–64 |
+| `turnResistance` | 0.0 | 0.0–1.0 |
+
 ## The world wraps
 
 Most XPilot maps set `edgeWrap="yes"` — `dodgers-robots.xp2` does — and the

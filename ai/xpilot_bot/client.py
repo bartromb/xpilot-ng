@@ -41,6 +41,11 @@ class Status:
     connected: bool = False
     frame: int = 0
     truncated_frames: int = 0
+    #: How often the key state had to be sent again because the server had
+    #: not acknowledged it. A few is normal; a lot means packet loss.
+    key_resends: int = 0
+    #: Seconds between joining and the ship first reacting to a control.
+    ready_after: float | None = None
     login_port: int = 0
     server_version: int = 0
     keys_held: set = field(default_factory=set)
@@ -99,7 +104,7 @@ class Client:
 
     # ---------------------------------------------------------------- join
 
-    def connect(self) -> None:
+    def connect(self, wait_ready: bool = True) -> None:
         """Run the whole handshake, leaving the bot in the game."""
         self._contact_server()
         self._enter_game()
@@ -114,6 +119,11 @@ class Client:
         # Without this the ship cannot turn. See send_ship_controls.
         self.send_ship_controls()
         self.status.connected = True
+        if wait_ready:
+            # A freshly-joined ship ignores the controls for about five
+            # seconds. Returning from connect() before then hands back a
+            # client that looks connected and quietly does nothing.
+            self.wait_until_responsive()
 
     def _contact_server(self) -> None:
         self._contact = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -286,6 +296,56 @@ class Client:
             # The wire format is a short of value * 256.
             self._game.send(
                 Writer().c(pkt).hd(int(value * 256.0)).bytes())
+
+    def wait_until_responsive(self, timeout: float = 20.0) -> bool:
+        """Block until the ship actually reacts to the controls.
+
+        A freshly-joined ship ignores input for several seconds. Measured:
+        pressing turn-right about a second after joining does nothing at all,
+        while the identical press ten seconds in works. Nothing announces the
+        transition -- the keyboard packet is accepted and acknowledged
+        throughout, the heading simply does not move.
+
+        This matters most for short episodes. At 255 fps with ten frames to a
+        step, a 130-step episode is about five seconds, so an agent that
+        starts the moment it joins can spend most of its first episode
+        issuing commands into a void and learning from the result.
+
+        Re-sending the same key state does not help, because the server skips
+        any update whose change counter it has already seen
+        (`Receive_keyboard`). Only a real transition produces key events, so
+        this toggles a turn key rather than repeating it.
+
+        Returns True once the ship moves, False if it never did.
+        """
+        assert self._game is not None
+        deadline = time.time() + timeout
+        turning = False
+
+        while time.time() < deadline:
+            # Toggle, so the server sees an actual press event.
+            if turning:
+                self.release(p.KEY_TURN_LEFT)
+            else:
+                self.press(p.KEY_TURN_LEFT)
+            turning = not turning
+            self.send_keys()
+
+            seen = set()
+            until = time.time() + 0.5
+            while time.time() < until:
+                frame = self.poll()
+                if frame is not None and frame.self_ is not None:
+                    seen.add(frame.self_.heading)
+                if len(seen) > 1:
+                    self.release_all()
+                    self.send_keys()
+                    self.status.ready_after = time.time() - (deadline - timeout)
+                    return True
+
+        self.release_all()
+        self.send_keys()
+        return False
 
     def request_fps(self, fps: int) -> None:
         """Ask the server for a frame rate.
@@ -463,6 +523,20 @@ class Client:
         self.last_raw = data
 
         frame = decode_frame(data)
+
+        # Retransmit the key state until the server says it has it. Every
+        # frame carries the change-counter it last applied, and the C client
+        # resends whenever that lags its own (Net_flush in netclient.c). We
+        # used to send once and hope: over UDP, and with the server dropping
+        # input while the connection is still settling, that quietly loses
+        # the first press after joining. The ship then ignores the key
+        # forever -- which looks exactly like a ship that handles badly.
+        if frame.key_ack != self._key_change:
+            self.status.key_resends += 1
+            try:
+                self.send_keys()
+            except OSError:
+                pass
         if frame.truncated:
             self.status.truncated_frames += 1
         self.frame = frame
