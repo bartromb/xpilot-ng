@@ -121,11 +121,41 @@ void Toggle_fullscreen(void)
 }
 #endif
 
+/*
+ * SDL reports mouse coordinates in logical window units, but the widgets are
+ * laid out in drawable pixels so that rendering is full-resolution on HiDPI
+ * displays. Scale the event in place, once, before anything reads it. Both
+ * scales are 1.0 on an ordinary display, so this is a no-op there.
+ */
+static void Scale_mouse_event(SDL_Event *evt)
+{
+    if (hidpi_scale_x == 1.0f && hidpi_scale_y == 1.0f)
+	return;
+
+    switch (evt->type) {
+    case SDL_MOUSEMOTION:
+	evt->motion.x    = (Sint32)(evt->motion.x    * hidpi_scale_x);
+	evt->motion.y    = (Sint32)(evt->motion.y    * hidpi_scale_y);
+	evt->motion.xrel = (Sint32)(evt->motion.xrel * hidpi_scale_x);
+	evt->motion.yrel = (Sint32)(evt->motion.yrel * hidpi_scale_y);
+	break;
+    case SDL_MOUSEBUTTONDOWN:
+    case SDL_MOUSEBUTTONUP:
+	evt->button.x = (Sint32)(evt->button.x * hidpi_scale_x);
+	evt->button.y = (Sint32)(evt->button.y * hidpi_scale_y);
+	break;
+    default:
+	break;
+    }
+}
+
 int Process_event(SDL_Event *evt)
 {
     int button;
 
     mouseMovement = 0;
+
+    Scale_mouse_event(evt);
 
     if (Console_process(evt)) return 1;
     

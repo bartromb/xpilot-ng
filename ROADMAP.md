@@ -232,9 +232,14 @@ Branch: `phase2-sdl2`
 - [x] Port video: `SDL_SetVideoMode` → `SDL_Window` + `SDL_GL_CreateContext`
 - [x] Port event loop (keysym changes, text input API, window events)
 - [x] Port surfaces/blitting used for HUD and textures
-- [ ] Handle high-DPI and window resize properly — **not done.** Resize works as before, but
-      nothing yet queries `SDL_GL_GetDrawableSize`, so a HiDPI display still renders at logical
-      size. This is the capability the port was meant to unlock; it is now reachable.
+- [x] Handle high-DPI — the window is created with `SDL_WINDOW_ALLOW_HIGHDPI`, `draw_width`/
+      `draw_height` now track `SDL_GL_GetDrawableSize`, and mouse events are scaled from logical
+      units to drawable pixels. **See the caveat below: this has no visible effect on X11.**
+- [ ] Window resize "properly" — resize works and re-lays out correctly, but leaves black
+      artifacts in regions that were not repainted. Verified **pre-existing** (the same artifacts
+      appear on the pre-HiDPI build), so not a port regression. The client deliberately clears
+      with a full-screen quad rather than `glClear`, only when `damaged <= 0`; that conditional
+      is the likely culprit and is where to start.
 - [ ] Verify fullscreen toggle, alt-tab, multi-monitor on Wayland — **not done, and blocked by
       the default game loop.** `gameloop_x.c` selects on the X connection fd, so it needs an X11
       video driver; it now says so and points at `-DXPILOT_SDL_GAMELOOP=ON` rather than failing
@@ -277,6 +282,31 @@ screenshotted the same way against the same map: the two render identically — 
 geometry, score panel, radar, HUD placement, buttons, both at ~50 FPS. Static UI regions differ
 only by anti-aliasing from the newer FreeType. A clean rebuild gives 52 warnings in exactly the
 same categories as before, so the port introduced none.
+
+### High-DPI: done, but it changes nothing on X11 (26 Aug 2026)
+
+The plumbing is correct and is what Wayland and macOS need. On **X11 it is inert**, and it is
+worth being blunt about why, because the reference machine is exactly the case you would expect
+it to help:
+
+```
+video driver : x11
+window size  : 800x600
+drawable size: 800x600
+scale        : 1.000 x 1.000
+display DPI  : ddpi=185.1 hdpi=185.1 vdpi=185.4
+```
+
+That panel is 185 DPI — HiDPI by any measure — yet SDL2 on X11 reports drawable == window and a
+scale of exactly 1.0. SDL2 does per-window HiDPI scaling on Wayland and macOS only; on X11 the
+game already renders at native pixel density, which is precisely why the UI looks small.
+
+**So the visible "everything is tiny on a HiDPI screen" problem is not this checklist item at
+all — it is the Phase 4 item "Scalable HUD/fonts for 1440p/4K".** No amount of Phase 2 drawable
+-size work will change it on X11. Worth reordering Phase 4 accordingly.
+
+Verified no 1x regression: static UI regions (buttons, score header) are **pixel-identical**
+before and after, 0 differing pixels; only the live HUD values differ.
 
 Two findings worth carrying forward:
 

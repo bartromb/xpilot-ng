@@ -47,6 +47,38 @@ int videoFlags;
 SDL_Window *MainSDLWindow = NULL;
 SDL_GLContext MainGLContext = NULL;
 
+/*
+ * Ratio of drawable pixels to logical window units. 1.0 on an ordinary
+ * display; 2.0 on a typical HiDPI one. draw_width/draw_height are kept in
+ * drawable pixels so everything renders at full resolution, which means mouse
+ * coordinates — which SDL reports in logical units — have to be scaled up
+ * before they are tested against widget bounds. See Scale_mouse_event().
+ */
+float hidpi_scale_x = 1.0f;
+float hidpi_scale_y = 1.0f;
+
+/*
+ * Refresh draw_width/draw_height from the window's actual drawable size.
+ * On a non-HiDPI display this is just the window size and the scales stay 1.
+ */
+void Update_drawable_size(void)
+{
+    int dw = 0, dh = 0, ww = 0, wh = 0;
+
+    if (MainSDLWindow == NULL)
+	return;
+
+    SDL_GL_GetDrawableSize(MainSDLWindow, &dw, &dh);
+    SDL_GetWindowSize(MainSDLWindow, &ww, &wh);
+    if (dw <= 0 || dh <= 0 || ww <= 0 || wh <= 0)
+	return;
+
+    draw_width = dw;
+    draw_height = dh;
+    hidpi_scale_x = (float)dw / (float)ww;
+    hidpi_scale_y = (float)dh / (float)wh;
+}
+
 font_data gamefont;
 font_data mapfont;
 int gameFontSize;
@@ -142,7 +174,7 @@ int Init_window(void)
     /* The SDL 1.2 hardware-surface flags (HWSURFACE, HWPALETTE, HWACCEL) and
      * the hw_available/blit_hw probes behind them do not exist in SDL2 and
      * had no effect on an OpenGL window anyway. */
-    videoFlags = SDL_WINDOW_OPENGL;
+    videoFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_ALLOW_HIGHDPI;
 #ifndef _WINDOWS
     videoFlags |= SDL_WINDOW_RESIZABLE;
 #else
@@ -178,6 +210,10 @@ int Init_window(void)
 	error("Could not create an OpenGL context: %s", SDL_GetError());
 	return -1;
     }
+
+    /* The window was created at a logical size; from here on draw_width and
+     * draw_height are drawable pixels. */
+    Update_drawable_size();
 
     SDL_GL_GetAttribute(SDL_GL_RED_SIZE, &value);
     printf("RGB bpp %d/", value);
@@ -259,11 +295,6 @@ int Resize_Window( int width, int height )
 		if (!find_size(&width, &height))
 			return -1;
     
-    b.w = draw_width = width;
-    b.h = draw_height = height;
-    
-    SetBounds_GLWidget(MainWidget,&b);
-    
     if (MainSDLWindow == NULL)
 	return -1;
 
@@ -275,6 +306,15 @@ int Resize_Window( int width, int height )
      * follows the display and setting a size fights it. */
     if (!(videoFlags & SDL_WINDOW_FULLSCREEN_DESKTOP))
 	SDL_SetWindowSize(MainSDLWindow, width, height);
+
+    /* width/height are logical units; the drawable can be larger on HiDPI, so
+     * lay the widgets out against the drawable size rather than the request. */
+    Update_drawable_size();
+
+    b.w = draw_width;
+    b.h = draw_height;
+
+    SetBounds_GLWidget(MainWidget,&b);
     
 
     /* change to the projection matrix and set our viewing volume. */
