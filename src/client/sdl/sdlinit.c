@@ -28,7 +28,6 @@
 #include "glwidgets.h"
 #include "sdlpaint.h"
 #include "sdlinit.h"
-#include "scrap.h"
 
 /* These are only needed for the polygon tessellation */
 /* I'd like to move them to Paint_init/cleanup but because it */
@@ -39,12 +38,14 @@ extern void Gui_cleanup(void);
 
 int draw_depth;
 
-/* This holds video information assigned at initialise */
-const SDL_VideoInfo *videoInfo;
-
-/* Flags to pass to SDL_SetVideoMode */
+/* Flags to pass to SDL_CreateWindow */
 int videoFlags;
-SDL_Surface  *MainSDLSurface = NULL;
+
+/* The window and its GL context. Under SDL2 there is no display surface for
+ * an OpenGL window, so MainSDLSurface is gone; MainSDLWindow being non-NULL
+ * is what now signals "the window exists". */
+SDL_Window *MainSDLWindow = NULL;
+SDL_GLContext MainGLContext = NULL;
 
 font_data gamefont;
 font_data mapfont;
@@ -93,25 +94,25 @@ int Init_playing_windows(void)
 
 static bool find_size(int *w, int *h)
 {
-    SDL_Rect **modes, *m;
-    int i, d, best_i, best_d;
+    SDL_DisplayMode mode, best;
+    int i, d, n, best_d;
 
-    modes = SDL_ListModes(NULL, videoFlags);
-    if (modes == NULL) return false;
-    if (modes == (SDL_Rect**)-1) return true;
-    
-    best_i = 0;
+    n = SDL_GetNumDisplayModes(0);
+    if (n < 1) return false;
+
     best_d = INT_MAX;
-    for (i = 0; modes[i]; i++) {
-	m = modes[i];
-	d = (m->w - *w)*(m->w - *w) + (m->h - *h)*(m->h - *h);
+    best = (SDL_DisplayMode){0};
+    for (i = 0; i < n; i++) {
+	if (SDL_GetDisplayMode(0, i, &mode) != 0) continue;
+	d = (mode.w - *w)*(mode.w - *w) + (mode.h - *h)*(mode.h - *h);
 	if (d < best_d) {
 	    best_d = d;
-	    best_i = i;
+	    best = mode;
 	}
     }
-    *w = modes[best_i]->w;
-    *h = modes[best_i]->h;
+    if (best_d == INT_MAX) return false;
+    *w = best.w;
+    *h = best.h;
     return true;
 }
 
@@ -136,45 +137,46 @@ int Init_window(void)
 
     atexit(SDL_Quit);
 
-    /* Fetch the video info */
-    videoInfo = SDL_GetVideoInfo( );
-
     num_spark_colors=8;
 
-    /* the flags to pass to SDL_SetVideoMode */
-    videoFlags  = SDL_OPENGL;          /* Enable OpenGL in SDL          */
-    videoFlags |= SDL_GL_DOUBLEBUFFER; /* Enable double buffering       */
-    videoFlags |= SDL_HWPALETTE;       /* Store the palette in hardware */
+    /* The SDL 1.2 hardware-surface flags (HWSURFACE, HWPALETTE, HWACCEL) and
+     * the hw_available/blit_hw probes behind them do not exist in SDL2 and
+     * had no effect on an OpenGL window anyway. */
+    videoFlags = SDL_WINDOW_OPENGL;
 #ifndef _WINDOWS
-    videoFlags |= SDL_RESIZABLE;       /* Enable window resizing        */
+    videoFlags |= SDL_WINDOW_RESIZABLE;
 #else
-    videoFlags |= SDL_FULLSCREEN;
+    videoFlags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
 #endif
 
-    /** This checks to see if surfaces can be stored in memory */
-    if ( videoInfo->hw_available )
-        videoFlags |= SDL_HWSURFACE;
-    else
-        videoFlags |= SDL_SWSURFACE;
-
-    /* This checks if hardware blits can be done */
-    if ( videoInfo->blit_hw )
-        videoFlags |= SDL_HWACCEL;
-
-    draw_depth =  videoInfo->vfmt->BitsPerPixel;
+    {
+	SDL_DisplayMode dm;
+	if (SDL_GetCurrentDisplayMode(0, &dm) == 0)
+	    draw_depth = SDL_BITSPERPIXEL(dm.format);
+	else
+	    draw_depth = 24;
+    }
 
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
-    if (videoFlags & SDL_FULLSCREEN)
+    if (videoFlags & SDL_WINDOW_FULLSCREEN_DESKTOP)
       if (!find_size((int*)&draw_width, (int*)&draw_height))
-      	videoFlags ^= SDL_FULLSCREEN;
+      	videoFlags &= ~SDL_WINDOW_FULLSCREEN_DESKTOP;
 
-    if ((MainSDLSurface = SDL_SetVideoMode(draw_width,
-			 draw_height,
-			 draw_depth,
-			 videoFlags )) == NULL) {
-      error("Could not find a valid GLX visual for your display");
-	  return -1;
+    MainSDLWindow = SDL_CreateWindow(TITLE,
+				     SDL_WINDOWPOS_CENTERED,
+				     SDL_WINDOWPOS_CENTERED,
+				     draw_width, draw_height,
+				     videoFlags);
+    if (MainSDLWindow == NULL) {
+	error("Could not create a window: %s", SDL_GetError());
+	return -1;
+    }
+
+    MainGLContext = SDL_GL_CreateContext(MainSDLWindow);
+    if (MainGLContext == NULL) {
+	error("Could not create an OpenGL context: %s", SDL_GetError());
+	return -1;
     }
 
     SDL_GL_GetAttribute(SDL_GL_RED_SIZE, &value);
@@ -194,9 +196,6 @@ int Init_window(void)
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    /* Set title for window */
-    SDL_WM_SetCaption(TITLE, NULL);
-    
     /* this prevents a freetype crash if you pass non existant fonts */
     if (!file_exists(gamefontname)) {
     	error("cannot find your game font '%s'.\n" \
@@ -248,11 +247,6 @@ int Init_window(void)
 	return -1;
     }
 
-    /* Set up the clipboard */
-    if ( init_scrap() < 0 ) {
-    	error("Couldn't init clipboard: %s\n");
-    }
-
     return 0;
 }
 
@@ -261,7 +255,7 @@ int Resize_Window( int width, int height )
 {
     SDL_Rect b = {0,0,0,0};
 
-	if (videoFlags & SDL_FULLSCREEN)
+	if (videoFlags & SDL_WINDOW_FULLSCREEN_DESKTOP)
 		if (!find_size(&width, &height))
 			return -1;
     
@@ -270,11 +264,17 @@ int Resize_Window( int width, int height )
     
     SetBounds_GLWidget(MainWidget,&b);
     
-    if (!SDL_SetVideoMode( width,
-			   height,
-			   draw_depth, 
-			   videoFlags ))
+    if (MainSDLWindow == NULL)
 	return -1;
+
+    if (SDL_SetWindowFullscreen(MainSDLWindow,
+	    videoFlags & SDL_WINDOW_FULLSCREEN_DESKTOP) != 0)
+	return -1;
+
+    /* Only resize explicitly when windowed; in fullscreen-desktop the window
+     * follows the display and setting a size fights it. */
+    if (!(videoFlags & SDL_WINDOW_FULLSCREEN_DESKTOP))
+	SDL_SetWindowSize(MainSDLWindow, width, height);
     
 
     /* change to the projection matrix and set our viewing volume. */
@@ -317,7 +317,7 @@ static bool Set_geometry(xp_option_t *opt, const char *s)
 	sscanf(s, "%d%*c%d", &w, &h);
     }
     if (w == 0 || h == 0) return false;
-    if (MainSDLSurface != NULL) {
+    if (MainSDLWindow != NULL) {
 	Resize_Window(w, h);
     } else {
 	draw_width = w;

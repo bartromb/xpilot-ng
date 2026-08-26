@@ -956,7 +956,7 @@ static bool join_server(Connect_param_t *conpar, server_info_t *sip)
     return false;
 }
 
-static void handleKeyPress(GLWidget *meta, SDL_keysym *keysym )
+static void handleKeyPress(GLWidget *meta, SDL_Keysym *keysym )
 {
     /*static unsigned int row = 1;*/
     SDL_Event evt;
@@ -1092,7 +1092,7 @@ int Meta_window(Connect_param_t *conpar)
 	glEnable(GL_SCISSOR_TEST);
 	DrawGLWidgetsi(meta, 0, 0, draw_width, draw_height);
 	glDisable(GL_SCISSOR_TEST);
-	SDL_GL_SwapBuffers();
+	SDL_GL_SwapWindow(MainSDLWindow);
 	
 	SDL_WaitEvent(&evt);
 	do {
@@ -1156,7 +1156,10 @@ int Meta_window(Connect_param_t *conpar)
 				   target->motiondata);
 		break;
 
-	    case SDL_VIDEOEXPOSE:
+	    case SDL_WINDOWEVENT:
+		/* SDL 1.2's VIDEOEXPOSE is a WINDOWEVENT subtype in SDL2. */
+		if (evt.window.event != SDL_WINDOWEVENT_EXPOSED)
+		    break;
 		glDisable(GL_SCISSOR_TEST);
 		set_alphacolor(blackRGBA);
 		glBegin(GL_QUADS);

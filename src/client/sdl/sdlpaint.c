@@ -326,7 +326,7 @@ void Paint_frame(void)
 	glPopMatrix();
     }
     
-    SDL_GL_SwapBuffers();
+    SDL_GL_SwapWindow(MainSDLWindow);
 
     if (newSecond) {
 	gettimeofday(&tv2, NULL);
@@ -358,7 +358,7 @@ void Paint_score_start(void)
     fg.r = (scoreColorRGBA >> 24) & 255;
 	fg.g = (scoreColorRGBA >> 16) & 255;
 	fg.b = (scoreColorRGBA >> 8) & 255;
-	fg.unused = scoreColorRGBA & 255;
+	fg.a = scoreColorRGBA & 255;
     SDL_FillRect(scoreListWin.surface, NULL, 0);
     header = TTF_RenderText_Blended(scoreListFont, headingStr, fg);
     if (header == NULL) {
@@ -366,7 +366,7 @@ void Paint_score_start(void)
 	return;
     }
     scoreEntryRect.x = scoreEntryRect.y = SCORE_BORDER;
-    SDL_SetAlpha(header, 0, 0);
+    SDL_SetSurfaceBlendMode(header, SDL_BLENDMODE_NONE);
     SDL_BlitSurface(header, NULL, scoreListWin.surface, &scoreEntryRect);
     lineRGBA(scoreListWin.surface, SCORE_BORDER,
 	     scoreEntryRect.y + header->h + 2,
@@ -491,13 +491,13 @@ void Paint_score_entry(int entry_num, other_t *other, bool is_team)
     fg.r = (color >> 24) & 255;
 	fg.g = (color >> 16) & 255;
 	fg.b = (color >> 8) & 255;
-	fg.unused = color & 255;
+	fg.a = color & 255;
     line = TTF_RenderText_Blended(scoreListFont, label, fg);
     if (line == NULL) {
 	error("scorelist rendering failed: %s", SDL_GetError());
 	return;
     }
-    SDL_SetAlpha(line, 0, 0);
+    SDL_SetSurfaceBlendMode(line, SDL_BLENDMODE_NONE);
     SDL_BlitSurface(line, NULL, scoreListWin.surface, &scoreEntryRect);
     scoreEntryRect.h = line->h;
 

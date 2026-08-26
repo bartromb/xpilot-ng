@@ -372,7 +372,7 @@ static void Radar_init_texture(GLWidget *widget)
 static int Radar_init(GLWidget *widget)
 {
     radar_surface =
-	SDL_CreateRGBSurface(SDL_SWSURFACE | SDL_SRCALPHA,
+	SDL_CreateRGBSurface(0,   /* SDL2 ignores the flags argument */
                              pow2_ceil(widget->bounds.w-1),
 			     pow2_ceil(widget->bounds.h-1), 32,
                              RMASK, GMASK, BMASK, AMASK);

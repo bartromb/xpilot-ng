@@ -24,7 +24,7 @@
 
 typedef struct {
 	const char *name;
-	SDLKey	key;
+	SDL_Keycode	key;
 } sdlkey_t;
 
 static sdlkey_t sdlkeys[] = {
@@ -32,8 +32,8 @@ static sdlkey_t sdlkeys[] = {
    { "Tab",          SDLK_TAB },
    { "Return",       SDLK_RETURN },
    { "Pause",        SDLK_PAUSE },
-   { "Scroll_Lock",  SDLK_SCROLLOCK },
-   { "Print",        SDLK_PRINT },
+   { "Scroll_Lock",  SDLK_SCROLLLOCK },
+   { "Print",        SDLK_PRINTSCREEN },
    { "Escape",       SDLK_ESCAPE },
    { "Delete",       SDLK_DELETE },
    { "Home",         SDLK_HOME },
@@ -47,25 +47,25 @@ static sdlkey_t sdlkeys[] = {
    { "Next",         SDLK_PAGEDOWN },
    { "End",          SDLK_END },
    { "Insert",       SDLK_INSERT },
-   { "Num_Lock",     SDLK_NUMLOCK },
+   { "Num_Lock",     SDLK_NUMLOCKCLEAR },
    { "KP_Enter",     SDLK_KP_ENTER },
    { "KP_Multiply",  SDLK_KP_MULTIPLY },
    { "KP_Add",       SDLK_KP_PLUS },
    { "KP_Subtract",  SDLK_KP_MINUS },
    { "KP_Decimal",   SDLK_KP_PERIOD },
    { "KP_Divide",    SDLK_KP_DIVIDE },
-   { "KP_Insert",    SDLK_KP0 },
+   { "KP_Insert",    SDLK_KP_0 },
    { "KP_Delete",    SDLK_KP_PERIOD },
-   { "KP_0",         SDLK_KP0 },
-   { "KP_1",         SDLK_KP1 },
-   { "KP_2",         SDLK_KP2 },
-   { "KP_3",         SDLK_KP3 },
-   { "KP_4",         SDLK_KP4 },
-   { "KP_5",         SDLK_KP5 },
-   { "KP_6",         SDLK_KP6 },
-   { "KP_7",         SDLK_KP7 },
-   { "KP_8",         SDLK_KP8 },
-   { "KP_9",         SDLK_KP9 },
+   { "KP_0",         SDLK_KP_0 },
+   { "KP_1",         SDLK_KP_1 },
+   { "KP_2",         SDLK_KP_2 },
+   { "KP_3",         SDLK_KP_3 },
+   { "KP_4",         SDLK_KP_4 },
+   { "KP_5",         SDLK_KP_5 },
+   { "KP_6",         SDLK_KP_6 },
+   { "KP_7",         SDLK_KP_7 },
+   { "KP_8",         SDLK_KP_8 },
+   { "KP_9",         SDLK_KP_9 },
    { "F1",           SDLK_F1 },
    { "F2",           SDLK_F2 },
    { "F3",           SDLK_F3 },
@@ -161,11 +161,14 @@ static sdlkey_t sdlkeys[] = {
    { "grave",	    	SDLK_BACKQUOTE },
    { "quoteleft",   	SDLK_BACKQUOTE },
    { "quotedbl",   	SDLK_QUOTEDBL },
-   { "section",   	SDLK_WORLD_7 },
+   /* SDL2 dropped the SDLK_WORLD_* range. For keys outside the named enum it
+    * uses the Unicode codepoint the key produces, so the section key is
+    * U+00A7. Layouts without a section key simply never match this. */
+   { "section",   	(SDL_Keycode)0xA7 },
    { NULL,  	    	SDLK_UNKNOWN },
 };
 
-SDLKey Get_key_by_name(const char* name)
+SDL_Keycode Get_key_by_name(const char* name)
 {
     sdlkey_t *k;
 
@@ -177,7 +180,7 @@ SDLKey Get_key_by_name(const char* name)
     return SDLK_UNKNOWN;
 }
 
-char *Get_name_by_key(SDLKey key)
+char *Get_name_by_key(SDL_Keycode key)
 {
     sdlkey_t *k;
 
@@ -190,7 +193,7 @@ char *Get_name_by_key(SDLKey key)
 
 xp_keysym_t String_to_xp_keysym(/*const*/ char *name)
 {
-    SDLKey sdlk = Get_key_by_name(name);
+    SDL_Keycode sdlk = Get_key_by_name(name);
     if (sdlk == SDLK_UNKNOWN) return XP_KS_UNKNOWN;
     return (xp_keysym_t)sdlk;
 }

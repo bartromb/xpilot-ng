@@ -183,16 +183,19 @@ SDL_Event *CON_Events(SDL_Event * event)
 		
 		return NULL;
 	    default:
-		if (Topmost->InsMode)
-		    Cursor_Add(Topmost, event);
-		else {
-		    Cursor_Add(Topmost, event);
-		    Cursor_Del(Topmost);
-		}
+		/* Printable characters arrive as SDL_TEXTINPUT under SDL2,
+		 * not as a unicode field on the keydown event. */
+		break;
 	    }
 	}
 	return NULL;
     }
+
+    if (event->type == SDL_TEXTINPUT) {
+	Cursor_AddText(Topmost, event->text.text);
+	return NULL;
+    }
+
     return event;
 }
 
@@ -338,7 +341,6 @@ ConsoleInformation *CON_Init(const char *FontName,
 	return NULL;
     }
     newinfo->Visible = CON_CLOSED;
-    newinfo->WasUnicode = 0;
     newinfo->RaiseOffset = 0;
     newinfo->ConsoleLines = NULL;
     newinfo->CommandLines = NULL;
@@ -463,8 +465,7 @@ void CON_Show(ConsoleInformation * console)
 	console->Visible = CON_OPENING;
 	CON_UpdateConsole(console);
 
-	console->WasUnicode = SDL_EnableUNICODE(-1);
-	SDL_EnableUNICODE(1);
+	SDL_StartTextInput();
     }
 }
 
@@ -473,7 +474,7 @@ void CON_Hide(ConsoleInformation * console)
 {
     if (console) {
 	console->Visible = CON_CLOSING;
-	SDL_EnableUNICODE(console->WasUnicode);
+	SDL_StopTextInput();
     }
 }
 
@@ -729,7 +730,8 @@ int CON_Background(ConsoleInformation * console, const char *image, int x,
 	return 1;
     }
 
-    console->BackgroundImage = SDL_DisplayFormat(temp);
+    console->BackgroundImage =
+	SDL_ConvertSurfaceFormat(temp, SDL_PIXELFORMAT_ARGB8888, 0);
     SDL_FreeSurface(temp);
     console->BackX = x;
     console->BackY = y;
@@ -807,7 +809,8 @@ int CON_Resize(ConsoleInformation * console, SDL_Rect rect)
 	PRINT_ERROR("Couldn't create the console->ConsoleSurface\n");
 	return 1;
     }
-    console->ConsoleSurface = SDL_DisplayFormat(Temp);
+    console->ConsoleSurface =
+	SDL_ConvertSurfaceFormat(Temp, SDL_PIXELFORMAT_ARGB8888, 0);
     SDL_FreeSurface(Temp);
 
     /* Load the dirty rectangle for user input */
@@ -820,7 +823,8 @@ int CON_Resize(ConsoleInformation * console, SDL_Rect rect)
 	PRINT_ERROR("Couldn't create the input background\n");
 	return 1;
     }
-    console->InputBackground = SDL_DisplayFormat(Temp);
+    console->InputBackground =
+	SDL_ConvertSurfaceFormat(Temp, SDL_PIXELFORMAT_ARGB8888, 0);
     SDL_FreeSurface(Temp);
 
     /* Now reset some stuff dependent on the previous size */
@@ -1062,18 +1066,38 @@ void Cursor_BSpace(ConsoleInformation * console)
     }
 }
 
-void Cursor_Add(ConsoleInformation * console, SDL_Event * event)
+/*
+ * Insert the text from an SDL_TEXTINPUT event at the cursor.
+ *
+ * SDL2 delivers text as UTF-8, but the console stores single bytes and draws
+ * them through a bitmap font that only has ASCII glyphs, so anything outside
+ * printable ASCII is dropped rather than inserted as bytes that would render
+ * as garbage. The old code had the same practical limit: it truncated
+ * keysym.unicode to a char.
+ */
+void Cursor_AddText(ConsoleInformation * console, const char *text)
 {
-    int len = 0;
+    int len;
 
-    /* Again: the commandline has to hold the command and the cursor (+1) */
-    if (strlen(Topmost->Command) + 1 < CON_CHARS_PER_LINE
-	&& event->key.keysym.unicode) {
+    if (text == NULL)
+	return;
+
+    for (; *text != '\0'; text++) {
+	if ((unsigned char)*text < 0x20 || (unsigned char)*text > 0x7E)
+	    continue;
+
+	/* the commandline has to hold the command and the cursor (+1) */
+	if (strlen(Topmost->Command) + 1 >= CON_CHARS_PER_LINE)
+	    break;
+
 	Topmost->CursorPos++;
 	len = strlen(Topmost->LCommand);
-	Topmost->LCommand[len] = (char) event->key.keysym.unicode;
-	Topmost->LCommand[len + sizeof(char)] = '\0';
+	Topmost->LCommand[len] = *text;
+	Topmost->LCommand[len + 1] = '\0';
 	Assemble_Command(console);
+
+	if (!Topmost->InsMode)
+	    Cursor_Del(Topmost);
     }
 }
 

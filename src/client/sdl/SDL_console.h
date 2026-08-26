@@ -71,7 +71,6 @@ extern "C" {
 	/*! This is a struct for each consoles data */
 	typedef struct console_information_td {
 		int Visible;						/*! enum that tells which visible state we are in CON_CLOSED, CON_OPEN, CON_CLOSING, CON_OPENING */
-		int WasUnicode;						/*! stores the UNICODE value before the console was shown. On Hide() the UNICODE value is restored. */
 		int RaiseOffset;					/*! Offset used in show/hide animation */
 		int HideKey;						/*! the key that can hide the console */
 		char **ConsoleLines;				/*! List of all the past lines */
@@ -206,7 +205,7 @@ extern "C" {
 	/*! Internal: Called if you press BACKSPACE (deletes character left of cursor) */
 	extern DECLSPEC void SDLCALL Cursor_BSpace(ConsoleInformation *console);
 	/*! Internal: Called if you type in a character (add the char to the command) */
-	extern DECLSPEC void SDLCALL Cursor_Add(ConsoleInformation *console, SDL_Event *event);
+	extern DECLSPEC void SDLCALL Cursor_AddText(ConsoleInformation *console, const char *text);
     	
 	/* add string to commandline */
 	extern DECLSPEC void SDLCALL Add_String_to_Console(char *text);

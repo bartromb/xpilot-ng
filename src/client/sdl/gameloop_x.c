@@ -38,6 +38,8 @@ static int Poll_input(void)
  * responsiveness. Basically it uses the same mechanism as the 
  * X client to listen to network and user input.
  */
+extern SDL_Window *MainSDLWindow;
+
 void Game_loop(void)
 {
     fd_set rfds, tfds;
@@ -46,8 +48,17 @@ void Game_loop(void)
     SDL_SysWMinfo info;
 
     SDL_VERSION(&info.version);
-    if (!SDL_GetWMInfo(&info)) {
-	error("SDL_GetWMInfo not supported");
+    if (!SDL_GetWindowWMInfo(MainSDLWindow, &info)) {
+	error("SDL_GetWindowWMInfo failed: %s", SDL_GetError());
+	return;
+    }
+    if (info.subsystem != SDL_SYSWM_X11) {
+	/* This loop selects on the X connection alongside the network socket,
+	 * so it only works under X11 (XWayland included). On any other video
+	 * driver the SDL gameloop is the one to use. */
+	error("The X11 game loop needs an X11 video driver (this is '%s'). "
+	      "Rebuild with -DXPILOT_SDL_GAMELOOP=ON.",
+	      SDL_GetCurrentVideoDriver());
 	return;
     }
 
