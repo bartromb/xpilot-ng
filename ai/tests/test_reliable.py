@@ -243,3 +243,15 @@ def test_held_segments_do_not_accumulate():
     assert s.board.me.score == pytest.approx(1.0)
     # Only the genuinely-future segment is still held.
     assert list(s._pending) == [10_000]
+
+
+def test_motd_chunk_is_stepped_over_by_the_right_field():
+    """PKT_MOTD is "%c%ld%hd%ld" with the text inline. The *short* is this
+    chunk's length; the trailing long is the total motd size. Confusing the
+    two steps over the wrong number of bytes and desyncs the stream."""
+    text = b"welcome to the server"
+    motd = (struct.pack(">Bihi", p.PKT_MOTD, 0, len(text), 4096) + text)
+    s = ReliableStream()
+    feed_all(s, motd + player(1, "bot", myself=1))
+    assert not s.desynced
+    assert s.board.me.nick == "bot", "the packet after the motd must decode"

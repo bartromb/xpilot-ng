@@ -463,9 +463,12 @@ class ReliableStream:
             return True
 
         if t == p.PKT_MOTD:
-            # offset, size, total: the text itself follows as `size` bytes.
-            _off, size, _total = c.i32(), c.i16(), c.i32()
-            c._take(max(size, 0))
+            # "%c%ld%hd%ld": offset into the motd, the length of *this*
+            # chunk, and the total motd size. The chunk's text follows
+            # inline, and it is the short -- not the trailing long -- that
+            # says how much of it to step over.
+            _offset, chunk_len, _total_size = c.i32(), c.i16(), c.i32()
+            c._take(max(chunk_len, 0))
             return True
 
         # Fixed-size packets with nothing this bot needs. They still have to
