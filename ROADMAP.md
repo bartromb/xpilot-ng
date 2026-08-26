@@ -498,7 +498,14 @@ kind of decision from the rest of this phase.
 
 ## Phase 5 — Network & multiplayer revival (optional/later)
 
-- [ ] Audit UDP protocol for NAT-friendliness; document in `docs/protocol.md`
+- [x] Audit UDP protocol for NAT-friendliness; documented in `docs/protocol.md`. Headline:
+      **a client behind NAT needs nothing; a server behind NAT is hostile by default.** The
+      server does not serve the game from 15345 — it opens a fresh ephemeral UDP socket per
+      login and sends that port to the client, so only forwarding 15345 gives a confusing
+      failure where login succeeds and the game then goes silent. The fix already exists:
+      `clientPortStart`/`clientPortEnd` pin that range. Any packaging in this phase should
+      set them by default. Notably the protocol embeds **no IP addresses**, only a port, so
+      it avoids the FTP-style NAT breakage entirely.
 - [ ] Self-hostable metaserver replacement (tiny HTTP JSON service) since original metaservers are dead
 - [ ] systemd unit + Docker image for easy server hosting (LAN games at home)
 - [ ] Security pass on server input parsing (1990s C parsing network packets — fuzz it: AFL++ on packet handlers)
