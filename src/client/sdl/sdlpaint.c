@@ -30,6 +30,7 @@
  */
 
 #include "xpclient_sdl.h"
+#include "effects.h"
 
 #include "SDL_gfxPrimitives.h"
 #include "sdlpaint.h"
@@ -282,6 +283,10 @@ void Paint_frame(void)
 	    glVertex2i(0,draw_height);
 	glEnd();
 
+	/* Behind everything, and before any world transform is set up, so it
+	 * is drawn in plain screen coordinates. */
+	Starfield_paint(world.x, world.y, draw_width, draw_height);
+
 	glEnable(GL_BLEND);
     	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -292,6 +297,9 @@ void Paint_frame(void)
     	glPushMatrix();
     	setupPaint_stationary();
 	
+	/* Age the trail once per frame, before anything spawns into it. */
+	Particles_update();
+
     	Paint_world();
 
 	if (oldServer) {
@@ -303,7 +311,11 @@ void Paint_frame(void)
 	    Paint_objects();
 
     	Paint_score_objects();
-	
+
+	/* Draw the trail after the world and objects, or the map paints over
+	 * it. Same transform as the sparks it was built from. */
+	Particles_paint();
+
 	Paint_shots();
 
 	setupPaint_moving();

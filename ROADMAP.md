@@ -381,11 +381,45 @@ Hard rules for every item in this phase:
   them all and reproduces the plain vector look.
 - Server untouched. All work lives in the SDL2 client.
 
-- [ ] Layered glow via additive blending (same primitive drawn 2-3x, increasing width,
-      decreasing alpha) for ships, walls, shots — no shaders required
-- [ ] Particle system: thrust exhaust, explosions, debris (client-side, driven by
-      existing server events only)
-- [ ] Parallax starfield, 2-3 depth layers
+- [x] Layered glow via additive blending — **walls and ships**, in
+      `src/client/sdl/effects.c`. Shots are **not** glowed: they are textured sprites drawn
+      through `Image_paint`, whose `frame` argument is an animation index, not a size, so
+      there is no way to draw them larger without new geometry. That belongs with the
+      particle work rather than here. Ships only glow in vector mode; with `texturedShips`
+      on (the default) they are sprites and the same limit applies. Cloaked and phased ships
+      are deliberately excluded — a halo would reveal a ship that is meant to be hard to see,
+      which would be a gameplay change, not a presentation one.
+      Options: `glowEffect` (on), `glowWidth` (1.5), `glowLayers` (3), plus `classicRender`
+      as the master off switch. All changeable at runtime with the new `/set` console
+      command.
+      Verified against the hard rules: the halo is drawn on the *same* geometry with a wider
+      line, so the centre — and therefore the apparent position — cannot move; with robots
+      disabled the scene is deterministic, and classic mode differs from the pre-4b build by
+      **fewer pixels than the pre-4b build differs from itself between runs** (21,865 vs
+      26,499 of 1.31M), while glow differs by 63,531; and `/set glowEffect no` mid-game drops
+      brightness from 2.65 to 1.57, matching classic.
+- [x] Particle system — implemented as an **afterglow trail** rather than a simulation, and
+      that choice is deliberate. The server already decides where every spark and debris
+      fragment is on every frame; a client-side simulation would draw things at positions the
+      server never sent, which this phase's rules forbid. Instead each spark leaves a fading
+      mark at the position the server actually reported, so the trail is the spark's own
+      history. One mechanism covers thrust exhaust, explosions and debris, because all three
+      already arrive as sparks.
+      Options: `particleEffect` (on), `particleLife` (350ms). Fixed 8192-particle pool,
+      overwritten oldest-first, so a firefight cannot make the client allocate unboundedly.
+      Ageing uses wall-clock time, so a trail lasts the same duration at 50 or 144 fps.
+      Verified visually: thrusting produces a clear exhaust plume marking the ship's path.
+      **Performance is not yet validated.** The reference machine was under heavy external
+      load (8 unrelated CPU-saturated processes, load average 9) during measurement, so
+      absolute frame rates were meaningless — everything read 12 fps. The *relative* figure
+      is sound because it was measured under identical load: classic 12.000 vs all effects
+      11.999. The 144 fps acceptance criterion needs re-measuring on an idle machine.
+- [x] Parallax starfield, 3 depth layers — `starfieldEffect` (on), `starfieldDensity` (45).
+      Stars come from a fixed seed through a private generator, so the sky is identical every
+      frame and every session and does not disturb the global `rand()` stream. Each layer
+      scrolls at a fraction of the view (0.15 / 0.35 / 0.60), tiled on a 1024px grid.
+      Verified view-linked rather than static: thrusting for 2.5s changed 2,849 pixels in a
+      region of otherwise empty space.
 - [ ] Polish the existing SDL texture mode for ships/walls instead of rebuilding it
 - [ ] Later / stretch: OpenGL 3.3 core shader pipeline with bloom post-processing
 - [ ] Later / stretch: dynamic lighting — shots and explosions tinting nearby walls

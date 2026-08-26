@@ -183,7 +183,8 @@ static void Console_bind(char *args)
     char *name, *value;
     xp_option_t *opt;
 
-    name = strtok(args, " \t");
+    /* strtok writes to its argument, so never hand it a string literal. */
+    name = (args != NULL) ? strtok(args, " \t") : NULL;
     if (name == NULL) {
 	Console_list_keys(NULL);
 	return;
@@ -222,6 +223,43 @@ static void Console_bind(char *args)
     Console_print("Use /save to keep this for next time.");
 }
 
+/*
+ * Set any option by name at runtime. Phase 4b requires every visual effect to
+ * be switchable while playing, and this is how: /set glowEffect no.
+ */
+static void Console_set(char *args)
+{
+    char *name, *value;
+    xp_option_t *opt;
+
+    name = (args != NULL) ? strtok(args, " \t") : NULL;
+    if (name == NULL) {
+	Console_print("Usage: /set <option> <value>");
+	return;
+    }
+
+    value = strtok(NULL, "");
+    opt = Find_option(name);
+    if (opt == NULL) {
+	Console_print("No option named '%s'.", name);
+	return;
+    }
+
+    if (value == NULL) {
+	Console_print("%s = %s", opt->name, Option_value_to_string(opt));
+	return;
+    }
+
+    while (*value == ' ' || *value == '\t')
+	value++;
+
+    if (!Set_option(name, value, xp_option_origin_config)) {
+	Console_print("Could not set %s to '%s'.", name, value);
+	return;
+    }
+    Console_print("%s = %s", opt->name, Option_value_to_string(opt));
+}
+
 static void Console_save(void)
 {
     char path[PATH_MAX];
@@ -244,6 +282,7 @@ static void Console_help(void)
     Console_print("/keys [text]         list key bindings, optionally filtered");
     Console_print("/bind <option> <key> bind a key, e.g. /bind keyFireShot space");
     Console_print("/bind <option> none  unbind");
+    Console_print("/set <option> [value] show or change any option");
     Console_print("/save                write the config file");
     Console_print("/help                this list");
     Console_print("Anything else is sent as chat.");
@@ -274,7 +313,9 @@ void command_handler(ConsoleInformation *con, char *command)
     else if (!strcasecmp(word, "keys"))
 	Console_list_keys(rest);
     else if (!strcasecmp(word, "bind"))
-	Console_bind(rest != NULL ? rest : (char *)"");
+	Console_bind(rest);
+    else if (!strcasecmp(word, "set"))
+	Console_set(rest);
     else if (!strcasecmp(word, "save"))
 	Console_save();
     else

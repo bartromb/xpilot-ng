@@ -29,6 +29,7 @@
  */
 
 #include "xpclient_sdl.h"
+#include "effects.h"
 
 #include "sdlpaint.h"
 #include "images.h"
@@ -864,6 +865,11 @@ void Gui_paint_polygon(int i, int xoff, int yoff)
 
     /* possibly paint the edges around the polygon */
     if (width != -1) {
+	/* Glow first, so the crisp edge below is drawn over the halo and the
+	 * wall's apparent position is unchanged. */
+	Glow_call_list(polyEdgeListBase + i, e_style.rgb,
+		       width * clData.scale);
+
 	set_alphacolor((e_style.rgb << 8) | 0xff);
 	glLineWidth(width * clData.scale);
 	if (smoothLines) {
@@ -952,18 +958,26 @@ void Gui_paint_mine(int x, int y, int teammine, char *name)
 
 void Gui_paint_spark(int color, int x, int y)
 {
+    int r = 255 * (color + 1) / 8;
+    int g = 255 * color * color / 64;
+    int px = x + world.x;
+    int py = world.y + ext_view_height - y;
+
     /*
     Image_paint(IMG_SPARKS,
 		x + world.x,
 		world.y + ext_view_height - y,
 		color);
     */
-    glColor3ub(255 * (color + 1) / 8,
-	       255 * color * color / 64,
-	       0);
+
+    /* Record where the server put this spark, so the trail is made of real
+     * reported positions rather than anything the client made up. */
+    Particles_spawn(px, py, r, g, 0);
+
+    glColor3ub(r, g, 0);
     glPointSize(sparkSize);
     glBegin(GL_POINTS);
-    glVertex2i(x + world.x, world.y + ext_view_height - y);
+    glVertex2i(px, py);
     glEnd();
 }
 
@@ -1366,6 +1380,30 @@ static void Gui_paint_ship_name(int x, int y, other_t *other)
     }
 }
 
+/*
+ * The ship outline, emitted so the glow layers and the crisp pass draw
+ * identical geometry. Anything that would move the outline must not live
+ * here.
+ */
+struct ship_outline {
+    shipshape_t *ship;
+    int x, y, dir;
+};
+
+static void Emit_ship_outline(void *data)
+{
+    struct ship_outline *o = (struct ship_outline *)data;
+    position_t point;
+    int i;
+
+    glBegin(GL_LINE_LOOP);
+    for (i = 0; i < o->ship->num_points; i++) {
+	point = Ship_get_point_position(o->ship, i, o->dir);
+	glVertex2d(o->x + point.x, o->y + point.y);
+    }
+    glEnd();
+}
+
 void Gui_paint_ship(int x, int y, int dir, int id, int cloak, int phased,
 		    int shield, int deflector, int eshield)
 {
@@ -1402,6 +1440,22 @@ void Gui_paint_ship(int x, int y, int dir, int id, int cloak, int phased,
     	    if (cloak || phased) Image_paint_rotated(img, x, y, dir, (color & 0xffffff00) + ((color & 0x000000ff)/2));
 	    else Image_paint_rotated(img, x, y, dir, color);
 	} else {
+	    struct ship_outline outline;
+
+	    outline.ship = ship;
+	    outline.x = x;
+	    outline.y = y;
+	    outline.dir = dir;
+
+	    /* Glow first; the crisp outline below covers it, so the ship's
+	     * apparent size and position are unchanged. Cloaked and phased
+	     * ships are deliberately left unglowed: a halo would give away a
+	     * ship that is supposed to be hard to see, which would be a
+	     * gameplay change rather than a presentation one. */
+	    if (!cloak && !phased)
+		Glow_draw(Emit_ship_outline, &outline, (unsigned)color >> 8,
+			  shipLineWidth);
+
     	    glEnable(GL_BLEND);
     	    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     	    glEnable(GL_LINE_SMOOTH);
@@ -1413,12 +1467,7 @@ void Gui_paint_ship(int x, int y, int dir, int id, int cloak, int phased,
     	    	glLineStipple( 3, 0xAAAA );
 	    }
 	    
-    	    glBegin(GL_LINE_LOOP);
-    	    	for (i = 0; i < ship->num_points; i++) {
-    	    	    point = Ship_get_point_position(ship, i, dir);
-    	    	    glVertex2d(x + point.x, y + point.y);
-    	    	}
-    	    glEnd();
+	    Emit_ship_outline(&outline);
 	    
     	    if (cloak || phased ) glDisable(GL_LINE_STIPPLE);
 	
