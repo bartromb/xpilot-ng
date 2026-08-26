@@ -158,6 +158,11 @@ int main(int argc, char **argv)
     if (!Contact_init())
 	End_game();
 
+    /* Apply -metaServerHost before Meta_init resolves the addresses. The
+     * option's tuner only runs on a runtime change, so without this an
+     * explicitly configured metaserver is ignored at startup and the server
+     * quietly reports to the dead public ones instead. */
+    Meta_set_host(options.metaServerHost);
     Meta_init();
 
     Timing_setup();

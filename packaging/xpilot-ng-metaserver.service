@@ -1,0 +1,46 @@
+# systemd unit for a self-hosted XPilot NG metaserver.
+#
+#   sudo cp metaserver/xpilot_metaserver.py /usr/local/bin/
+#   sudo cp packaging/xpilot-ng-metaserver.service /etc/systemd/system/
+#   sudo useradd --system --no-create-home --shell /usr/sbin/nologin xpilot
+#   sudo systemctl enable --now xpilot-ng-metaserver
+#
+# Firewall: UDP 5500 for server announcements and TCP 4401 for clients are
+# both required, and they are different protocols. Opening only one gives a
+# metaserver that either hears nothing or tells nobody.
+
+[Unit]
+Description=XPilot NG metaserver
+Documentation=https://github.com/bartromb/xpilot-ng
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=xpilot
+Group=xpilot
+ExecStart=/usr/bin/python3 /usr/local/bin/xpilot_metaserver.py
+Restart=on-failure
+RestartSec=5s
+
+# It keeps its whole state in memory and writes nothing, so it needs no
+# filesystem access at all.
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=true
+RestrictRealtime=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+
+[Install]
+WantedBy=multi-user.target

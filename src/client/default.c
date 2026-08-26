@@ -396,6 +396,16 @@ static bool Set_sparkProb(xp_option_t *opt, double val)
     return true;
 }
 
+static char metaServerHost[MAX_HOST_LEN];
+
+static bool Set_metaServerHost(xp_option_t *opt, const char *value)
+{
+    UNUSED_PARAM(opt);
+    strlcpy(metaServerHost, value, sizeof(metaServerHost));
+    Meta_set_host(metaServerHost);
+    return true;
+}
+
 static bool Set_hudScale(xp_option_t *opt, double value)
 {
     UNUSED_PARAM(opt);
@@ -612,6 +622,17 @@ xp_option_t default_options[] = {
 	Set_team,
 	XP_OPTFLAG_KEEP,
 	"Set the team to join.\n"),
+
+    XP_STRING_OPTION(
+	"metaServerHost",
+	"",
+	metaServerHost, sizeof(metaServerHost),
+	Set_metaServerHost, NULL, NULL,
+	XP_OPTFLAG_DEFAULT,
+	"Hostname or address of the metaserver to browse.\n"
+	"Empty means the historical meta.xpilot.org and meta2.xpilot.org,\n"
+	"both of which are dead, so the server list will be empty. Set this\n"
+	"to a self-hosted metaserver; see metaserver/README.md.\n"),
 
     XP_INT_OPTION(
 	"port",

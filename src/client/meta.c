@@ -30,6 +30,24 @@ static struct Meta metas[NUM_METAS] = {
     {META_HOST_TWO, META_IP_TWO, META_INIT_SOCK, MetaConnecting}
 };
 
+/*
+ * Point the browser at a self-hosted metaserver.
+ *
+ * The public ones are dead, and their addresses were compiled in, so the
+ * server browser could only ever be empty. Overrides the first entry and
+ * clears the second, since a self-hoster has one.
+ */
+void Meta_set_host(const char *host)
+{
+    if (host == NULL || host[0] == '\0')
+	return;
+
+    strlcpy(metas[0].name, host, sizeof(metas[0].name));
+    strlcpy(metas[0].addr, host, sizeof(metas[0].addr));
+    metas[1].name[0] = '\0';
+    metas[1].addr[0] = '\0';
+}
+
 list_t server_list;
 time_t server_list_creation_time;
 list_iter_t server_it;
@@ -335,6 +353,9 @@ void Meta_connect(int *connections_ptr, int *maxfd_ptr)
     for (i = 0; i < NUM_METAS; i++) {
 	if (metas[i].sock.fd != SOCK_FD_INVALID)
 	    sock_close(&metas[i].sock);
+
+	if (metas[i].addr[0] == '\0')
+	    continue;	/* slot cleared by metaServerHost */
 
 	status = sock_open_tcp_connected_non_blocking(&metas[i].sock,
 						      metas[i].addr,

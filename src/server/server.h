@@ -398,6 +398,7 @@ void Set_deny_hosts(void);
  * Prototypes for metaserver.c
  */
 void Meta_send(char *mesg, size_t len);
+void Meta_set_host(const char *host);
 int Meta_from(char *addr, int port);
 void Meta_gone(void);
 void Meta_init(void);

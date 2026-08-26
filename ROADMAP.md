@@ -547,21 +547,23 @@ kind of decision from the rest of this phase.
       machine at all**: a trivial `printf` built with `-fsanitize=address` segfaults, because
       `/etc/ld.so.preload` injects `libAppProtection.so` into every process and collides with
       ASan's shadow memory. Worth running the harness under ASan in a container.
-- [ ] Self-hostable metaserver replacement — **not started.** `docs/protocol.md` documents
-      what it must do (UDP 5500, plain text, `Meta_send()` format) and notes that the
-      metaserver addresses are compiled into `metaserver.h`, so pointing at a self-hosted one
-      currently needs a recompile — making that an option is a prerequisite worth doing
-      first. `lmartinking/xpilot-metaserver` remains the sensible starting point.
-
----
-
-## Phase 6 — AI players (builds on Phase 5 protocol docs)
-
-Branch: separate repo or `ai/` subtree — Python, not C. Server stays untouched;
-bots are external clients speaking the documented network protocol (same
-information a human player gets — no reading internal server state).
-
-### 6a — Python bot SDK (first milestone)
+- [x] Self-hostable metaserver replacement — `metaserver/xpilot_metaserver.py`, no
+      dependencies. **Not the "tiny HTTP JSON service" this list proposed**, and
+      deliberately so: an unmodified client opens TCP 4401 and expects colon-separated
+      records, so an HTTP service could not be read by one, and protocol compatibility is
+      the point of this fork. It speaks the original protocol; JSON is offered alongside on
+      4402 for anything that is not an XPilot client.
+      The prerequisite this list identified — addresses compiled into `metaserver.h` — is
+      done on **both** ends: `-metaServerHost` for the server and the client. The server one
+      needed applying explicitly before `Meta_init()`, because an option's tuner only runs
+      on a runtime change, so a configured host was silently ignored at startup and the
+      server reported to the dead public hosts instead.
+      Verified end to end against real binaries: a server registers, **the client's own
+      browser lists it** (`Z6G4 | Blood's Music | 4.7.3ng`), JSON agrees, and a clean
+      shutdown removes it.
+      Prior art note: `lmartinking/xpilot-metaserver` was the suggested starting point, but
+      reading the protocol out of this tree was quicker than adapting a fork of a fork, and
+      leaves no dependency.
 - [x] Python library `xpilot_bot` — join and actions **done**; **game-state decoding is
       not**. The join handshake and the keyboard vector (all 72 protocol keys) work against
       an unmodified server. The frame stream is read and acknowledged but not interpreted, so

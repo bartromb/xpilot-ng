@@ -111,6 +111,7 @@ struct Meta {
 };
 
 
+void  Meta_set_host(const char *host);
 void  Delete_server_list(void);
 void  Delete_server_info(server_info_t * sip);
 void  string_to_lower(char *s);

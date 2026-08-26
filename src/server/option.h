@@ -194,6 +194,7 @@ extern struct options {
     double	targetDeadTicks;
     bool	reportToMetaServer;
     int		metaUpdateMaxSize;
+    char	*metaServerHost;
     bool	searchDomainForXPilot;
     char	*denyHosts;
 
