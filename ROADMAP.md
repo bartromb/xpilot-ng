@@ -342,10 +342,33 @@ Branch: per-feature (`phase4-<feature>`)
       hardcoded 20 pixels and overlapped as soon as the font grew; they now space by font
       height. Known limit: changing `hudScale` at runtime recomputes `hudSize` without the UI
       scale, so that needs a restart to reapply.
-- [ ] Config: respect XDG dirs (`~/.config/xpilot-ng/`) instead of `~/.xpilotrc` (with migration)
-- [ ] Modern keybind defaults + in-client remapping
-- [ ] Gamepad support via SDL2 GameController API
-- [ ] Package: .deb via CPack, optionally Flatpak manifest
+- [x] Config: respect XDG dirs (`~/.config/xpilot-ng/`) instead of `~/.xpilotrc` (with
+      migration). Resolution order is `$XPILOTRC`, then
+      `$XDG_CONFIG_HOME/xpilot-ng/xpilotrc`, then the legacy `~/.xpilotrc`, which is copied to
+      the XDG location the first time it is found alone. The original is deliberately kept so a
+      downgrade still works. Lives in the shared `option.c`, so the X11 client gets it too. A
+      missing config is now INFO rather than the ERROR it used to print on every launch.
+- [x] In-client remapping — console commands `/keys [filter]`, `/bind <option> <key>`,
+      `/save`, `/help`. Anything not starting with `/` is still chat. Verified end to end by
+      driving the console with synthetic key events: bind, save, restart, and the binding is
+      read back.
+- [ ] Modern keybind defaults — **deliberately not done.** Changing defaults alters muscle
+      memory built over 30 years, and the standing instruction is to prefer minimal diffs.
+      Remapping is now available for anyone who wants different keys.
+- [x] Gamepad support via SDL2 GameController API — `src/client/sdl/gamepad.c`. Buttons and
+      axes map onto the existing `Key_press`/`Key_release` action API, with hotplug handled and
+      a dead zone on the sticks. **The mapping is unit-tested (21 checks) but has never seen a
+      real controller** — no gamepad is attached to the reference machine — so the choice of
+      which button does what is unvalidated in play, even though the plumbing is not.
+- [x] Package: .deb via CPack — `cpack -G DEB` from the build directory produces
+      `xpilot-ng_4.7.3_amd64.deb` (~2 MB, 5 binaries, 5 man pages, all data files).
+      Dependencies are derived by `dpkg-shlibdeps` from what actually got linked rather than
+      hand-maintained, which is also a useful check on the port: the generated Depends line
+      names libsdl2, not SDL 1.2. Verified by extracting the package and running the server
+      out of it against its own packaged map.
+- [ ] Flatpak manifest — not done. It was optional in this list; a `.deb` covers the
+      immediate need and Flatpak wants a manifest plus a runtime choice worth deciding
+      deliberately.
 
 ## Phase 4b — Graphics modernization
 

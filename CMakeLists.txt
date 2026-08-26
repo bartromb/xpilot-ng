@@ -396,6 +396,36 @@ foreach(_man xpilot-ng-sdl xpilot-ng-x11 xpilot-ng-server xpilot-ng-replay
 endforeach()
 
 # ---------------------------------------------------------------------------
+# Packaging
+#
+# Build a .deb with:   cpack -G DEB --config build/CPackConfig.cmake
+# or from the build dir:  cpack -G DEB
+# ---------------------------------------------------------------------------
+
+set(CPACK_PACKAGE_NAME "${PROJECT_NAME}")
+set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "${PROJECT_DESCRIPTION}")
+set(CPACK_PACKAGE_VENDOR "XPilot NG contributors")
+set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/bartromb/xpilot-ng")
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/COPYING")
+set(CPACK_PACKAGE_INSTALL_DIRECTORY "${PROJECT_NAME}")
+set(CPACK_PACKAGING_INSTALL_PREFIX "/usr")
+set(CPACK_STRIP_FILES TRUE)
+
+# Debian
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "bartromb <bart.rombaut@gmail.com>")
+set(CPACK_DEBIAN_PACKAGE_SECTION "games")
+set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
+set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
+
+# Let dpkg-shlibdeps work the dependencies out from what actually got linked,
+# rather than maintaining a hand-written list that drifts. It needs the
+# binaries, so it only runs at package time.
+set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+
+include(CPack)
+
+# ---------------------------------------------------------------------------
 
 message(STATUS "")
 message(STATUS "XPilot NG ${PROJECT_VERSION} configuration")

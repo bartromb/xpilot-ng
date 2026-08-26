@@ -21,6 +21,7 @@
 
 
 #include "xpclient_sdl.h"
+#include "gamepad.h"
 
 #include "sdlinit.h"
 #include "sdlkeys.h"
@@ -156,6 +157,8 @@ int Process_event(SDL_Event *evt)
     mouseMovement = 0;
 
     Scale_mouse_event(evt);
+
+    if (Gamepad_process(evt)) return 1;
 
     if (Console_process(evt)) return 1;
     

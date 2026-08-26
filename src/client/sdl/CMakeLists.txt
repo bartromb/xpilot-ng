@@ -12,6 +12,7 @@
 add_executable(xpilot-ng-sdl
     console.c
     DT_drawtext.c
+    gamepad.c
     glwidgets.c
     images.c
     main.c

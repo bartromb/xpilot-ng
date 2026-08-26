@@ -1243,7 +1243,8 @@ xp_option_t default_options[] = {
 	XP_OPTFLAG_DEFAULT,
 	"Define the ship shape to use.  Because the argument to this option\n"
 	"is rather large (up to 500 bytes) the recommended way to set\n"
-	"this option is in the .xpilotrc file in your home directory.\n"
+	"this option is in the xpilotrc file, normally\n"
+	"~/.config/xpilot-ng/xpilotrc.\n"
 	"The exact format is defined in the file doc/README.SHIPS in the\n"
 	"XPilot distribution. Note that there is a nifty Unix tool called\n"
 	"editss for easy ship creation. There is XPShipEditor for Windows\n"

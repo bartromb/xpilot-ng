@@ -27,6 +27,7 @@
 #include "sdlkeys.h"
 #include "glwidgets.h"
 #include "sdlpaint.h"
+#include "gamepad.h"
 #include "sdlinit.h"
 
 /* These are only needed for the polygon tessellation */
@@ -260,6 +261,15 @@ int Init_window(void)
      * draw_height are drawable pixels. */
     Update_drawable_size();
 
+    /*
+     * SDL2 starts with text input enabled, unlike SDL 1.2 where unicode
+     * translation was off until asked for. Left on, the very keypress that
+     * opens the console also arrives as SDL_TEXTINPUT and types itself into
+     * the input line. The console turns text input on and off around itself,
+     * so it is off by default here.
+     */
+    SDL_StopTextInput();
+
     SDL_GL_GetAttribute(SDL_GL_RED_SIZE, &value);
     printf("RGB bpp %d/", value);
     SDL_GL_GetAttribute(SDL_GL_GREEN_SIZE,&value);
@@ -297,6 +307,8 @@ int Init_window(void)
     }
       
     Resolve_ui_scale();
+
+    Gamepad_init();
 
     /* hudSize has already been set from the user's hudScale preference by the
      * shared option handler; scale it so a dense display gets a

@@ -135,8 +135,8 @@ void Usage(void)
 	Print_default_value(opt);
 	printf("\n");
     }
-    printf("Most of these options can also be set in the .xpilotrc file\n"
-	   "in your home directory.\n"
+    printf("Most of these options can also be set in the xpilotrc file,\n"
+	   "normally ~/.config/xpilot-ng/xpilotrc.\n"
 	   "Each key option may have multiple keys bound to it and\n"
 	   "one key may be used by multiple key options.\n"
 	   "If no server is specified on the command line, xpilot will\n"
@@ -868,7 +868,13 @@ int Xpilotrc_read(const char *path)
 
     fp = fopen(path, "r");
     if (fp == NULL) {
-	error("Xpilotrc_read: Failed to open file \"%s\"", path);
+	/* Not having a config file yet is the normal first-run state, so do
+	 * not shout about it; anything else is worth reporting. */
+	if (errno == ENOENT)
+	    xpinfo("No xpilotrc file at %s; using defaults.", path);
+	else
+	    error("Xpilotrc_read: Failed to open file \"%s\": %s",
+		  path, strerror(errno));
 	return -2;
     }
 
@@ -948,6 +954,36 @@ static void Xpilotrc_write_line(FILE *fp, const char *buf)
     fprintf(fp, "%s%s", buf, endline);
 }
 
+#ifndef _WINDOWS
+static bool Mkdir_p(const char *dir);
+#endif
+
+/*
+ * Ensure the directory holding `path` exists. Writing the config is the first
+ * thing that needs it on a fresh account: the migration path creates the
+ * directory as a side effect, but a user who never had a ~/.xpilotrc reaches
+ * the XDG path with no directory behind it.
+ */
+static void Ensure_parent_dir(const char *path)
+{
+#ifndef _WINDOWS
+    char dir[PATH_MAX];
+    char *slash;
+
+    if (strlcpy(dir, path, sizeof(dir)) >= sizeof(dir))
+	return;
+
+    slash = strrchr(dir, '/');
+    if (slash == NULL || slash == dir)
+	return;		/* no directory part, or the root */
+
+    *slash = '\0';
+    Mkdir_p(dir);
+#else
+    UNUSED_PARAM(path);
+#endif
+}
+
 int Xpilotrc_write(const char *path)
 {
     FILE *fp;
@@ -958,6 +994,8 @@ int Xpilotrc_write(const char *path)
 	warn("Xpilotrc_write: Zero length filename.");
 	return -1;
     }
+
+    Ensure_parent_dir(path);
 
     fp = fopen(path, "w");
     if (fp == NULL) {
@@ -1167,20 +1205,170 @@ const char *Get_keyResourceString(keys_t key)
 }
 
 #ifndef _WINDOWS
+static bool File_exists(const char *path)
+{
+    struct stat st;
+
+    return path[0] != '\0' && stat(path, &st) == 0 && S_ISREG(st.st_mode);
+}
+
+/*
+ * Build the XDG config path, $XDG_CONFIG_HOME/xpilot-ng/xpilotrc, defaulting
+ * XDG_CONFIG_HOME to ~/.config as the spec requires. Returns false if neither
+ * XDG_CONFIG_HOME nor HOME is usable.
+ */
+static bool Xdg_config_path(char *path, size_t size)
+{
+    const char *xdg = getenv("XDG_CONFIG_HOME");
+    const char *home = getenv("HOME");
+
+    if (xdg != NULL && xdg[0] == '/')
+	strlcpy(path, xdg, size);
+    else if (home != NULL && home[0] != '\0') {
+	strlcpy(path, home, size);
+	strlcat(path, "/.config", size);
+    } else
+	return false;
+
+    strlcat(path, "/xpilot-ng", size);
+    return true;
+}
+
+/*
+ * mkdir -p. Needed because ~/.config may not exist yet on a fresh account, so
+ * creating only the leaf directory fails with ENOENT.
+ */
+static bool Mkdir_p(const char *dir)
+{
+    char tmp[PATH_MAX];
+    size_t len;
+    char *p;
+
+    len = strlcpy(tmp, dir, sizeof(tmp));
+    if (len >= sizeof(tmp)) {
+	warn("Config directory path too long: %s", dir);
+	return false;
+    }
+
+    /* Skip the leading slash so the loop never tries to mkdir("") . */
+    for (p = tmp + 1; *p != '\0'; p++) {
+	if (*p != '/')
+	    continue;
+	*p = '\0';
+	if (mkdir(tmp, 0700) != 0 && errno != EEXIST) {
+	    warn("Could not create %s: %s", tmp, strerror(errno));
+	    return false;
+	}
+	*p = '/';
+    }
+
+    if (mkdir(tmp, 0700) != 0 && errno != EEXIST) {
+	warn("Could not create %s: %s", tmp, strerror(errno));
+	return false;
+    }
+    return true;
+}
+
+/*
+ * Copy the legacy ~/.xpilotrc to the XDG location, creating the directory.
+ * The original is deliberately left in place: it costs nothing to keep and
+ * means an older client, or a downgrade, still finds its settings.
+ */
+static bool Migrate_legacy_xpilotrc(const char *legacy, const char *dir,
+				    const char *target)
+{
+    FILE *in, *out;
+    char buf[4096];
+    size_t n;
+    bool ok = true;
+
+    if (!Mkdir_p(dir))
+	return false;
+
+    in = fopen(legacy, "r");
+    if (in == NULL)
+	return false;
+    out = fopen(target, "w");
+    if (out == NULL) {
+	warn("Could not create %s: %s", target, strerror(errno));
+	fclose(in);
+	return false;
+    }
+
+    while ((n = fread(buf, 1, sizeof(buf), in)) > 0) {
+	if (fwrite(buf, 1, n, out) != n) {
+	    ok = false;
+	    break;
+	}
+    }
+    if (ferror(in))
+	ok = false;
+
+    fclose(in);
+    if (fclose(out) != 0)
+	ok = false;
+
+    if (ok)
+	xpinfo("Migrated %s to %s. The original was left in place.",
+	       legacy, target);
+    else
+	warn("Failed to copy %s to %s", legacy, target);
+
+    return ok;
+}
+
+/*
+ * Resolve the config file path, in order:
+ *
+ *   1. $XPILOTRC, if set — an explicit override always wins.
+ *   2. $XDG_CONFIG_HOME/xpilot-ng/xpilotrc (default ~/.config/xpilot-ng/).
+ *   3. The legacy ~/.xpilotrc, which is migrated to (2) the first time it is
+ *      found on its own.
+ *
+ * When nothing exists yet, the XDG path is returned so that the first write
+ * lands in the right place.
+ */
 void Xpilotrc_get_filename(char *path, size_t size)
 {
     const char *home = getenv("HOME");
-    const char *defaultFile = ".xpilotrc";
     const char *optionalFile = getenv("XPILOTRC");
+    char dir[PATH_MAX], xdg[PATH_MAX], legacy[PATH_MAX];
 
-    if (optionalFile != NULL)
+    if (optionalFile != NULL) {
 	strlcpy(path, optionalFile, size);
-    else if (home != NULL) {
-	strlcpy(path, home, size);
-	strlcat(path, "/", size);
-	strlcat(path, defaultFile, size);
-    } else
+	return;
+    }
+
+    if (!Xdg_config_path(dir, sizeof(dir))) {
 	strlcpy(path, "", size);
+	return;
+    }
+
+    strlcpy(xdg, dir, sizeof(xdg));
+    strlcat(xdg, "/xpilotrc", sizeof(xdg));
+
+    if (File_exists(xdg)) {
+	strlcpy(path, xdg, size);
+	return;
+    }
+
+    legacy[0] = '\0';
+    if (home != NULL && home[0] != '\0') {
+	strlcpy(legacy, home, sizeof(legacy));
+	strlcat(legacy, "/.xpilotrc", sizeof(legacy));
+    }
+
+    if (File_exists(legacy)) {
+	if (Migrate_legacy_xpilotrc(legacy, dir, xdg))
+	    strlcpy(path, xdg, size);
+	else
+	    /* Migration failed; keep using the file that does exist. */
+	    strlcpy(path, legacy, size);
+	return;
+    }
+
+    /* Nothing yet — point at the XDG path so a future write creates it. */
+    strlcpy(path, xdg, size);
 }
 #else
 void Xpilotrc_get_filename(char *path, size_t size)
