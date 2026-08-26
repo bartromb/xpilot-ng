@@ -148,8 +148,9 @@ underscore), and `glwidgets.c`, `sdlmeta.c` and `xpclient_sdl.h` test that spell
 nothing ever defines. Both sites therefore always take the `#else` branch and call
 `SDL_LoadBMP` instead of `IMG_Load`, so console backgrounds and bitmap fonts are
 restricted to BMP even though SDL_image is linked in. This is a pre-existing bug, not a
-regression. The CMake port should reproduce current behaviour for parity, then fix the
-spelling as a separate, reviewable commit.
+regression. The CMake port reproduced the behaviour as-is for parity; **the spelling was
+fixed separately in `9ab8bc8`** at the start of Phase 2, so both sites now go through
+`IMG_Load`.
 
 **`-L/usr/X11R6/lib` is stale.** `GL_LIBS` resolves to `-lSDL -L/usr/X11R6/lib -lGL
 -lGLU`. That path has not existed on Linux since the X.Org migration around 2005 and is

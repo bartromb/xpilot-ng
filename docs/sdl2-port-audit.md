@@ -113,6 +113,8 @@ rather than dropped. Two things to handle:
 
 - `keysym.unicode` at `SDL_console.c:1067` and `:1070` is the text-entry path, and is the reason
   `SDL_EnableUNICODE` is called. This becomes `SDL_StartTextInput` and an `SDL_TEXTINPUT` handler.
+- The `HAVE_SDLIMAGE` misspelling in this file was already fixed in `9ab8bc8`, so the image
+  loading path is `IMG_Load` now and needs no further attention during the port.
 - While in here, fix the three `strncat(dst, src, strlen(src))` sites recorded in
   `docs/warnings-debt.md`. They are in this file and the bound cannot protect the destination.
 
