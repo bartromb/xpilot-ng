@@ -137,6 +137,12 @@ every shot in the game piles up in one corner of the map.
 `PKT_DEBRIS` uses the same tiling, which is why it occupies a whole range of
 packet types rather than one.
 
+There is no owner and no velocity in the packet, so a client cannot tell a
+bullet flying at it from one it just fired, nor which way any of them are
+going. The real client does not need to: it draws them and the player's eye
+does the rest. Anything reasoning about them programmatically has to work
+around it.
+
 ### Kills and deaths are only in the text
 
 There is no kill packet. `PKT_SCORE` carries a life count, but on a map with

@@ -483,7 +483,16 @@ class XPilotEnv(gym.Env):
         return np.asarray(obs, dtype=np.float32)
 
     def _shot_features(self, frame, me, heading) -> list:
-        """The nearest few shots, in the same shape as the ship slots."""
+        """The nearest few shots, in the same shape as the ship slots.
+
+        These are *all* shots, including our own. PKT_FASTSHOT carries no
+        owner and no velocity -- just a tile index and a byte pair per shot
+        -- so nothing here can distinguish a bullet flying at us from one we
+        just fired. That is a real limitation rather than an oversight: the
+        information is not on the wire. It is survivable because our own fire
+        correlates with the action we just chose, which the agent knows, so
+        it is learnable noise rather than a confound.
+        """
         s = self.world_scale
         shots = world_shots(frame)
 
