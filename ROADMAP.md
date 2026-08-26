@@ -564,11 +564,17 @@ kind of decision from the rest of this phase.
       Prior art note: `lmartinking/xpilot-metaserver` was the suggested starting point, but
       reading the protocol out of this tree was quicker than adapting a fork of a fork, and
       leaves no dependency.
-- [x] Python library `xpilot_bot` — join and actions **done**; **game-state decoding is
-      not**. The join handshake and the keyboard vector (all 72 protocol keys) work against
-      an unmodified server. The frame stream is read and acknowledged but not interpreted, so
-      a bot can act but cannot perceive. `protocol.py` is generated from the C headers by
-      `ai/tools/gen_protocol.py` so it cannot drift.
+- [x] Python library `xpilot_bot` — join, actions **and game-state decoding**. `poll()`
+      returns a `Frame` with own position, velocity, heading and fuel, plus other ships,
+      shots, items, balls and mines. Verified at **0 truncated frames out of 2,250** against
+      a live server with four robots, tracking five ships at once.
+      Decoding had to be complete rather than partial: packets are concatenated with no
+      length prefix, so an unrecognised type desynchronises everything after it instead of
+      being skippable. Sizes are computed from the C format strings rather than transcribed.
+      Two things cost real time and are documented so they need not again: an off-by-one on
+      `PKT_BALL` (8 bytes, not 9) presented as a frame containing two `PKT_SELF` packets,
+      which cannot happen; and a bot that never sends `PKT_DISPLAY` is culled to seeing only
+      its own ship, which is indistinguishable from an empty map.
 - [x] Headless operation — no dependencies at all, not merely no rendering ones.
 - [x] Example bots: `idle`, `wanderer`, `hunter`, each about 20 lines. `hunter` sweeps and
       fires rather than aiming, because aiming needs the frame decoding above; the docstring
