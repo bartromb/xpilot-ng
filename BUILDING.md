@@ -148,14 +148,12 @@ always reports a drawable scale of 1.0 regardless of how dense the panel is,
 so the game renders at native pixel density and the interface looks small;
 `-uiScale` is what fixes that.
 
-**Missing `~/.xpilotrc` is harmless.** Both clients print
-
-```
-ERROR: Xpilotrc_read: Failed to open file "/home/you/.xpilotrc"
-```
-
-on first run. It is logged as an error but is not fatal; the client proceeds
-with defaults.
+**Where the config lives.** The clients read, in order: `$XPILOTRC` if set,
+then `$XDG_CONFIG_HOME/xpilot-ng/xpilotrc` (normally
+`~/.config/xpilot-ng/xpilotrc`), then the legacy `~/.xpilotrc`. A legacy file
+found on its own is copied to the XDG location on first run and the original
+is left in place, so an older client still finds its settings. Having no
+config at all is normal and is reported as INFO rather than an error.
 
 **Data files are not installed by default.** `configure` points the data
 directory at `/usr/local/share/xpilot-ng/`. Running the binaries from the source

@@ -342,7 +342,12 @@ Branch: per-feature (`phase4-<feature>`)
       hardcoded 20 pixels and overlapped as soon as the font grew; they now space by font
       height. Known limit: changing `hudScale` at runtime recomputes `hudSize` without the UI
       scale, so that needs a restart to reapply.
-- [ ] Config: respect XDG dirs (`~/.config/xpilot-ng/`) instead of `~/.xpilotrc` (with migration)
+- [x] Config: respect XDG dirs (`~/.config/xpilot-ng/`) instead of `~/.xpilotrc` (with
+      migration). Resolution order is `$XPILOTRC`, then
+      `$XDG_CONFIG_HOME/xpilot-ng/xpilotrc`, then the legacy `~/.xpilotrc`, which is copied to
+      the XDG location the first time it is found alone. The original is deliberately kept so a
+      downgrade still works. Lives in the shared `option.c`, so the X11 client gets it too. A
+      missing config is now INFO rather than the ERROR it used to print on every launch.
 - [ ] Modern keybind defaults + in-client remapping
 - [ ] Gamepad support via SDL2 GameController API
 - [ ] Package: .deb via CPack, optionally Flatpak manifest
