@@ -117,6 +117,26 @@ Types that can appear (the client's `reliable_tbl`, plus `PKT_REPLY` and
 `STRING`, `SCORE_OBJECT`, `TALK_ACK`. Scores are sent as hundredths in
 protocol versions ≥ 0x4F11 and as whole numbers before that.
 
+### Shots are not sent as coordinates
+
+`PKT_FASTSHOT` is `%c` type, `%c` count, then one byte pair per shot — and
+the type byte is not a colour, despite the name it is given everywhere. It
+is an index into a grid of 256×256 pixel tiles laid over the client's view
+(`BASE_X`/`BASE_Y` in `src/client/paintobjects.c`), and each byte pair is an
+offset inside that tile:
+
+    x_areas = (view_width  + 255) >> 8
+    y_areas = (view_height + 255) >> 8
+    x_view  = (type % x_areas) * 256 + byte_x
+    y_view  = ((type / x_areas) % y_areas) * 256 + byte_y
+
+The view is centred on the player, so world position needs `PKT_SELF`'s
+position *and* the view size it reports. Read the type byte as a colour and
+every shot in the game piles up in one corner of the map.
+
+`PKT_DEBRIS` uses the same tiling, which is why it occupies a whole range of
+packet types rather than one.
+
 ### Kills and deaths are only in the text
 
 There is no kill packet. `PKT_SCORE` carries a life count, but on a map with
@@ -134,6 +154,28 @@ One caveat that matters if the results are to be trusted: a player could
 simply *type* a death notice. The server appends `" [nick]"` to everything a
 player says and to nothing it says itself, so a message ending in `]` is
 chat and must not be counted.
+
+## The world wraps
+
+Most XPilot maps set `edgeWrap="yes"` — `dodgers-robots.xp2` does — and the
+protocol never mentions it. Positions arrive as plain coordinates, so
+subtracting them looks like it gives a relative position and does, right up
+until the two objects are more than half a map apart. Then it confidently
+returns the long way round.
+
+Measured on a live 3150×3150 game, 423 samples, comparing naive subtraction
+against the wrapped difference:
+
+| | |
+|---|---|
+| nearest ship identified wrongly | 40.2% |
+| bearing wrong by more than 0.5 rad | 55.1% |
+| mean error introduced | 1.41 rad (~81°) |
+| worst | 3.13 rad (~179°) |
+
+Anything reasoning about relative position needs the map size, which is only
+in the setup blob at the head of the reliable stream — the frame stream never
+says how big the world is.
 
 ## NAT audit
 

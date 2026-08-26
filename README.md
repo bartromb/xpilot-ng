@@ -115,6 +115,16 @@ Several of these had been in the code for decades:
   deaf exactly when the game begins. Nothing errors — scores and kills simply
   never arrive, and the server quietly drops the connection with a retransmit
   timeout that reads like a network fault.
+- **The world wraps, and the protocol never says so.** Most maps set
+  `edgeWrap="yes"`, so subtracting two positions returns the long way round
+  once they are more than half a map apart. Measured on a live game, that
+  made 40% of "which opponent is nearest" answers wrong and put the average
+  bearing out by 81°. The map size needed to correct it exists only in the
+  setup blob at the head of the reliable stream.
+- **Shots are not sent as coordinates.** `PKT_FASTSHOT`'s type byte is an
+  index into a grid of 256-pixel tiles over the player's view, not a colour.
+  Read it as a colour and every shot in the game piles into one corner of
+  the map.
 - **Dying does not stop the frame stream.** The C client's own comment
   suggests a frame without `PKT_SELF` means the player is dead, so that is
   where death detection naturally goes. Measured against a live server, an
