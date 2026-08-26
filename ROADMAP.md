@@ -229,11 +229,16 @@ the headless client smoke tests under `xvfb-run` with software GLX. Run
 Branch: `phase2-sdl2`
 
 - [x] Audit SDL 1.2 API usage in the SDL client → `docs/sdl2-port-audit.md`
-- [ ] Port video: `SDL_SetVideoMode` → `SDL_Window` + `SDL_GL_CreateContext`
-- [ ] Port event loop (keysym changes, text input API, window events)
-- [ ] Port surfaces/blitting used for HUD and textures
-- [ ] Handle high-DPI and window resize properly
-- [ ] Verify fullscreen toggle, alt-tab, multi-monitor on Wayland (XWayland is fine as intermediate step)
+- [x] Port video: `SDL_SetVideoMode` → `SDL_Window` + `SDL_GL_CreateContext`
+- [x] Port event loop (keysym changes, text input API, window events)
+- [x] Port surfaces/blitting used for HUD and textures
+- [ ] Handle high-DPI and window resize properly — **not done.** Resize works as before, but
+      nothing yet queries `SDL_GL_GetDrawableSize`, so a HiDPI display still renders at logical
+      size. This is the capability the port was meant to unlock; it is now reachable.
+- [ ] Verify fullscreen toggle, alt-tab, multi-monitor on Wayland — **not done, and blocked by
+      the default game loop.** `gameloop_x.c` selects on the X connection fd, so it needs an X11
+      video driver; it now says so and points at `-DXPILOT_SDL_GAMELOOP=ON` rather than failing
+      obscurely. Native Wayland needs either that option verified or the X11 loop retired.
 - [ ] Retire the raw X11 client OR keep it compiling but mark unmaintained
 
 Acceptance: SDL2 client plays a full robot match on Wayland with correct input and no rendering glitches.
@@ -263,9 +268,25 @@ and 60 of the 99 SDL symbols in use are unchanged in SDL2.
 Keybindings are **not** a compatibility risk: they are stored by name and resolved through a
 table, so SDL2 renumbering `SDLK_*` does not break existing `~/.xpilotrc` files.
 
-**Blocked on dependencies.** The port needs `libsdl2-ttf-dev`, `libsdl2-image-dev` and
-`libsdl2-gfx-dev`, none of which are installed (`libsdl2-dev` itself already is). Nothing past
-the audit can be compiled or smoke-tested until they are.
+### Port landed (26 Aug 2026)
+
+The client links libSDL2 directly; all 58 call sites are ported and `scrap.c` is deleted.
+
+Verified by **A/B against the pre-port build**, built from master in a git worktree and
+screenshotted the same way against the same map: the two render identically — same viewport
+geometry, score panel, radar, HUD placement, buttons, both at ~50 FPS. Static UI regions differ
+only by anti-aliasing from the newer FreeType. A clean rebuild gives 52 warnings in exactly the
+same categories as before, so the port introduced none.
+
+Two findings worth carrying forward:
+
+- **`SDL_Rect` fields are `int` in SDL2**, not `Sint16`/`Uint16`. `glwidgets.c` held a `Sint16 *`
+  pointing into a rect and the compiler caught it. Any other code taking the address of a rect
+  field needs the same check.
+- **Packaged SDL2_gfx is not a drop-in** for the vendored `SDL_gfxPrimitives`, contrary to what
+  the audit first claimed — it draws through an `SDL_Renderer`, which this client does not have.
+  The vendored copy needed two one-line fixes and was kept. Deleting its 6,764 lines is still
+  worth doing but means a software renderer or reimplementing two functions.
 
 ## Phase 3 — Audio: OpenAL/freealut → SDL2_mixer (or miniaudio)
 
