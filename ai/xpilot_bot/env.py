@@ -337,6 +337,19 @@ class XPilotEnv(gym.Env):
                 # Say so. A silent reconnect loop is indistinguishable from
                 # a hang, and a hung environment stalls every other one with
                 # it because they are stepped in turn.
+                #
+                # OPEN PROBLEM: with many environments on one machine (16 has
+                # reproduced it, 4 and 6 have not), every environment starts
+                # failing here with "server closed the connection", retries,
+                # joins, is dropped again, and the whole run degenerates into
+                # a reconnect cycle at load 0.5 that never finishes a stage.
+                # Only stages with robots are affected, because only those end
+                # episodes on death and so reset often enough to keep hitting
+                # it. Two candidate causes have been tested and cleared: the
+                # server's anti-macro disconnect (200 deliberate double-sends
+                # survived) and client key retransmission (removing it left
+                # the storm unchanged at 16 envs). Until this is understood,
+                # keep --envs modest.
                 LOG.warning("port %d: episode start failed (%s); "
                             "attempt %d of %d",
                             self.port, exc, attempt + 1, self.reconnect_tries)

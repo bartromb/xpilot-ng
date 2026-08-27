@@ -527,17 +527,17 @@ class Client:
 
         frame = decode_frame(data)
 
-        # No key-state retransmission here. Two separate bugs came out of
-        # trying: resending on every frame is a feedback loop (a lagging
-        # acknowledgement causes resends, which queue, which widen the lag),
-        # and resending at all during the post-join window -- when the ack
-        # necessarily lags because the ship is not yet listening -- appears
-        # to be what makes the server drop the connection.
+        # No key-state retransmission here. Resending on every frame is a
+        # feedback loop -- a lagging acknowledgement causes resends, which
+        # queue, which widen the lag -- and it is unnecessary anyway: the
+        # environment sends the whole key state every step, so a lost
+        # datagram costs one step, and wait_until_responsive toggles keys
+        # explicitly while waiting for the ship to wake up.
         #
-        # It is also unnecessary. The environment sends the whole key state
-        # every step, so a lost datagram costs one step, and
-        # wait_until_responsive toggles keys explicitly while waiting for the
-        # ship to come alive.
+        # Removing it did NOT fix the reconnect storm that appears with many
+        # environments on one machine, which is a separate and still-open
+        # problem. See the note in env.reset(). Four environments run clean;
+        # sixteen do not.
 
         return frame
 
