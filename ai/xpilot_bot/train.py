@@ -19,6 +19,7 @@ Run from the repository root, or pass --binary.
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 import time
 from pathlib import Path
@@ -53,6 +54,13 @@ def build_vec_env(stage, n_envs, base_port, fps, max_steps, binary, map_file,
 
 
 def train(args) -> int:
+    # Environments report reconnects and dead servers through logging. A
+    # training run is hours long and unattended; silence is the wrong
+    # default when something is quietly retrying.
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s",
+        datefmt="%H:%M:%S")
+
     PPO, _Monitor, _DummyVecEnv = _lazy_imports()
 
     out = Path(args.out)

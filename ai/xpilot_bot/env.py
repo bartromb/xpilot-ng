@@ -26,6 +26,8 @@ import math
 import subprocess
 import time
 
+import logging
+
 import numpy as np
 
 try:
@@ -38,6 +40,8 @@ except ImportError as exc:  # pragma: no cover
 
 from .client import Client, ProtocolError
 from .frames import world_shots, wrapped_delta
+
+LOG = logging.getLogger("xpilot_bot.env")
 from . import protocol as p
 
 #: Actions, as combinations of held keys. XPilot input is continuous -- keys
@@ -330,8 +334,16 @@ class XPilotEnv(gym.Env):
                 # thrown away explicitly, or a whole training run ends on one
                 # unlucky datagram.
                 last_error = exc
+                # Say so. A silent reconnect loop is indistinguishable from
+                # a hang, and a hung environment stalls every other one with
+                # it because they are stepped in turn.
+                LOG.warning("port %d: episode start failed (%s); "
+                            "attempt %d of %d",
+                            self.port, exc, attempt + 1, self.reconnect_tries)
                 self._close_client()
                 if self._server is not None and not self._server.alive():
+                    LOG.warning("port %d: server process died, restarting",
+                                self.port)
                     self._server.restart()
                 time.sleep(self.reconnect_delay)
         else:

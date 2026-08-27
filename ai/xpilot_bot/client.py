@@ -300,7 +300,7 @@ class Client:
             self._game.send(
                 Writer().c(pkt).hd(int(value * 256.0)).bytes())
 
-    def wait_until_responsive(self, timeout: float = 20.0) -> bool:
+    def wait_until_responsive(self, timeout: float = 8.0) -> bool:
         """Block until the ship actually reacts to the controls.
 
         A freshly-joined ship ignores input for several seconds. Measured:
