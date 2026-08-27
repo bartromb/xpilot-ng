@@ -338,22 +338,29 @@ class XPilotEnv(gym.Env):
                 # a hang, and a hung environment stalls every other one with
                 # it because they are stepped in turn.
                 #
-                # OPEN PROBLEM: above roughly six environments on one
-                # machine, every environment starts
-                # failing here with "server closed the connection", retries,
-                # joins, is dropped again, and the whole run degenerates into
-                # a reconnect cycle at load 0.5 that never finishes a stage.
-                # Only stages with robots are affected, because only those end
-                # episodes on death and so reset often enough to keep hitting
-                # it. Two candidate causes have been tested and cleared: the
-                # server's anti-macro disconnect (200 deliberate double-sends
-                # survived) and client key retransmission (removing it left
-                # the storm unchanged at 16 envs). Measured: 4 and 6
-                # environments run clean, 10 and 16 do not. Until this is
-                # understood, keep --envs at 6 or below.
-                LOG.warning("port %d: episode start failed (%s); "
-                            "attempt %d of %d",
-                            self.port, exc, attempt + 1, self.reconnect_tries)
+                # Why this happens above roughly six environments on one
+                # machine, which took a while to pin down:
+                #
+                # DummyVecEnv steps environments in turn, and a client only
+                # polls the socket inside its own step(). So with N
+                # environments, each client is serviced once per N steps --
+                # about 39ms of real time each at 255fps with ten frames to a
+                # step, so once every 39N milliseconds. Past six or so that
+                # exceeds how long the server will keep retransmitting
+                # unacknowledged reliable data, and it drops the client. The
+                # server says so in its own log: `Goodbye ... ("timeout 08")`,
+                # eight retransmit timeouts.
+                #
+                # It only bites on stages with robots because those are the
+                # only ones with reliable traffic after setup -- scores,
+                # messages, joins. With no robots there is nothing to
+                # retransmit and nothing to time out, which is why the
+                # navigate stage never failed once.
+                #
+                # The real fix is to run environments in their own processes
+                # (SubprocVecEnv) so every client keeps polling while the
+                # others are stepped. Until then, keep --envs at 6 or below:
+                # measured, 4 and 6 run clean, 10 and 16 do not.
                 self._close_client()
                 if self._server is not None and not self._server.alive():
                     LOG.warning("port %d: server process died, restarting",
