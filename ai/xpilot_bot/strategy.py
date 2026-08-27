@@ -35,7 +35,8 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass
 
-from .tactics import CAUTIOUS_FUEL, LOW_FUEL, TACTICS, Situation
+from .tactics import (CAUTIOUS_FUEL, EVADE_RANGE, LOW_FUEL, TACTICS,
+                      Situation)
 
 LOG = logging.getLogger("xpilot_bot.strategy")
 
@@ -95,7 +96,15 @@ class ScriptedStrategist(Strategist):
         shot = s.nearest_shot
         enemy = s.nearest_enemy
 
-        if shot is not None and shot.dist < 220:
+        # 90 pixels, not the 220 this started with. In a firefight there is
+        # almost always *a* shot within 220 pixels, so the bot broke off
+        # permanently and never attacked. Measured over two rounds: at 220 it
+        # scored 0 kills against 18 deaths, at 90 it scored 7 against 19.
+        #
+        # Note what that second number says. All the extra evading bought no
+        # survival whatsoever -- deaths were 18 either way. The defensive
+        # tactic was not defending, it was only failing to attack.
+        if shot is not None and shot.dist < EVADE_RANGE:
             return Decision("evade", source="scripted")
         if s.fuel < LOW_FUEL:
             return Decision("regroup", source="scripted")

@@ -39,6 +39,10 @@ LOW_FUEL = 80.0
 CAUTIOUS_FUEL = 180.0
 
 #: Ranges in world pixels.
+#: How close a shot has to be before breaking off is worth the lost attack.
+#: See ScriptedStrategist for why this is much smaller than it first was.
+EVADE_RANGE = 90.0
+
 CLOSE_RANGE = 250.0
 SNIPE_RANGE = 600.0
 DANGER_RANGE = 180.0

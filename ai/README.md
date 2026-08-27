@@ -301,11 +301,26 @@ shoot" bot, three 70-second rounds each on `dodgers-robots.xp2`:
 | hunter | 21 | 27 | **+32.6** |
 | commander (rules driving the layer) | 9 | 23 | −37.6 |
 
-The layered bot is worse, and not marginally. It survives slightly better and
-kills far less, because `evade` and `regroup` are doing what they are told to
-do and relentless aggression happens to beat that here. That is a fact about
-this map and these opponents rather than a verdict on the architecture, but
-it is the number that exists, so it is the number reported.
+The layered bot is worse, and not marginally.
+
+Most of that turned out to be one number. `evade` triggered on any shot
+within 220 pixels, and in a firefight there is almost always a shot within
+220 pixels, so it broke off more or less permanently. Tightening it to 90
+pixels, over two rounds:
+
+| evade trigger | kills | deaths |
+|---|---|---|
+| 220 px | 0 | 18 |
+| 90 px | 7 | 19 |
+
+Note the deaths. All that extra evading bought **no survival at all** — the
+defensive tactic was not defending, it was only failing to attack. The
+tightened threshold is what ships.
+
+Even so, `hunter` still wins (14 kills to 7 over the same two rounds). The
+architecture does what the roadmap asked; the tactics on top of it are not
+yet worth the indirection, and saying otherwise would be flattering a
+structure rather than reporting a result.
 
 Worth noting the harness is deterministic where the bot is: hunter scored
 identically in all three rounds. Commander varies because its strategist runs

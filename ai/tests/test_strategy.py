@@ -118,7 +118,8 @@ def test_a_reply_with_no_json_is_an_error_not_a_guess():
 
 
 def test_the_scripted_strategist_evades_incoming_fire_first():
-    s = sit(fuel=500, shots=[Contact(dist=100, bearing=0.0)],
+    """Fire about to land outranks a target worth shooting at."""
+    s = sit(fuel=500, shots=[Contact(dist=40, bearing=0.0)],
             enemies=[Contact(dist=200, bearing=0.0)])
     assert ScriptedStrategist().decide(s).tactic == "evade"
 
@@ -227,3 +228,17 @@ def test_a_strategist_that_raises_keeps_the_last_tactic():
         assert bg.current.tactic == "hunt", "the ship keeps flying"
     finally:
         bg.stop()
+
+
+def test_a_distant_shot_does_not_call_off_the_attack():
+    """In a firefight there is almost always some shot within a couple of
+    hundred pixels. Breaking off for those means never attacking: measured,
+    0 kills against 18 deaths, versus 7 against 19 with a tighter trigger."""
+    from xpilot_bot.tactics import EVADE_RANGE
+    far = sit(fuel=500, shots=[Contact(dist=EVADE_RANGE * 2, bearing=0.0)],
+              enemies=[Contact(dist=200, bearing=0.0)])
+    assert ScriptedStrategist().decide(far).tactic == "hunt"
+
+    onto_us = sit(fuel=500, shots=[Contact(dist=EVADE_RANGE / 2, bearing=0.0)],
+                  enemies=[Contact(dist=200, bearing=0.0)])
+    assert ScriptedStrategist().decide(onto_us).tactic == "evade"
