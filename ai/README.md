@@ -266,37 +266,39 @@ Phases 6a and 6b are met. Both of the game's packet streams decode: frames at
 reliable sub-stream cleanly through setup and play, checked continuously in
 CI by `tools/check_reliable.py`.
 
-Phase 6c has a working training and benchmark loop. **Every result measured
-before 2026-08-27 is void**, for a reason worth stating plainly: the ship
-could not turn. `MIN_PLAYER_TURNSPEED` is 0.0 and a player starts at the
-minimum, so a client that never sends `PKT_TURNSPEED` is welded to one
-heading — and nothing reports it. The keys are accepted, the server
-acknowledges them, the frames keep coming. A bot holding turn-right for five
-seconds sat at heading 32 for all of it.
-
-So the agent had been rewarded for pointing at its nearest opponent while
-holding no action that could change where it pointed. The aim term was noise
-and the benchmark measured the same noise. Engine power was stuck at 5.0
-instead of 55.0 for the same reason, which is why thrust had looked weak.
-
-The current random baseline, on a ship that can fly, 20 episodes:
+Phase 6c has a working training and benchmark loop. **No trained policy has
+beaten acting at random yet.** The current baseline, 20 episodes on
+`dodgers-robots.xp2`:
 
 | | random |
 |---|---|
-| mean reward | 7.26 (sd 5.85) |
-| mean episode length | 127 steps |
-| mean aim error | 1.69 rad |
+| mean reward | 16.28 (sd 24.40) |
+| mean episode length | 155 steps |
+| mean aim error | 1.66 rad |
 | kills / deaths | 15 / 20 |
 | win rate | 43% |
+| mean speed | 7.2 |
 
-Note how much better random does than it did on the crippled ship — 15 kills
-against 8, 43% against 29%. Most of what a benchmark measures here is whether
-the ship works at all.
+Two things learned the hard way, both worth more than the numbers:
 
-No trained policy has beaten this baseline yet. The last one collapsed to a
-single action ("turn right and fire" on 91% of steps), which was a rational
-response to a world where turning did nothing; training now runs with an
-entropy bonus, on a ship that flies.
+**Measure the ship before measuring the policy.** Every result before
+2026-08-27 was void because the ship could not turn — `MIN_PLAYER_TURNSPEED`
+is 0.0 and a client that never sends `PKT_TURNSPEED` is welded to one
+heading, silently. The agent was being rewarded for aiming while holding no
+action that could change where it aimed. Note how much better *random* does
+once that is fixed: 15 kills against 8, 43% against 29%. Most of what this
+benchmark was measuring was whether the ship worked.
+
+**Reward what you actually want, at a rate that outbids the alternatives.**
+With aim worth 0.05 a step, a policy that parked and fired straight ahead
+earned about as much per episode from aiming (5.5) as from a kill (5.0) — and
+aiming is safe. It learned to park: 85% of steps "fire", 14% "shield", under
+0.5% turns, mean speed 0.2, zero kills in ten episodes. Its aim error looked
+excellent at 0.72 rad, which is exactly the trap: a stationary ship facing
+where opponents arrive from scores well without having learned anything.
+Kills are now worth 25 and aim 0.01, and the benchmark reports mean speed and
+action concentration so a parked policy is visible at a glance rather than
+after an hour of investigation.
 
 The `hunter` example remains a demonstration rather than a good player:
 tracking one target it holds a mean aim error of about 19 heading units
