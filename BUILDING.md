@@ -185,6 +185,13 @@ the hood this scales `scaleFactor`, which is how much of the world the client
 asks the server for — so zooming in asks for *less* world, and the number
 goes down as the view gets bigger.
 
+**Testing key bindings with synthetic input.** If you drive the client with
+XTest and nothing happens, check the window manager before the code. With
+focus-follows-mouse, `set_input_focus` on the game window is undone
+immediately and the keys go wherever the pointer is. Warp the pointer into
+the window first. This cost an hour and produced a confident, wrong
+conclusion that zoom did not work.
+
 **The host is a positional argument.** Use `-port 15000 localhost`. The
 `localhost:15000` form is not parsed and fails with `Can't find the server`.
 
