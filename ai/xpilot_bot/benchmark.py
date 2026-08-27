@@ -158,7 +158,14 @@ def main(argv=None) -> int:
                     help="evaluate a random policy instead")
     ap.add_argument("--episodes", type=int, default=5)
     ap.add_argument("--stage", default="combat")
-    ap.add_argument("--envs", type=int, default=1)
+    ap.add_argument("--envs", type=int, default=1,
+                    help="servers to spread episodes across. Episodes run one "
+                         "at a time, so this does not speed anything up -- it "
+                         "only varies which server an episode lands on. Keep "
+                         "it at 1 unless you want that: an environment that "
+                         "is not being stepped is not polling its socket, and "
+                         "the server will eventually drop it and force a "
+                         "reconnect.")
     ap.add_argument("--fps", type=int, default=200)
     ap.add_argument("--max-steps", type=int, default=1000)
     ap.add_argument("--base-port", type=int, default=15700)

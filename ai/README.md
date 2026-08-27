@@ -291,16 +291,21 @@ points ahead of random across the two runs. It also stays alive about a
 quarter longer. So there is something real, and it is not "learned to shoot
 people" — it is closer to "learned not to throw the ship away".
 
-One caveat on running this yourself: keep `--envs` at 6 or below. Above that,
-runs degenerate into a reconnect cycle that never finishes a stage, and the
-reason is worth knowing because it is not a bug in the protocol code.
-`DummyVecEnv` steps environments in turn, and a client only polls its socket
-inside its own `step()` — so with N environments each client is serviced once
-every ~39N milliseconds. Past six or so that outlasts the server's patience
-for unacknowledged reliable data and it drops the client, which it records as
-`Goodbye … ("timeout 08")`. Only stages with robots are affected, because
-only those generate reliable traffic after setup. The fix is `SubprocVecEnv`;
-measured, 4 and 6 environments run clean and 10 and 16 do not.
+One thing worth knowing about `--envs`, because it bites hard and silently.
+A client only polls its socket inside its own `step()`. If environments share
+a process and are stepped in turn, each client is serviced once every ~39N
+milliseconds — and past about six that outlasts the server's patience for
+unacknowledged reliable data, so it drops the client and records
+`Goodbye … ("timeout 08")`. Every environment then reconnects, is dropped
+again, and the run never finishes a stage. Only stages with robots are
+affected, since only those have reliable traffic after setup.
+
+Training therefore uses `SubprocVecEnv` by default, giving each environment
+its own process so every client keeps polling while its siblings are stepped.
+Measured on the dodge stage at 16 environments: 356 reconnect warnings and no
+stage ever completing, against 40,000 steps in 107 s at 375 steps/s with zero
+warnings. `--vec dummy` restores the old single-process behaviour for
+debugging.
 
 The policy is not degenerate this time: ten distinct actions with the most
 common on 50% of steps, against an earlier one that sat on a single action
