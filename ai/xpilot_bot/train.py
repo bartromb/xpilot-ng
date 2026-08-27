@@ -30,27 +30,44 @@ def _lazy_imports():
     try:
         from stable_baselines3 import PPO
         from stable_baselines3.common.monitor import Monitor
-        from stable_baselines3.common.vec_env import DummyVecEnv
+        from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
     except ImportError as exc:  # pragma: no cover
         raise SystemExit(
             "Training needs stable-baselines3:\n"
             '    pip install "xpilot-bot[rl]" stable-baselines3'
         ) from exc
-    return PPO, Monitor, DummyVecEnv
+    return PPO, Monitor, DummyVecEnv, SubprocVecEnv
 
 
 def build_vec_env(stage, n_envs, base_port, fps, max_steps, binary, map_file,
-                  include_shots=False):
-    from xpilot_bot.env import make_parallel
-    _PPO, Monitor, DummyVecEnv = _lazy_imports()
+                  include_shots=False, vec_kind="subproc"):
+    """Build the vectorised environment for one curriculum stage.
 
-    envs, servers = make_parallel(
+    `subproc` gives each environment its own process. Above about six
+    environments that is not an optimisation but a requirement: a client only
+    polls its socket inside its own step(), so stepping them in turn starves
+    the ones that are waiting until the server drops them for not
+    acknowledging reliable data. See make_env_fns.
+    """
+    from xpilot_bot.env import make_env_fns
+    _PPO, Monitor, DummyVecEnv, SubprocVecEnv = _lazy_imports()
+
+    fns = make_env_fns(
         n_envs, base_port=base_port, fps=fps, stage=stage,
         max_steps=max_steps, binary=binary, map_file=map_file,
         include_shots=include_shots,
     )
-    vec = DummyVecEnv([(lambda e=e: Monitor(e)) for e in envs])
-    return vec, envs, servers
+    wrapped = [(lambda f=f: Monitor(f())) for f in fns]
+
+    if vec_kind == "subproc" and n_envs > 1:
+        # forkserver: the parent has torch loaded, and forking that wholesale
+        # into every child is both slow and a known source of trouble.
+        vec = SubprocVecEnv(wrapped, start_method="forkserver")
+    else:
+        vec = DummyVecEnv(wrapped)
+    # The servers now live inside the children, and vec.close() closes them
+    # along with their environments.
+    return vec, [], []
 
 
 def train(args) -> int:
@@ -61,7 +78,7 @@ def train(args) -> int:
         level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s",
         datefmt="%H:%M:%S")
 
-    PPO, _Monitor, _DummyVecEnv = _lazy_imports()
+    PPO, _Monitor, _DummyVecEnv, _SubprocVecEnv = _lazy_imports()
 
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -78,6 +95,7 @@ def train(args) -> int:
         vec, envs, servers = build_vec_env(
             stage, args.envs, port, args.fps, args.max_steps,
             args.binary, args.map, include_shots=args.shots,
+            vec_kind=args.vec,
         )
         # Fresh ports per stage: a server from the previous stage may still be
         # shutting down, and binding over it fails intermittently.
@@ -136,6 +154,12 @@ def main(argv=None) -> int:
                     help="steps before an episode is truncated")
     ap.add_argument("--base-port", type=int, default=15500)
     ap.add_argument("--out", default="ai/checkpoints")
+    ap.add_argument("--vec", choices=("subproc", "dummy"), default="subproc",
+                    help="how to run parallel environments. 'subproc' gives "
+                         "each its own process, which above about six "
+                         "environments is required rather than merely "
+                         "faster: stepping them in one process starves the "
+                         "waiting clients until the server drops them.")
     ap.add_argument("--shots", action="store_true",
                     help="show the agent nearby shots. This widens the "
                          "observation, so a checkpoint trained with it can "

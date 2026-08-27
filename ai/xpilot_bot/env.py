@@ -357,10 +357,12 @@ class XPilotEnv(gym.Env):
                 # retransmit and nothing to time out, which is why the
                 # navigate stage never failed once.
                 #
-                # The real fix is to run environments in their own processes
-                # (SubprocVecEnv) so every client keeps polling while the
-                # others are stepped. Until then, keep --envs at 6 or below:
-                # measured, 4 and 6 run clean, 10 and 16 do not.
+                # This is why training runs environments in their own
+                # processes (SubprocVecEnv, the default): every client then
+                # keeps polling while its siblings are stepped. Under
+                # DummyVecEnv the dodge stage at 16 environments produced 356
+                # of these warnings and never finished; under SubprocVecEnv
+                # the same stage runs clean at 375 steps/s.
                 self._close_client()
                 if self._server is not None and not self._server.alive():
                     LOG.warning("port %d: server process died, restarting",
@@ -672,6 +674,58 @@ class XPilotEnv(gym.Env):
                 reward += w["aim"] * (1.0 - err / math.pi)
 
         return float(reward)
+
+
+def make_env_fns(
+    n: int,
+    base_port: int = 15400,
+    fps: int = 200,
+    robots: int | None = None,
+    stage: str = "combat",
+    map_file: str = "lib/maps/dodgers-robots.xp2",
+    binary: str = "./build/bin/xpilot-ng-server",
+    **env_kwargs,
+):
+    """Factories that build an environment *and its server* when called.
+
+    This exists for `SubprocVecEnv`, which calls each factory inside its own
+    child process. That is not a preference, it is a correctness requirement
+    above about six environments.
+
+    A client only polls its socket inside its own `step()`. `DummyVecEnv`
+    steps environments in turn, so with N of them each client is serviced
+    once every N steps -- roughly 39N milliseconds at 255 fps with ten frames
+    to a step. Past six or so that outlasts how long the server will keep
+    retransmitting unacknowledged reliable data, and it drops the client:
+    `Goodbye ... ("timeout 08")` in the server's log, eight retransmit
+    timeouts. Every environment then reconnects, is dropped again, and the
+    run degenerates into a reconnect cycle that never finishes a stage.
+
+    Only stages with robots hit it, because only those have reliable traffic
+    after setup. With no robots there is nothing to retransmit and nothing to
+    time out, which is why an empty map never failed at any scale.
+
+    Giving each environment its own process fixes it at the root: every
+    client keeps polling while its siblings are stepped.
+
+    The server is created inside the factory rather than passed in, so that
+    each child owns its own process and can restart it if it dies.
+    """
+    if robots is None:
+        robots = STAGE_ROBOTS[stage]
+
+    def factory(i: int):
+        port = base_port + i
+
+        def _init():
+            server = ServerProcess(port=port, binary=binary, map_file=map_file,
+                                   robots=robots, fps=fps)
+            return XPilotEnv(port=port, nick=f"rl{i}", fps=fps, stage=stage,
+                             server=server, **env_kwargs)
+
+        return _init
+
+    return [factory(i) for i in range(n)]
 
 
 def make_parallel(
