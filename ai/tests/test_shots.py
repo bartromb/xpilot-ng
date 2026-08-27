@@ -129,3 +129,21 @@ def test_the_client_sends_ship_controls_on_connect():
     # "%c%hd" of value * 256, big-endian.
     turn = next(d for d in sent if d[0] == p.PKT_TURNSPEED)
     assert int.from_bytes(turn[1:3], "big") == int(16.0 * 256)
+
+
+def test_a_frame_without_pkt_start_has_no_real_key_ack():
+    """key_ack defaults to 0, and a datagram carrying only reliable data has
+    no PKT_START to fill it in. Treating that default as an acknowledgement
+    makes the client resend its key state against a phantom zero -- measured
+    at 5,987 resends across 600 steps before this was distinguished."""
+    import struct
+    from xpilot_bot import protocol as p
+    from xpilot_bot.frames import decode_frame
+
+    started = decode_frame(struct.pack(">Bii", p.PKT_START, 42, 7))
+    assert started.has_start and started.key_ack == 7
+
+    # A lone reliable segment: %c%hd%ld%ld plus payload.
+    lone = decode_frame(struct.pack(">Bhii", p.PKT_RELIABLE, 0, 0, 0))
+    assert not lone.has_start
+    assert lone.key_ack == 0, "the default, which must not be trusted"

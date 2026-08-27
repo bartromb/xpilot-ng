@@ -83,6 +83,9 @@ class Client:
         self.power = power
         self.turn_speed = turn_speed
         self.turn_resistance = turn_resistance
+        #: Minimum frames between key-state retransmissions. See poll().
+        self.key_resend_frames = 25
+        self._last_key_resend_frame = 0
 
         self.status = Status()
         self._contact: socket.socket | None = None
@@ -524,22 +527,30 @@ class Client:
 
         frame = decode_frame(data)
 
-        # Retransmit the key state until the server says it has it. Every
-        # frame carries the change-counter it last applied, and the C client
-        # resends whenever that lags its own (Net_flush in netclient.c). We
-        # used to send once and hope: over UDP, and with the server dropping
-        # input while the connection is still settling, that quietly loses
-        # the first press after joining. The ship then ignores the key
-        # forever -- which looks exactly like a ship that handles badly.
-        if frame.key_ack != self._key_change:
+        # Retransmit the key state if the server has not acknowledged it,
+        # but rarely. This is a recovery path for a lost datagram, not a
+        # heartbeat.
+        #
+        # Resending on every frame is actively harmful, and measurably so.
+        # The acknowledgement can lag simply because the server has a queue,
+        # and resending then adds to that queue: one environment ran 45 key
+        # changes behind and issued 5,987 resends in 600 steps, while its
+        # twin on the next port stayed exactly in step and sent none. It is a
+        # feedback loop -- a gap causes resends, resends widen the gap.
+        #
+        # Only frames carrying a PKT_START have a real key_ack; on any other
+        # datagram it is the dataclass default of zero.
+        if (frame.has_start
+                and frame.key_ack != self._key_change
+                and self.status.frame - self._last_key_resend_frame
+                    >= self.key_resend_frames):
+            self._last_key_resend_frame = self.status.frame
             self.status.key_resends += 1
             try:
                 self.send_keys()
             except OSError:
                 pass
-        if frame.truncated:
-            self.status.truncated_frames += 1
-        self.frame = frame
+
         return frame
 
     def close(self) -> None:

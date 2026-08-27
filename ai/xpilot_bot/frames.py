@@ -135,6 +135,11 @@ class Frame:
 
     loops: int = 0
     key_ack: int = 0
+    #: Whether this datagram actually carried a PKT_START. Without it,
+    #: `loops` and `key_ack` are defaults rather than values the server
+    #: sent, and treating them as real makes the client resend its key state
+    #: against a phantom acknowledgement of zero.
+    has_start: bool = False
     self_: Self | None = None
     ships: list = field(default_factory=list)
     shots: list = field(default_factory=list)
@@ -300,6 +305,7 @@ def decode_frame(buf: bytes) -> Frame:
 
         if t == p.PKT_START:
             _, f.loops, f.key_ack = struct.unpack(">Bii", body[:9])
+            f.has_start = True
 
         elif t == p.PKT_SELF:
             s = Self()
