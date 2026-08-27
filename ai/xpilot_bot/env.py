@@ -124,6 +124,18 @@ class ServerProcess:
     ) -> None:
         self.port = port
         self.fps = fps
+        # Kept so the process can be started again if it dies mid-run.
+        self._argv = [
+            binary,
+            "-map", map_file,
+            "-port", str(port),
+            "-maxRobots", str(robots),
+            "-minRobots", str(robots),
+            "-framesPerSecond", str(fps),
+            "-noQuit", "-idleRun",
+            "-reportToMetaServer", "false",
+        ]
+        self._quiet = quiet
         self._proc = subprocess.Popen(
             [
                 binary,
@@ -142,6 +154,25 @@ class ServerProcess:
             stderr=subprocess.DEVNULL if quiet else None,
         )
         # Give it time to bind before anyone connects.
+        time.sleep(1.5)
+
+    def alive(self) -> bool:
+        return self._proc.poll() is None
+
+    def restart(self) -> None:
+        """Start the server again after it has died.
+
+        A training run is hours long and a server is a separate process; one
+        of them going away should cost an episode, not the run. Before this
+        existed, a single vanished server ended a 1.4M-step run in its second
+        stage with a connection-refused traceback.
+        """
+        self.close()
+        self._proc = subprocess.Popen(
+            self._argv,
+            stdout=subprocess.DEVNULL if self._quiet else None,
+            stderr=subprocess.DEVNULL if self._quiet else None,
+        )
         time.sleep(1.5)
 
     def close(self) -> None:
@@ -194,6 +225,8 @@ class XPilotEnv(gym.Env):
         death_penalty: float = 5.0,
         reuse_connection: bool = True,
         edge_wrap: bool = True,
+        reconnect_tries: int = 5,
+        reconnect_delay: float = 2.0,
         include_shots: bool = False,
         stage: str = "combat",
         server: ServerProcess | None = None,
@@ -220,6 +253,8 @@ class XPilotEnv(gym.Env):
         self.death_penalty = death_penalty
         self.reuse_connection = reuse_connection
         self.edge_wrap = edge_wrap
+        self.reconnect_tries = reconnect_tries
+        self.reconnect_delay = reconnect_delay
         # Changing this changes the observation width, so a checkpoint and
         # the benchmark that scores it have to agree on it.
         self.include_shots = include_shots
@@ -266,29 +301,55 @@ class XPilotEnv(gym.Env):
         # ninety seconds rather than once -- so a new episode can simply
         # carry on. The counters this class keeps are already differences
         # against where the episode started, precisely so that works.
-        if self._client is None or not self.reuse_connection:
-            self._close_client()
-            self._client = Client(
-                host=self.host, port=self.port,
-                nick=self.nick, user=self.nick, fps=self.fps,
-            )
-            self._client.connect()
+        last_error: Exception | None = None
+        for attempt in range(self.reconnect_tries):
+            try:
+                if self._client is None or not self.reuse_connection:
+                    self._close_client()
+                    self._client = self._new_client()
+                else:
+                    self._client.release_all()
+                    self._client.send_keys()
+
+                self._steps = 0
+                self._prev_fuel = None
+                self._prev_damaged = False
+                self._deaths_at_step = self._death_count()
+                self._kills_seen = self._kill_count()
+                self._deaths_at_reset = self._deaths_at_step
+                self._kills_at_reset = self._kills_seen
+
+                frame = self._await_frame()
+                break
+            except (ProtocolError, OSError) as exc:
+                # A reused connection can be dead for reasons that have
+                # nothing to do with this episode -- the server can drop a
+                # client, and a server process can die outright. Before
+                # connections were reused, the next episode simply dialled
+                # again and nobody noticed; now the stale client has to be
+                # thrown away explicitly, or a whole training run ends on one
+                # unlucky datagram.
+                last_error = exc
+                self._close_client()
+                if self._server is not None and not self._server.alive():
+                    self._server.restart()
+                time.sleep(self.reconnect_delay)
         else:
-            self._client.release_all()
-            self._client.send_keys()
+            raise ProtocolError(
+                f"could not start an episode after {self.reconnect_tries} "
+                f"attempts on port {self.port}") from last_error
 
-        self._steps = 0
-        self._prev_fuel = None
-        self._prev_damaged = False
-        self._deaths_at_step = self._death_count()
-        self._kills_seen = self._kill_count()
-        self._deaths_at_reset = self._deaths_at_step
-        self._kills_at_reset = self._kills_seen
-
-        frame = self._await_frame()
         obs = self._observe(frame)
         self._last_obs = obs
         return obs, self._info()
+
+    def _new_client(self) -> Client:
+        c = Client(
+            host=self.host, port=self.port,
+            nick=self.nick, user=self.nick, fps=self.fps,
+        )
+        c.connect()
+        return c
 
     def _info(self, **extra) -> dict:
         """Per-step diagnostics, including what the reliable stream says.
