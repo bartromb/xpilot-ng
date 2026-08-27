@@ -67,8 +67,10 @@ sound path and a Python bot on every push.
 build — identical rendering, no new warnings. `scrap.c`, 651 lines of raw-X11
 clipboard shim, deleted in favour of SDL2's clipboard.
 
-**Interface.** Zoom in and out with `+` and `-` (rebindable), which the game
-never had — it only had a toggle between two fixed levels. A `uiScale` option that auto-detects from display DPI, because
+**Interface.** Smooth zoom on `+` and `-` (rebindable, animated, tunable via
+`zoomSmoothing`). 4.7.3 had two fixed zoom *settings* and a key to swap
+between them, but shipped that key unbound — so zoom could not be changed
+mid-game at all. A `uiScale` option that auto-detects from display DPI, because
 SDL2 on X11 reports a scale of 1.0 no matter how dense the panel is — so the
 HiDPI problem people actually have is a font-scaling problem, not a drawable
 one. XDG config directories with migration. Gamepad support. In-client key

@@ -216,25 +216,28 @@ static bool Key_press_swap_settings(void)
 static bool Key_press_zoom(double step)
 {
     char msg[MSG_LEN];
-    double scale = clData.scaleFactor * step;
+    double from = (zoomTarget > 0.0) ? zoomTarget : clData.scaleFactor;
+    double scale = from * step;
 
     if (scale < MIN_SCALEFACTOR)
 	scale = MIN_SCALEFACTOR;
     if (scale > MAX_SCALEFACTOR)
 	scale = MAX_SCALEFACTOR;
 
-    if (scale == clData.scaleFactor) {
+    if (scale == from) {
 	Add_message("Zoom is at its limit. [*Client reply*]");
 	return false;
     }
 
-    Set_scaleFactor(NULL, scale);
+    /* Step from where the zoom is *heading*, not where it has got to, so
+       that pressing the key twice quickly moves two steps rather than one
+       and a bit. */
+    Zoom_to(scale);
 
     /* Say what happened.  Zoom has no other visible feedback if the map
        happens to be empty where you are looking, and a key that silently
        does nothing is indistinguishable from one that is not bound. */
-    snprintf(msg, sizeof(msg), "Zoom %.2fx [*Client reply*]",
-	     1.0 / clData.scaleFactor);
+    snprintf(msg, sizeof(msg), "Zoom %.2fx [*Client reply*]", 1.0 / scale);
     Add_message(msg);
 
     return false;
@@ -245,7 +248,7 @@ static bool Key_press_swap_scalefactor(void)
     double a = clData.altScaleFactor;
 
     Set_altScaleFactor(NULL, clData.scaleFactor);
-    Set_scaleFactor(NULL, a);
+    Zoom_to(a);
 
     return false;
 }

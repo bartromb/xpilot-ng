@@ -143,6 +143,8 @@ char	modBankStr[NUM_MODBANKS][MAX_CHARS]; /* modifier banks */
 int	maxFPS;			/* Max FPS player wants from server */
 int	oldMaxFPS = 0;
 double	clientFPS = 1.0;	/* FPS client is drawing at */
+double	zoomTarget = 0.0;	/* 0 until the first zoom; see Zoom_animate */
+double	zoomSmoothing = 0.08;	/* seconds; 0 makes zoom instant */
 int	recordFPS = 0;		/* What FPS to record at */
 time_t	currentTime = 0;	/* Current value of time() */
 bool	newSecond = false;	/* Did time() increment this frame? */

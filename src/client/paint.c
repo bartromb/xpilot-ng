@@ -90,8 +90,56 @@ int Check_view_dimensions(void)
     return 0;
 }
 
+/*
+ * Ask for a new zoom level.  Zoom_animate walks the actual scale there over
+ * the next few frames, so callers set a destination rather than a value.
+ */
+void Zoom_to(double scale)
+{
+    if (scale < MIN_SCALEFACTOR)
+	scale = MIN_SCALEFACTOR;
+    if (scale > MAX_SCALEFACTOR)
+	scale = MAX_SCALEFACTOR;
+    zoomTarget = scale;
+}
+
+/*
+ * Ease the scale factor toward its target, once per frame.
+ *
+ * Exponential rather than linear, and in real seconds rather than frames:
+ * the client draws anywhere from a handful to a couple of hundred frames a
+ * second, and a per-frame step would make zoom crawl on a slow machine and
+ * snap on a fast one.  zoomSmoothing is the time constant, so the move is
+ * about 95% done after three of them.
+ *
+ * The last stretch is snapped rather than approached forever.  An
+ * exponential never actually arrives, and leaving it running would keep
+ * asking the server for a new view size every frame for no visible gain.
+ */
+static void Zoom_animate(void)
+{
+    double dt, alpha, gap;
+
+    if (zoomTarget <= 0.0)
+	zoomTarget = clData.scaleFactor;	/* first frame */
+
+    gap = zoomTarget - clData.scaleFactor;
+    if (gap == 0.0)
+	return;
+
+    if (zoomSmoothing <= 0.0 || fabs(gap) < 0.002) {
+	Set_scaleFactor(NULL, zoomTarget);
+	return;
+    }
+
+    dt = 1.0 / MAX(clientFPS, 1.0);
+    alpha = 1.0 - exp(-dt / zoomSmoothing);
+    Set_scaleFactor(NULL, clData.scaleFactor + gap * alpha);
+}
+
 void Paint_frame_start(void)
 {
+    Zoom_animate();
     Check_view_dimensions();
 
     world.x = selfPos.x - (ext_view_width / 2);

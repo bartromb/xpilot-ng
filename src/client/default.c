@@ -715,6 +715,17 @@ xp_option_t default_options[] = {
 	"Specifies scaling factor for the drawing window.\n"),
 
     XP_DOUBLE_OPTION(
+	"zoomSmoothing",
+	0.08,
+	0.0,
+	1.0,
+	&zoomSmoothing,
+	NULL,
+	XP_OPTFLAG_CONFIG_DEFAULT,
+	"How long a zoom step takes to settle, in seconds.\n"
+	"0 makes zooming instant.\n"),
+
+    XP_DOUBLE_OPTION(
         "altScaleFactor",
         2.0,
 	MIN_SCALEFACTOR,

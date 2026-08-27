@@ -829,6 +829,11 @@ extern void Store_default_options(void);
 extern void defaultCleanup(void);			/* memory cleanup */
 
 extern bool Set_scaleFactor(xp_option_t *opt, double val);
+/* Where zoom is heading, and how long it takes to get there.  See
+   Zoom_animate in paint.c. */
+extern double	zoomTarget;
+extern double	zoomSmoothing;
+extern void	Zoom_to(double scale);
 extern bool Set_altScaleFactor(xp_option_t *opt, double val);
 
 #ifdef _WINDOWS

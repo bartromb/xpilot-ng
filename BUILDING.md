@@ -185,6 +185,16 @@ the hood this scales `scaleFactor`, which is how much of the world the client
 asks the server for — so zooming in asks for *less* world, and the number
 goes down as the view gets bigger.
 
+4.7.3 had the `scaleFactor` and `altScaleFactor` *settings* and a
+`keySwapScaleFactor` key to toggle between them, but that key shipped with no
+default binding, so out of the box the zoom could not be changed while
+playing. Stepped zoom keys are new.
+
+The move is animated over `-zoomSmoothing` seconds (default 0.08, `0` for
+instant). Note that the X11 client's `Set_scaleFactor` rescales bitmaps and
+redraws the config panel on every step, where SDL's assigns three fields — so
+if smooth zoom ever feels expensive, that is where to look.
+
 **Testing key bindings with synthetic input.** If you drive the client with
 XTest and nothing happens, check the window manager before the code. With
 focus-follows-mouse, `set_input_focus` on the game window is undone
