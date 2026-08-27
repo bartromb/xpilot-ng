@@ -291,6 +291,13 @@ points ahead of random across the two runs. It also stays alive about a
 quarter longer. So there is something real, and it is not "learned to shoot
 people" — it is closer to "learned not to throw the ship away".
 
+One caveat on running this yourself: keep `--envs` at 6 or below. Above
+roughly six environments on one machine, every environment starts failing its
+episode start with "server closed the connection" and the run degenerates
+into a reconnect cycle that never finishes a stage. Measured: 4 and 6 run
+clean, 10 and 16 do not. It is an open problem, and only stages with robots
+are affected.
+
 The policy is not degenerate this time: ten distinct actions with the most
 common on 50% of steps, against an earlier one that sat on a single action
 for 85% and never moved.

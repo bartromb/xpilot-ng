@@ -618,12 +618,13 @@ Result as of 2026-08-27: a 180k-step curriculum policy ties random on kills
 survives about a quarter longer. That score is the one figure training could
 not have gamed, since it owes nothing to the reward function.
 
-Known open problem: with many environments on one machine (16 reproduces it,
-6 does not) every environment starts failing its episode start with "server
-closed the connection", retries, and the run degenerates into a reconnect
-cycle that never finishes a stage. Only stages with robots are affected. The
+Known open problem: above roughly six environments on one machine, every
+environment starts failing its episode start with "server closed the
+connection", retries, and the run degenerates into a reconnect cycle that
+never finishes a stage. Measured: 4 and 6 run clean, 10 and 16 do not. Only stages with robots are affected. The
 server's anti-macro disconnect and client key retransmission have both been
-tested and cleared as causes. Keep `--envs` modest until it is understood.
+tested and cleared as causes. Keep `--envs` at 6 or below until it is
+understood.
 
 - [ ] Stretch: LLM as high-level strategy layer / chat personality on top of a
       classical controller (never for frame-level control — latency unsuitable).
