@@ -40,6 +40,13 @@ def evaluate(model, envs, episodes: int, stage: str):
     from xpilot_bot.env import HEADING_STEPS
 
     rewards, lengths, deaths, aim_errors = [], [], 0, []
+    # How the policy actually behaves, not just how it scores. A policy that
+    # parks and fires straight ahead can post a respectable aim error and a
+    # respectable survival time while never fighting; without these two
+    # numbers that is invisible in a results table, and it has already
+    # happened once.
+    action_counts: dict = {}
+    speeds = []
     # From the reliable stream: the server's own view of who died.
     own_deaths = kills = 0
     score_total = 0.0
@@ -55,7 +62,10 @@ def evaluate(model, envs, episodes: int, stage: str):
                 action = env.action_space.sample()
             else:
                 action, _ = model.predict(obs, deterministic=True)
+            action_counts[int(action)] = action_counts.get(int(action), 0) + 1
             obs, reward, terminated, truncated, info = env.step(int(action))
+            # Observation slots 1 and 2 are velocity, scaled by 50.
+            speeds.append(math.hypot(float(obs[1]), float(obs[2])) * 50.0)
             total += reward
             steps += 1
 
@@ -93,6 +103,10 @@ def evaluate(model, envs, episodes: int, stage: str):
         "kills": kills,
         "score_total": score_total,
         "desynced": desynced,
+        "top_action_share": (max(action_counts.values()) / sum(action_counts.values())
+                             if action_counts else 0.0),
+        "distinct_actions": len(action_counts),
+        "mean_speed": statistics.mean(speeds) if speeds else 0.0,
     }
 
 
@@ -125,6 +139,13 @@ def report(name: str, r: dict) -> None:
         total = r["kills"] + r["own_deaths"]
         print(f"  win rate         {r['kills'] / total:.0%} "
               f"of {total} decided fights")
+    print(f"  mean speed       {r['mean_speed']:.1f}")
+    print(f"  behaviour        {r['distinct_actions']} distinct actions, "
+          f"most-used on {r['top_action_share']:.0%} of steps")
+    if r["top_action_share"] > 0.6 or r["mean_speed"] < 2.0:
+        print("                   this policy barely moves or barely varies; "
+              "treat its aim and survival figures with suspicion")
+
     if r["desynced"]:
         print("  NOTE: the reliable stream desynchronised, so the counts "
               "above are incomplete")
