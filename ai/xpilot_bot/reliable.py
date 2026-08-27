@@ -141,6 +141,9 @@ class ScoreBoard:
         self.team_scores: dict[int, float] = {}
         self.own_id: int | None = None
         self.setup: Setup | None = None
+        #: Highest chat sequence the server has acknowledged. The client
+        #: resends an unacknowledged message, so it needs to be told.
+        self.talk_ack: int = 0
         #: Types seen that this module does not decode, for diagnosing gaps.
         self.unknown: dict[int, int] = {}
         #: Every type decoded, and how often. Cheap, and the fastest way to
@@ -457,6 +460,12 @@ class ReliableStream:
                 ScoreEvent(score=score / 100.0, x=x, y=y, text=c.string()))
             return True
 
+        if t == p.PKT_TALK_ACK:
+            seq = c.i32()
+            if seq > b.talk_ack:
+                b.talk_ack = seq
+            return True
+
         if t == p.PKT_TEAM_SCORE:
             team, score = c.i16(), c.i32()
             b.team_scores[team] = score / 100.0
@@ -483,7 +492,6 @@ class ReliableStream:
 
         sizes = {
             p.PKT_REPLY: 2,         # %c%c   (replyto, status)
-            p.PKT_TALK_ACK: 4,      # %ld
             p.PKT_TEAM: 3,          # %hd%c
             p.PKT_SEEK: 6,          # %hd%hd%hd
             p.PKT_BASE: 4,          # %hd%hu

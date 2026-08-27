@@ -626,9 +626,19 @@ server's anti-macro disconnect and client key retransmission have both been
 tested and cleared as causes. Keep `--envs` at 6 or below until it is
 understood.
 
-- [ ] Stretch: LLM as high-level strategy layer / chat personality on top of a
+- [x] Stretch: LLM as high-level strategy layer / chat personality on top of a
       classical controller (never for frame-level control — latency unsuitable).
-      Not attempted.
+      `tactics.py` holds keys every frame; `strategy.py` picks one of five
+      tactics every few seconds on its own thread, from a language model with
+      `--llm` or from rules otherwise. The control loop never waits for it and
+      every failure path ends in the rules. Chat works too (`Client.say`).
+
+      Honest result: the layered bot is **worse** than the fixed `hunter`
+      bot — 9 kills against 21, mean score −37.6 against +32.6 over three
+      70-second rounds. Aggression beats judgement on this map. And the model
+      path itself has not been run against a live API, there being no key in
+      the development environment, so what is tested is the fallback and
+      parsing behaviour rather than a model's tactical sense.
 
 Three things found here that were not on anyone's list, the first two in
 `docs/protocol.md`:

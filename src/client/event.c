@@ -205,6 +205,41 @@ static bool Key_press_swap_settings(void)
     return true;
 }
 
+/*
+ * Zoom by a step.  A bigger scaleFactor asks the server for a bigger slice
+ * of the world in the same window, so zooming *in* means making it smaller;
+ * see Check_view_dimensions in paint.c.
+ *
+ * Returns false because this is a client-side view change: nothing about it
+ * belongs in the key vector sent to the server.
+ */
+static bool Key_press_zoom(double step)
+{
+    char msg[MSG_LEN];
+    double scale = clData.scaleFactor * step;
+
+    if (scale < MIN_SCALEFACTOR)
+	scale = MIN_SCALEFACTOR;
+    if (scale > MAX_SCALEFACTOR)
+	scale = MAX_SCALEFACTOR;
+
+    if (scale == clData.scaleFactor) {
+	Add_message("Zoom is at its limit. [*Client reply*]");
+	return false;
+    }
+
+    Set_scaleFactor(NULL, scale);
+
+    /* Say what happened.  Zoom has no other visible feedback if the map
+       happens to be empty where you are looking, and a key that silently
+       does nothing is indistinguishable from one that is not bound. */
+    snprintf(msg, sizeof(msg), "Zoom %.2fx [*Client reply*]",
+	     1.0 / clData.scaleFactor);
+    Add_message(msg);
+
+    return false;
+}
+
 static bool Key_press_swap_scalefactor(void)
 {
     double a = clData.altScaleFactor;
@@ -501,6 +536,12 @@ bool Key_press(keys_t key)
 	if (!Key_press_swap_scalefactor())
 	    return false;
 	break;
+
+    case KEY_ZOOM_IN:
+	return Key_press_zoom(1.0 / ZOOM_STEP);
+
+    case KEY_ZOOM_OUT:
+	return Key_press_zoom(ZOOM_STEP);
 
     case KEY_INCREASE_POWER:
 	return Key_press_increase_power();
@@ -1005,6 +1046,18 @@ xp_option_t key_options[] = {
 	"",
 	KEY_SWAP_SCALEFACTOR,
 	"Swap scalefactor settings.\n"),
+
+    XP_KEY_OPTION(
+	"keyZoomIn",
+	"plus equal KP_Add",
+	KEY_ZOOM_IN,
+	"Zoom in: show less of the world, larger.\n"),
+
+    XP_KEY_OPTION(
+	"keyZoomOut",
+	"minus KP_Subtract",
+	KEY_ZOOM_OUT,
+	"Zoom out: show more of the world, smaller.\n"),
 
     XP_KEY_OPTION(
 	"keyChangeHome",
