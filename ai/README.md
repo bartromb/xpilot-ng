@@ -266,18 +266,34 @@ Phases 6a and 6b are met. Both of the game's packet streams decode: frames at
 reliable sub-stream cleanly through setup and play, checked continuously in
 CI by `tools/check_reliable.py`.
 
-Phase 6c has a working training and benchmark loop. **No trained policy has
-beaten acting at random yet.** The current baseline, 20 episodes on
-`dodgers-robots.xp2`:
+Phase 6c trains and benchmarks. A 180k-step curriculum policy against a
+random baseline, 15 and 20 episodes respectively on `dodgers-robots.xp2`:
 
-| | random |
-|---|---|
-| mean reward | 16.28 (sd 24.40) |
-| mean episode length | 155 steps |
-| mean aim error | 1.66 rad |
-| kills / deaths | 15 / 20 |
-| win rate | 43% |
-| mean speed | 7.2 |
+| | random | trained |
+|---|---|---|
+| mean reward | 16.28 (sd 24.40) | 14.79 (sd 23.74) |
+| mean episode length | 155 steps | **192 steps** |
+| mean aim error | 1.66 rad | **1.14 rad** |
+| **score, by the server's own reckoning** | **−151.01** | **+264.69** |
+| kills / deaths | 15 / 20 | 11 / 14 |
+| win rate | 43% | 44% |
+| mean speed | 7.2 | 3.4 |
+
+Read that carefully, because the headline is not the win rate. Kills are a
+tie and the reward difference is inside the noise — the standard deviations
+are larger than the gap, which is what a 25-point kill bonus does to a
+15-episode sample.
+
+What is not inside the noise is the **score**, and it is the one number here
+that the training could not have gamed: the server computes it, and it owes
+nothing to the reward function in `env.py`. The trained policy ends 416
+points ahead of random across the two runs. It also stays alive about a
+quarter longer. So there is something real, and it is not "learned to shoot
+people" — it is closer to "learned not to throw the ship away".
+
+The policy is not degenerate this time: ten distinct actions with the most
+common on 50% of steps, against an earlier one that sat on a single action
+for 85% and never moved.
 
 Two things learned the hard way, both worth more than the numbers:
 
