@@ -72,7 +72,19 @@ ACTIONS: list[tuple[int, ...]] = [
 STAGES = {
     "navigate": {"alive": 0.01, "fuel": 0.5, "aim": 0.00, "speed": 0.05, "kill": 0.0},
     "dodge":    {"alive": 0.02, "fuel": 0.3, "aim": 0.00, "speed": 0.02, "kill": 0.0},
-    "combat":   {"alive": 0.01, "fuel": 0.2, "aim": 0.05, "speed": 0.01, "kill": 5.0},
+    # Combat weights, after watching the first balance fail in a specific and
+    # instructive way. With aim at 0.05 a step, a policy that sat still and
+    # fired straight ahead collected about as much reward per episode from
+    # aiming (5.5) as it would have from a kill (5.0) -- and aiming is safe
+    # while killing is not. It duly learned to park: 85% of its steps were
+    # "fire", 14% "shield", and under 0.5% were turns. Zero kills in ten
+    # episodes, against fifteen in twenty for acting at random.
+    #
+    # So aim is now what it should have been from the start: a small hint
+    # that points a beginner in the right direction, worth about a twentieth
+    # of a kill over a whole episode. The thing being asked for is kills.
+    "combat":   {"alive": 0.005, "fuel": 0.2, "aim": 0.01, "speed": 0.02,
+                 "kill": 25.0},
 }
 
 #: Robots present at each stage. Navigation is learned on an empty map.
@@ -179,7 +191,7 @@ class XPilotEnv(gym.Env):
         frames_per_step: int = 10,
         world_scale: float = 3000.0,
         death_frames: int = 15,
-        death_penalty: float = 1.0,
+        death_penalty: float = 5.0,
         reuse_connection: bool = True,
         edge_wrap: bool = True,
         include_shots: bool = False,
