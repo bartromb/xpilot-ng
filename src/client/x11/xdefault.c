@@ -541,12 +541,46 @@ void Handle_X_options(void)
 
 }
 
+/*
+ * Largest relative scale change we will let the sprites lag behind by while
+ * a zoom is still moving.  Ten percent on a 32-pixel ship is about three
+ * pixels, for a fraction of a second, and it is corrected exactly the moment
+ * the zoom settles.
+ */
+#define BITMAP_RESCALE_TOLERANCE	0.10
+
 bool Set_scaleFactor(xp_option_t *opt, double val)
 {
+    /* The scale the bitmaps were last rebuilt for. */
+    static double built_for = 0.0;
+    bool settling, coarse;
+
     UNUSED_PARAM(opt);
     clData.scaleFactor = val;
     clData.scale = 1.0 / val;
     clData.fscale = (float)clData.scale;
+
+    /*
+     * Rebuilding the bitmaps means an area-averaged resample of every
+     * scalable image, per pixel, in C -- and a ship has one frame per
+     * heading.  That is fine once per keypress and ruinous once per frame,
+     * which is what smooth zoom would otherwise ask for: measured at 5,543
+     * resamples for five zoom steps.
+     *
+     * So while a zoom is still travelling, only rebuild when the scale has
+     * moved meaningfully since the last rebuild.  Anything that is not the
+     * animation -- a config change, a resize, the very first call -- rebuilds
+     * unconditionally, and so does the final step of a zoom, which lands
+     * exactly on zoomTarget.
+     */
+    settling = (zoomTarget <= 0.0 || val == zoomTarget);
+    coarse = (built_for <= 0.0
+	      || fabs(val - built_for) > BITMAP_RESCALE_TOLERANCE * built_for);
+
+    if (!settling && !coarse)
+	return true;
+
+    built_for = val;
     /* Resize removed because it is not needed here */
     Scale_dashes();
     Config_redraw();

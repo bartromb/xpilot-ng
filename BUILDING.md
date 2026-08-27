@@ -191,9 +191,16 @@ default binding, so out of the box the zoom could not be changed while
 playing. Stepped zoom keys are new.
 
 The move is animated over `-zoomSmoothing` seconds (default 0.08, `0` for
-instant). Note that the X11 client's `Set_scaleFactor` rescales bitmaps and
-redraws the config panel on every step, where SDL's assigns three fields — so
-if smooth zoom ever feels expensive, that is where to look.
+instant).
+
+The X11 client rebuilds its sprites when the scale changes, and that rebuild
+is an area-averaged resample of every scalable image, per pixel, in C — with
+one frame per ship heading. Fine once per keypress, ruinous once per frame.
+It is therefore throttled while a zoom is still moving: sprites may lag the
+true scale by up to 10% mid-animation and are corrected exactly when it
+settles. Measured over five zoom steps, that took the work from 5,543 image
+resamples to 423. The SDL client does not need this — its `Set_scaleFactor`
+assigns three fields and the GPU does the scaling.
 
 **Testing key bindings with synthetic input.** If you drive the client with
 XTest and nothing happens, check the window manager before the code. With
