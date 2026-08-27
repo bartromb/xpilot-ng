@@ -47,7 +47,8 @@ def _turn_delta(want: float, have: float) -> float:
     return d
 
 
-def run(host: str = "localhost", port: int = 15345, seconds: float = 60.0) -> None:
+def run(host: str = "localhost", port: int = 15345,
+        seconds: float = 60.0) -> dict:
     with Client(host=host, port=port, nick="hunter", user="hunter") as c:
         start = time.time()
         while time.time() - start < seconds:
@@ -100,6 +101,16 @@ def run(host: str = "localhost", port: int = 15345, seconds: float = 60.0) -> No
 
             c.send_keys()
 
+        # The server's own count, off the reliable stream, so this can be
+        # compared with any other bot on equal terms.
+        board = c.reliable.board
+        me = board.me
+        return {
+            "kills": me.kills if me else 0,
+            "deaths": me.deaths if me else 0,
+            "score": me.score if me else 0.0,
+        }
+
 
 if __name__ == "__main__":
-    run()
+    print(run())

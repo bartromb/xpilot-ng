@@ -27,6 +27,7 @@ Homepage = "https://github.com/bartromb/xpilot-ng"
 xpilot-bot-idle = "xpilot_bot.bots.idle:run"
 xpilot-bot-wanderer = "xpilot_bot.bots.wanderer:run"
 xpilot-bot-hunter = "xpilot_bot.bots.hunter:run"
+xpilot-bot-commander = "xpilot_bot.bots.commander:main"
 
 [tool.setuptools.packages.find]
 include = ["xpilot_bot*"]

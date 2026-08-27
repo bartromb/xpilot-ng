@@ -86,6 +86,10 @@ class Client:
         #: Minimum frames between key-state retransmissions. See poll().
         self.key_resend_frames = 25
         self._last_key_resend_frame = 0
+        #: Chat. The server acknowledges each message by sequence number.
+        self._talk_seq = 0
+        self._talk_pending: tuple | None = None
+        self.talk_retry_frames = 60
 
         self.status = Status()
         self._contact: socket.socket | None = None
@@ -487,6 +491,52 @@ class Client:
         for k in list(self.status.keys_held):
             self.release(k)
 
+    def say(self, text: str) -> None:
+        """Send a chat message to everyone on the server.
+
+        `PKT_TALK` is `%c%ld%s`: a sequence number and the text. The server
+        acknowledges the sequence with `PKT_TALK_ACK`, and the real client
+        keeps resending until it does, because a lost taunt is otherwise lost
+        for good. This does the same, at a gentler interval, and gives up
+        rather than retrying forever -- chat is not worth risking the
+        connection over.
+
+        Text is truncated to what the wire format carries.
+        """
+        assert self._game is not None
+        text = text.replace("\n", " ").strip()[: p.MAX_CHARS - 1]
+        if not text:
+            return
+        self._talk_seq += 1
+        self._talk_pending = (self._talk_seq, text, 0, self.status.frame)
+        self._send_talk()
+
+    def _send_talk(self) -> None:
+        if self._talk_pending is None or self._game is None:
+            return
+        seq, text, _tries, _at = self._talk_pending
+        try:
+            self._game.send(
+                Writer().c(p.PKT_TALK).ld(seq).s(text).bytes())
+        except OSError:
+            self._talk_pending = None
+
+    def _retry_talk(self) -> None:
+        """Resend an unacknowledged message, a few times, slowly."""
+        if self._talk_pending is None:
+            return
+        seq, text, tries, at = self._talk_pending
+        if self.reliable.board.talk_ack >= seq:
+            self._talk_pending = None
+            return
+        if self.status.frame - at < self.talk_retry_frames:
+            return
+        if tries >= 3:
+            self._talk_pending = None
+            return
+        self._talk_pending = (seq, text, tries + 1, self.status.frame)
+        self._send_talk()
+
     def send_keys(self) -> None:
         """Push the current key state to the server."""
         assert self._game is not None
@@ -526,6 +576,15 @@ class Client:
         self.last_raw = data
 
         frame = decode_frame(data)
+        self._retry_talk()
+
+        # Only a datagram carrying PKT_START is a frame. Reliable data
+        # arrives in datagrams of its own too, and those decode to an empty
+        # Frame -- so keeping the last of *those* around as `self.frame`
+        # means anything sampling it sees a world with no ship and no
+        # opponents in it, intermittently and for no visible reason.
+        if not frame.has_start:
+            return frame
 
         # No key-state retransmission here. Resending on every frame is a
         # feedback loop -- a lagging acknowledgement causes resends, which
@@ -539,6 +598,9 @@ class Client:
         # problem. See the note in env.reset(). Four environments run clean;
         # sixteen do not.
 
+        if frame.truncated:
+            self.status.truncated_frames += 1
+        self.frame = frame
         return frame
 
     def close(self) -> None:

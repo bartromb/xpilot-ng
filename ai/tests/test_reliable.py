@@ -255,3 +255,14 @@ def test_motd_chunk_is_stepped_over_by_the_right_field():
     feed_all(s, motd + player(1, "bot", myself=1))
     assert not s.desynced
     assert s.board.me.nick == "bot", "the packet after the motd must decode"
+
+
+def test_talk_acknowledgement_is_tracked():
+    """The client resends an unacknowledged chat message, so it has to be
+    told which sequence numbers arrived."""
+    s = ReliableStream()
+    feed_all(s, struct.pack(">Bi", p.PKT_TALK_ACK, 7))
+    assert s.board.talk_ack == 7
+    # Acks can arrive out of order; the highest one is what matters.
+    feed_all(s, struct.pack(">Bi", p.PKT_TALK_ACK, 3), start=s.offset)
+    assert s.board.talk_ack == 7

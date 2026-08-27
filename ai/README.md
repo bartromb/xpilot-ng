@@ -259,6 +259,63 @@ Kills come from those notices rather than from `PKT_SCORE`, whose life count
 never changes on a map with unlimited lives. Chat is excluded — otherwise a
 player could type a death notice and be believed.
 
+## A strategy layer
+
+The roadmap's stretch goal: a language model as a *high-level* strategy layer
+on a classical controller, explicitly never for frame-level control. The
+split is strict, and the numbers are why.
+
+| | runs | may block | decides |
+|---|---|---|---|
+| `tactics.py` | every frame (4 ms at 255 fps) | never | which keys to hold |
+| `strategy.py` | every few seconds | yes | which of five words to be doing |
+
+The five words are `hunt`, `snipe`, `evade`, `regroup`, `patrol`. The
+strategist runs on its own thread and publishes a decision when it has one;
+the control loop reads the latest and never waits. A slow model means the bot
+plays slightly out of date. An unreachable one means it falls back to rules.
+Neither stops the ship flying, which is the entire point of putting the model
+here rather than in the loop.
+
+```sh
+python -m xpilot_bot.bots.commander --seconds 120
+ANTHROPIC_API_KEY=... python -m xpilot_bot.bots.commander --llm
+```
+
+`LLMStrategist` uses `urllib` from the standard library, so `--llm` adds
+nothing to install. Every failure — no key, no network, a timeout, a
+malformed body, a tactic that is not a tactic — ends in the rules, counted
+rather than silent.
+
+It can also talk. `PKT_TALK` is `%c%ld%s` with a sequence the server
+acknowledges, so `Client.say()` resends until acked and then gives up; the
+model may attach a short taunt to a decision, said at most once.
+
+### Is it any good? No.
+
+Measured against `hunter`, the fixed "turn toward the nearest enemy and
+shoot" bot, three 70-second rounds each on `dodgers-robots.xp2`:
+
+| | kills | deaths | mean score |
+|---|---|---|---|
+| hunter | 21 | 27 | **+32.6** |
+| commander (rules driving the layer) | 9 | 23 | −37.6 |
+
+The layered bot is worse, and not marginally. It survives slightly better and
+kills far less, because `evade` and `regroup` are doing what they are told to
+do and relentless aggression happens to beat that here. That is a fact about
+this map and these opponents rather than a verdict on the architecture, but
+it is the number that exists, so it is the number reported.
+
+Worth noting the harness is deterministic where the bot is: hunter scored
+identically in all three rounds. Commander varies because its strategist runs
+on a wall-clock thread.
+
+**The model path has not been run against a live API.** There is no API key
+in the development environment, so what is exercised is the fallback,
+timeout, JSON-extraction and validation behaviour — by unit tests — and not
+the quality of a model's tactical judgement.
+
 ## Status
 
 Phases 6a and 6b are met. Both of the game's packet streams decode: frames at
