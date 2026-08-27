@@ -602,12 +602,55 @@ kind of decision from the rest of this phase.
       across 4 environments**, 4x realtime each.
 
 ### 6c — Learned agents
-- [ ] Baseline: PPO via Stable-Baselines3, self-play
-- [ ] Curriculum: navigate-only map → dodge → combat (prior work shows direct
-      combat learning stalls; staged rewards needed)
-- [ ] Benchmark against the built-in server robots; log win rates per checkpoint
+- [x] Baseline: PPO via Stable-Baselines3 (`ai/xpilot_bot/train.py`). Not
+      self-play: the built-in robots are a stronger and more stable opponent
+      than an early checkpoint, and they cost nothing to run.
+- [x] Curriculum: navigate → dodge → combat, carrying the policy forward
+      (`--stages`). The prior work is right about why: firing is only
+      rewarded when it connects, and it cannot connect until the agent can
+      fly and aim, so an agent dropped into combat has no gradient to climb.
+- [x] Benchmark against the built-in server robots (`ai/xpilot_bot/benchmark.py`),
+      reporting kills and deaths from the server's own death notices, always
+      against a random-policy baseline on the same map.
+Result as of 2026-08-27: a 180k-step curriculum policy ties random on kills
+(44% against 43%) with the reward difference inside the noise, but finishes
+416 points ahead on the score the *server* computes (+265 against −151) and
+survives about a quarter longer. That score is the one figure training could
+not have gamed, since it owes nothing to the reward function.
+
+Known open problem: above roughly six environments on one machine, every
+environment starts failing its episode start with "server closed the
+connection", retries, and the run degenerates into a reconnect cycle that
+never finishes a stage. Measured: 4 and 6 run clean, 10 and 16 do not. Only stages with robots are affected. The
+server's anti-macro disconnect and client key retransmission have both been
+tested and cleared as causes. Keep `--envs` at 6 or below until it is
+understood.
+
 - [ ] Stretch: LLM as high-level strategy layer / chat personality on top of a
-      classical controller (never for frame-level control — latency unsuitable)
+      classical controller (never for frame-level control — latency unsuitable).
+      Not attempted.
+
+Three things found here that were not on anyone's list, the first two in
+`docs/protocol.md`:
+
+- **Reliable data is piggybacked onto frame packets** once play starts, so a
+  client that checks only the first byte of each datagram goes deaf exactly
+  when the game begins. Nothing errors; the server just stops being
+  acknowledged and drops the connection after ~15s with a retransmit timeout
+  that reads like a network fault. Every training episode longer than that
+  had been ending in a disconnection dressed up as an episode end.
+- **`PKT_PLAYER` carries two ship-shape strings**, not one. The stream is
+  undelimited, so reading one turns everything after it into garbage.
+- **Dying does not interrupt the frame stream.** `Receive_self`'s own comment
+  points the other way, so death detection naturally gets built on missing
+  `PKT_SELF` packets — and detects nothing. An idle bot died ten times in
+  ninety seconds with every frame's `PKT_SELF` present, so no episode ever
+  terminated on death and the death penalty was never applied. Death is
+  stated only in the server's text notices.
+
+The standing note that the robots never kill the bot was wrong, and this is
+why: an idle bot dies five times in seventy seconds, and the server had been
+announcing every one of them on the stream nobody was reading.
 
 Acceptance 6a: a third party can `pip install` the SDK and have a moving,
 shooting bot on a local server in under 30 minutes using only the README.
@@ -624,6 +667,7 @@ shooting bot on a local server in under 30 minutes using only the README.
 
 | Date | Phase | Session summary | Commit/branch |
 |------|-------|-----------------|---------------|
+| 2026-08-27 | 6c | Decoded the reliable sub-stream, which is where scores, kills, player names and the map size live -- none of it is on the frame stream, and the client had been acknowledging that stream without ever reading it. That unblocked win rates, and then found six defects underneath, five of them silent. Reliable segments are piggybacked inside frame packets once play starts, so a client checking only byte zero goes deaf exactly when the game begins and is dropped ~15s later with a retransmit timeout that reads like a network fault. `PKT_PLAYER` carries two ship-shape strings, not one. Dying does not interrupt the frame stream, so death detection built on missing `PKT_SELF` -- which the C client's own comment invites -- detects nothing: an idle bot died ten times in ninety seconds with every `PKT_SELF` present. The world wraps (`edgeWrap="yes"`), which put 40% of nearest-opponent answers wrong and the mean bearing out by 81 degrees. `PKT_FASTSHOT`'s type byte is a view-tile index, not a colour. And a client that never sends `PKT_TURNSPEED` has a ship that cannot turn at all, silently, because `MIN_PLAYER_TURNSPEED` is 0.0 -- which invalidated every aim measurement taken before it was found, since the agent was being rewarded for aiming while holding no action that could change where it aimed. A joined ship also ignores input for its first five seconds. All six are in `docs/protocol.md` and guarded by `ai/tools/check_reliable.py` in CI. | `phase6c-learning` |
 | 2026-08-25 | 1 (cont.) | Removed autotools: 66 files deleted plus the parity CI job. Verified no build target was lost (the extra directories are EXTRA_DIST only), the install tree still diffs clean at 99 files, and a clean rebuild keeps the same 55-warning profile. `version.h` kept as a checked-in header to avoid re-encoding the authors' ISO-8859-1 names, with a CMake guard against version drift. | `phase1-remove-autotools` |
 | 2026-08-25 | 1 | Wrote `docs/build-audit.md` (what autotools actually detects, plus four findings including a dead `HAVE_SDLIMAGE` spelling that silently disables `IMG_Load`). Added a CMake build reaching verified parity with autotools: same 5 binaries, same 55 warnings, smoke test passes, both build systems coexist. Added a GitHub Actions workflow; first run failed on three real CI-environment issues (missing X11 fonts, uninstalled data files, and an assertion that raced client stdout buffering), second run green. Install parity verified exact at 99 files. Autotools still in place, removal left as a separate reviewable change. | `phase1-cmake` |
 | 2026-08-25 | 0 | Audited actual build state against the checklist. `./configure && make` clean: 0 errors, 55 warnings, all 5 binaries built. Server + both X11 and SDL clients verified against a local 4-robot game; 5-minute soak passed, so Phase 0 acceptance is met. Found the server exits when the last human leaves (`-noQuit` needed) and that audio is compiled out (no OpenAL headers). Wrote `BUILDING.md` and closed out Phase 0. No C source was touched this session — the compile fixes were already on `master`. | `phase0-baseline` (docs only; branched from `b7a6905`) |

@@ -64,6 +64,176 @@ over UDP, carrying anything that must not be dropped — map data, messages,
 score updates — while frame state is sent unreliably and simply superseded by
 the next frame.
 
+### The reliable sub-stream in detail
+
+Decoding it was needed to measure anything about a game's *outcome*, since no
+score, kill or player name appears on the frame stream at all. Three
+properties are easy to miss from the source and expensive to get wrong.
+
+**Segments are not always datagrams of their own.** This is the one that
+costs the most to get wrong. Before play begins, each `PKT_RELIABLE` segment
+arrives as its own datagram, so a client can recognise it by its first byte.
+Once frames start, `Send_end_of_frame` appends whatever reliable data is
+queued to the *end of a frame update* — so the datagram begins with
+`PKT_START` and the segment is somewhere in the middle of it. A client that
+inspects only `data[0]` therefore works flawlessly through setup and goes
+deaf the instant the game starts.
+
+The failure is quiet and misleading. Nothing errors; the reliable stream
+simply appears to stop. Player joins, scores and death notices never arrive,
+so the game looks eventless. Meanwhile the server is retransmitting data it
+is owed, receiving no acknowledgement, and after enough retries it drops the
+connection — logged as `Goodbye … ("timeout 08")`, which reads like a network
+problem rather than a parsing one. Finding a `PKT_RELIABLE` therefore means
+walking the whole datagram packet by packet.
+
+**It is a byte stream, not a packet stream.** Each `PKT_RELIABLE` segment is
+`%c%hd%ld%ld` — type, payload length, offset into the stream, and a frame
+number — followed by the payload. Segments arrive out of order, are
+retransmitted until acknowledged, and a single packet may straddle two of
+them. A decoder must therefore buffer by offset and parse only contiguous
+bytes; parsing per-segment double-counts retransmissions.
+
+**It does not start with packets.** The layout is fixed:
+
+    [PKT_REPLY (3)] [PKT_MAGIC (5)] [setup header + map_data_len bytes] [packets…]
+
+The setup blob is `%ld%ld%hd%hd%hd%hd%s%s%S` — `map_data_len`, mode, lives,
+width, height, fps, map name, author, data URL — followed by exactly
+`map_data_len` bytes of map. Only after it does the packet stream begin.
+Because the length is announced, the blob can be stepped over exactly; there
+is no need to guess when setup has ended.
+
+**`PKT_PLAYER` carries two shape strings.** `Send_player` writes the base
+ship shape and then an `ext` continuation, which the C client appends to the
+first (`&shape[strlen(shape)]`). Reading only one leaves a string on the
+stream, and since packets are undelimited, everything after it decodes as
+garbage. A working reference implementation is in
+[`ai/xpilot_bot/reliable.py`](../ai/xpilot_bot/reliable.py).
+
+Types that can appear (the client's `reliable_tbl`, plus `PKT_REPLY` and
+`PKT_MAGIC`, which it handles inline): `MOTD`, `MESSAGE`, `TEAM_SCORE`,
+`PLAYER`, `TEAM`, `SCORE`, `TIMING`, `LEAVE`, `WAR`, `SEEK`, `BASE`, `QUIT`,
+`STRING`, `SCORE_OBJECT`, `TALK_ACK`. Scores are sent as hundredths in
+protocol versions ≥ 0x4F11 and as whole numbers before that.
+
+### Shots are not sent as coordinates
+
+`PKT_FASTSHOT` is `%c` type, `%c` count, then one byte pair per shot — and
+the type byte is not a colour, despite the name it is given everywhere. It
+is an index into a grid of 256×256 pixel tiles laid over the client's view
+(`BASE_X`/`BASE_Y` in `src/client/paintobjects.c`), and each byte pair is an
+offset inside that tile:
+
+    x_areas = (view_width  + 255) >> 8
+    y_areas = (view_height + 255) >> 8
+    x_view  = (type % x_areas) * 256 + byte_x
+    y_view  = ((type / x_areas) % y_areas) * 256 + byte_y
+
+The view is centred on the player, so world position needs `PKT_SELF`'s
+position *and* the view size it reports. Read the type byte as a colour and
+every shot in the game piles up in one corner of the map.
+
+`PKT_DEBRIS` uses the same tiling, which is why it occupies a whole range of
+packet types rather than one.
+
+There is no owner and no velocity in the packet, so a client cannot tell a
+bullet flying at it from one it just fired, nor which way any of them are
+going. The real client does not need to: it draws them and the player's eye
+does the rest. Anything reasoning about them programmatically has to work
+around it.
+
+### Kills and deaths are only in the text
+
+There is no kill packet. `PKT_SCORE` carries a life count, but on a map with
+unlimited lives it never changes, so watching it detects nothing. What the
+server does send is a death notice as an ordinary `PKT_MESSAGE`:
+
+    Probe was killed by a shot from Boson.
+    bot and robo crashed.
+    bot smashed against a wall
+
+These come from `sprintf` formats in `src/server/*.c`, and they are what a
+human player reads too. Counting them is the only way to get kills.
+
+One caveat that matters if the results are to be trusted: a player could
+simply *type* a death notice. The server appends `" [nick]"` to everything a
+player says and to nothing it says itself, so a message ending in `]` is
+chat and must not be counted.
+
+## The ship is inert until you configure it
+
+A client must tell the server how its ship handles, with `PKT_POWER`,
+`PKT_TURNSPEED` and `PKT_TURNRESISTANCE` (plus `_S` variants for the
+shift-modifier), each `%c%hd` carrying the value times 256.
+
+This reads like tuning and is not. `MIN_PLAYER_TURNSPEED` is **0.0**, and
+`Player_init` starts a player at the minimum, so a client that never sends
+`PKT_TURNSPEED` has a ship that **cannot turn at all**. `MIN_PLAYER_POWER`
+is 5.0 against a real-client default of 55.0, so thrust is feeble for the
+same reason.
+
+Nothing reports either condition. `PKT_KEYBOARD` is accepted, the server
+acknowledges it, frames keep arriving, and the heading simply never changes.
+It presents as a ship that handles badly, which is an easy thing to blame on
+the map, the physics, or one's own flying.
+
+The real client's defaults, from `src/client/default.c`:
+
+| option | default | range |
+|---|---|---|
+| `power` | 55.0 | 5–55 |
+| `turnSpeed` | 16.0 | 0–64 |
+| `turnResistance` | 0.0 | 0.0–1.0 |
+
+## A joined ship ignores the controls for about five seconds
+
+Joining is not the same as being able to fly. For roughly five seconds after
+the handshake completes, `PKT_KEYBOARD` is accepted, echoed back in every
+frame's `key_ack`, and has no effect whatsoever. Measured across trials, the
+ship starts responding at 5.0–5.1 s.
+
+Nothing marks the transition. It presents as a ship that ignores the
+controls, which invites every wrong diagnosis in turn — a wedged spawn, a
+bad key index, lost packets, the anti-macro check.
+
+Re-sending the same key state does not work around it. `Receive_keyboard`
+skips any update whose change counter it has already seen:
+
+```c
+if (change <= connp->last_key_change)
+    /* We already have this key. Nothing to do. */
+```
+
+so only a genuine press or release produces an event. To probe for readiness,
+*toggle* a key and watch whether the heading moves.
+
+This is easy to miss interactively — a human presses keys repeatedly and
+never notices the first second — and easy to be bitten by programmatically,
+where a short episode can be over before it ends.
+
+## The world wraps
+
+Most XPilot maps set `edgeWrap="yes"` — `dodgers-robots.xp2` does — and the
+protocol never mentions it. Positions arrive as plain coordinates, so
+subtracting them looks like it gives a relative position and does, right up
+until the two objects are more than half a map apart. Then it confidently
+returns the long way round.
+
+Measured on a live 3150×3150 game, 423 samples, comparing naive subtraction
+against the wrapped difference:
+
+| | |
+|---|---|
+| nearest ship identified wrongly | 40.2% |
+| bearing wrong by more than 0.5 rad | 55.1% |
+| mean error introduced | 1.41 rad (~81°) |
+| worst | 3.13 rad (~179°) |
+
+Anything reasoning about relative position needs the map size, which is only
+in the setup blob at the head of the reliable stream — the frame stream never
+says how big the world is.
+
 ## NAT audit
 
 The question the roadmap asks is whether this is NAT-friendly. The answer

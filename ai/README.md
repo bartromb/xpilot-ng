@@ -192,22 +192,142 @@ robots, so the same seed cannot reproduce a game. Every other applicable check
 passes — observation and action spaces, reset return type and options, space
 limits, and the passive reset/step checkers.
 
-**Episodes only end by truncation.** There is no death detection yet: the
-frame stream carries a damage flag, which this uses, but working out that a
-life has ended needs more of the reliable stream decoded.
+**Death detection is by absence.** The protocol has no "you died" packet;
+what it has is a frame with no own-ship state, which `Receive_self` in the C
+notes means "not actively playing: damaged, dead, paused or game over". A run
+of `death_frames` such frames ends the episode. The mechanism is unit-tested
+against synthetic frames (`ai/tests/test_death.py`); it has **not** been seen
+to fire against a live server, because provoking a death on demand proved
+unreliable -- holding self-destruct for thirty seconds produced none, and the
+built-in robots never killed the bot in several thousand steps.
+
+## Training an agent
+
+```sh
+pip install "./ai[rl]" stable-baselines3
+python -m xpilot_bot.train --steps 200000 --envs 4 --fps 200
+python -m xpilot_bot.benchmark --model ai/checkpoints/ppo_final.zip
+python -m xpilot_bot.benchmark --random      # always compare against this
+```
+
+Training runs a curriculum — **navigate, then dodge, then combat** — carrying
+the policy forward between stages. The reason for staging is that firing is
+only rewarded when it connects, and it cannot connect until the agent can
+already fly and aim, so an agent dropped straight into combat has no gradient
+to climb and settles for sitting still.
+
+### One setting that matters more than the rest
+
+`frames_per_step` defaults to 10, and the default used to be 1. That was
+wrong in a way worth knowing about: at 200 fps a frame is 5 ms, so a 500-step
+episode was **two and a half seconds of game time**. Measured, the ship never
+reached a non-zero speed and no opponent ever came into view — the environment
+looked like it was working and was teaching nothing. Ten frames makes a step
+50 ms, about a human reaction time.
+
+### On win rates
+
+They are measured, from the server's own death notices, and the benchmark
+reports them. Getting there meant fixing two bugs that had made the whole
+environment quietly wrong, both of which looked like facts about the game
+rather than defects in the client.
+
+**The client went deaf when play started.** Reliable data is piggybacked onto
+frame packets once the game begins, and the client only inspected the first
+byte of each datagram. So it read all of setup correctly and then heard
+nothing: no scores, no kills, no player joins. Having stopped acknowledging
+anything, it was dropped by the server about fifteen seconds in — every
+training episode longer than that was ending in a disconnection dressed up
+as an episode end.
+
+**Death was detected by a signal that never fires.** `Receive_self` in the C
+client notes that a frame without PKT_SELF means the player is "damaged,
+dead, paused or has game over", which makes watching for missing PKT_SELF
+look like the obvious approach. Measured against a live server, an idle bot
+died **ten times in ninety seconds without a single frame missing its
+PKT_SELF** — the server reports the ship straight through death and respawn.
+No episode had ever terminated on death and the death penalty had never once
+been applied.
+
+Both are why the standing note that "the robots never kill the bot" was
+wrong. They kill it constantly; nobody was listening. An idle bot dies five
+times in seventy seconds, and every one of those deaths was announced:
+
+    Probe was killed by a shot from Boson.
+
+Kills come from those notices rather than from `PKT_SCORE`, whose life count
+never changes on a map with unlimited lives. Chat is excluded — otherwise a
+player could type a death notice and be believed.
 
 ## Status
 
-Phase 6a of `ROADMAP.md` is met, and frame decoding is done: verified at 0
-truncated frames out of 2,250 against a live server with four robots, tracking
-five ships at once.
+Phases 6a and 6b are met. Both of the game's packet streams decode: frames at
+0 truncated out of 2,250 against a live server with four robots, and the
+reliable sub-stream cleanly through setup and play, checked continuously in
+CI by `tools/check_reliable.py`.
 
-The `hunter` example is honest about being a demonstration rather than a good
-player: tracking one target it holds a mean aim error of about 19 heading units
-against roughly 32 for random, and is inside its firing cone about a quarter of
-the time. It has no lead, no evasion and no memory. Improving that is the point
-of Phase 6c.
+Phase 6c trains and benchmarks. A 180k-step curriculum policy against a
+random baseline, 15 and 20 episodes respectively on `dodgers-robots.xp2`:
 
-Phase 6b is done: `xpilot_bot.env` is a Gymnasium environment, with
-accelerated and parallel execution. Phase 6c (learned agents) is unblocked --
-what it needs is a training script and patience, not more protocol work.
+| | random | trained |
+|---|---|---|
+| mean reward | 16.28 (sd 24.40) | 14.79 (sd 23.74) |
+| mean episode length | 155 steps | **192 steps** |
+| mean aim error | 1.66 rad | **1.14 rad** |
+| **score, by the server's own reckoning** | **−151.01** | **+264.69** |
+| kills / deaths | 15 / 20 | 11 / 14 |
+| win rate | 43% | 44% |
+| mean speed | 7.2 | 3.4 |
+
+Read that carefully, because the headline is not the win rate. Kills are a
+tie and the reward difference is inside the noise — the standard deviations
+are larger than the gap, which is what a 25-point kill bonus does to a
+15-episode sample.
+
+What is not inside the noise is the **score**, and it is the one number here
+that the training could not have gamed: the server computes it, and it owes
+nothing to the reward function in `env.py`. The trained policy ends 416
+points ahead of random across the two runs. It also stays alive about a
+quarter longer. So there is something real, and it is not "learned to shoot
+people" — it is closer to "learned not to throw the ship away".
+
+One caveat on running this yourself: keep `--envs` at 6 or below. Above that,
+runs degenerate into a reconnect cycle that never finishes a stage, and the
+reason is worth knowing because it is not a bug in the protocol code.
+`DummyVecEnv` steps environments in turn, and a client only polls its socket
+inside its own `step()` — so with N environments each client is serviced once
+every ~39N milliseconds. Past six or so that outlasts the server's patience
+for unacknowledged reliable data and it drops the client, which it records as
+`Goodbye … ("timeout 08")`. Only stages with robots are affected, because
+only those generate reliable traffic after setup. The fix is `SubprocVecEnv`;
+measured, 4 and 6 environments run clean and 10 and 16 do not.
+
+The policy is not degenerate this time: ten distinct actions with the most
+common on 50% of steps, against an earlier one that sat on a single action
+for 85% and never moved.
+
+Two things learned the hard way, both worth more than the numbers:
+
+**Measure the ship before measuring the policy.** Every result before
+2026-08-27 was void because the ship could not turn — `MIN_PLAYER_TURNSPEED`
+is 0.0 and a client that never sends `PKT_TURNSPEED` is welded to one
+heading, silently. The agent was being rewarded for aiming while holding no
+action that could change where it aimed. Note how much better *random* does
+once that is fixed: 15 kills against 8, 43% against 29%. Most of what this
+benchmark was measuring was whether the ship worked.
+
+**Reward what you actually want, at a rate that outbids the alternatives.**
+With aim worth 0.05 a step, a policy that parked and fired straight ahead
+earned about as much per episode from aiming (5.5) as from a kill (5.0) — and
+aiming is safe. It learned to park: 85% of steps "fire", 14% "shield", under
+0.5% turns, mean speed 0.2, zero kills in ten episodes. Its aim error looked
+excellent at 0.72 rad, which is exactly the trap: a stationary ship facing
+where opponents arrive from scores well without having learned anything.
+Kills are now worth 25 and aim 0.01, and the benchmark reports mean speed and
+action concentration so a parked policy is visible at a glance rather than
+after an hour of investigation.
+
+The `hunter` example remains a demonstration rather than a good player:
+tracking one target it holds a mean aim error of about 19 heading units
+against roughly 32 for random, and is inside its firing cone about a quarter
+of the time. It has no lead, no evasion and no memory.

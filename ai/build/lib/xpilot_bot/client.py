@@ -21,6 +21,8 @@ import time
 from dataclasses import dataclass, field
 
 from . import protocol as p
+from .reliable import ReliableStream
+from .frames import Frame, decode_frame, iter_reliable
 from .packet import Reader, Writer
 
 
@@ -38,6 +40,7 @@ class Status:
 
     connected: bool = False
     frame: int = 0
+    truncated_frames: int = 0
     login_port: int = 0
     server_version: int = 0
     keys_held: set = field(default_factory=set)
@@ -50,6 +53,9 @@ class Client:
         port: int = p.SERVER_PORT,
         nick: str = "bot",
         user: str = "bot",
+        view_width: int = 1024,
+        view_height: int = 768,
+        fps: int = 50,
         team: int = 0xFFFF,
         timeout: float = 3.0,
     ) -> None:
@@ -59,6 +65,10 @@ class Client:
         self.user = user[: p.MAX_CHARS - 1]
         self.team = team
         self.timeout = timeout
+        # How much of the world the server should send us.
+        self.view_width = view_width
+        self.view_height = view_height
+        self.fps = fps
 
         self.status = Status()
         self._contact: socket.socket | None = None
@@ -69,7 +79,14 @@ class Client:
         # and will eventually drop a client that never acknowledges, so this
         # is not optional even for a bot that ignores the content.
         self._reliable_offset = 0
+        #: Decoded scores, players and messages from that stream. It handles
+        #: the map blob at the head of the stream itself, so segments can be
+        #: fed to it from the first datagram onwards.
+        self.reliable = ReliableStream()
         self._last_loops = 0
+        #: The most recently decoded frame, and the bytes it came from.
+        self.frame: Frame | None = None
+        self.last_raw: bytes | None = None
 
     # ---------------------------------------------------------------- join
 
@@ -80,6 +97,11 @@ class Client:
         self._open_game_socket()
         self._verify()
         self._start_play()
+        self.request_fps(self.fps)
+        # Once playing, tell the server how much of the world to send. It is
+        # in the server's playing-state table; sending it any earlier, during
+        # setup or login, is a disconnect.
+        self._send_display()
         self.status.connected = True
 
     def _contact_server(self) -> None:
@@ -220,6 +242,39 @@ class Client:
 
         return got
 
+    def request_fps(self, fps: int) -> None:
+        """Ask the server for a frame rate.
+
+        Without this the server sends at its own default regardless of how
+        fast it is actually running, so raising -framesPerSecond alone does
+        not speed a bot up. Raising both is what makes faster-than-realtime
+        training possible.
+
+        The value is one byte, so 255 is the ceiling.
+        """
+        assert self._game is not None
+        self.fps = max(1, min(255, int(fps)))
+        self._game.send(Writer().c(p.PKT_ASYNC_FPS).c(self.fps).bytes())
+
+    def _send_display(self) -> None:
+        """Tell the server how much of the world we want to see.
+
+        This is not cosmetic. The server culls objects to the client's
+        declared view, so a client that never sends PKT_DISPLAY is shown
+        nothing but its own ship -- which looks exactly like an empty map and
+        is a thoroughly confusing way to discover the packet exists.
+        """
+        assert self._game is not None
+        self._game.send(
+            Writer()
+            .c(p.PKT_DISPLAY)
+            .hd(self.view_width)
+            .hd(self.view_height)
+            .c(0)      # sparks: a bot does not need them
+            .c(0)      # spark colours
+            .bytes()
+        )
+
     def _start_play(self) -> None:
         """Ask to be put into play, once setup has been drained.
 
@@ -264,31 +319,40 @@ class Client:
         raise ProtocolError("server never started sending frames")
 
     def _handle_datagram(self, data: bytes) -> None:
-        """Acknowledge the reliable stream. Frame content is not decoded."""
-        if not data or data[0] != p.PKT_RELIABLE:
-            return
-        try:
-            r = Reader(data)
-            r.c()                       # PKT_RELIABLE
-            length = r.hd()
-            rel = r.ld()
-            rel_loops = r.ld()
-        except Reader.Truncated:
+        """Acknowledge and decode every reliable segment in a datagram.
+
+        Not just one, and not only at offset zero. Before frames start, a
+        segment arrives as a datagram of its own; once play begins the server
+        piggybacks it onto the end of a frame update instead, so the datagram
+        starts with PKT_START and the segment is somewhere inside it. Reading
+        only `data[0]` therefore works perfectly through setup and then stops
+        working the instant the game starts -- the stream appears to freeze,
+        nothing is ever acknowledged, and the server eventually drops the
+        connection with a retransmit timeout. That is a slow and confusing
+        way to discover the packet is not where you assumed.
+        """
+        if not data:
             return
 
-        self._last_loops = rel_loops
+        acked = False
+        for rel, rel_loops, payload in iter_reliable(data):
+            self._last_loops = rel_loops
+            self.reliable.feed(rel, payload)
+            # Only advance on the segment we are actually waiting for;
+            # anything else is a retransmission or arrived out of order.
+            if rel == self._reliable_offset:
+                self._reliable_offset += len(payload)
+            acked = True
 
-        # Only advance on the segment we are actually waiting for; anything
-        # else is a retransmission or arrived out of order.
-        if rel == self._reliable_offset:
-            self._reliable_offset += length
+        if not acked:
+            return
 
         try:
             self._game.send(
                 Writer()
                 .c(p.PKT_ACK)
                 .ld(self._reliable_offset)
-                .ld(rel_loops)
+                .ld(self._last_loops)
                 .bytes()
             )
         except OSError:
@@ -329,12 +393,15 @@ class Client:
 
     # --------------------------------------------------------------- frames
 
-    def poll(self) -> bytes | None:
-        """Read one datagram from the server, if one is waiting.
+    def poll(self) -> Frame | None:
+        """Read and decode one frame from the server, if one is waiting.
 
-        The frame stream is not decoded; see the module docstring. Returning
-        the raw bytes lets a caller experiment without this library pretending
-        to understand more than it does.
+        Returns a decoded Frame, or None if nothing arrived. Also
+        acknowledges the reliable stream, so this must be called regularly
+        even by a bot that ignores the contents.
+
+        The raw bytes remain available as `last_raw` for anything this
+        decoder does not yet cover.
         """
         assert self._game is not None
         try:
@@ -345,9 +412,16 @@ class Client:
             # ICMP port unreachable: the server has dropped us.
             self.status.connected = False
             raise ProtocolError("server closed the connection")
+
         self.status.frame += 1
         self._handle_datagram(data)
-        return data
+        self.last_raw = data
+
+        frame = decode_frame(data)
+        if frame.truncated:
+            self.status.truncated_frames += 1
+        self.frame = frame
+        return frame
 
     def close(self) -> None:
         try:

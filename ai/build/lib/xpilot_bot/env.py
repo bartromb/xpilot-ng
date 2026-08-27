@@ -26,8 +26,6 @@ import math
 import subprocess
 import time
 
-import logging
-
 import numpy as np
 
 try:
@@ -39,9 +37,6 @@ except ImportError as exc:  # pragma: no cover
     ) from exc
 
 from .client import Client, ProtocolError
-from .frames import world_shots, wrapped_delta
-
-LOG = logging.getLogger("xpilot_bot.env")
 from . import protocol as p
 
 #: Actions, as combinations of held keys. XPilot input is continuous -- keys
@@ -76,19 +71,7 @@ ACTIONS: list[tuple[int, ...]] = [
 STAGES = {
     "navigate": {"alive": 0.01, "fuel": 0.5, "aim": 0.00, "speed": 0.05, "kill": 0.0},
     "dodge":    {"alive": 0.02, "fuel": 0.3, "aim": 0.00, "speed": 0.02, "kill": 0.0},
-    # Combat weights, after watching the first balance fail in a specific and
-    # instructive way. With aim at 0.05 a step, a policy that sat still and
-    # fired straight ahead collected about as much reward per episode from
-    # aiming (5.5) as it would have from a kill (5.0) -- and aiming is safe
-    # while killing is not. It duly learned to park: 85% of its steps were
-    # "fire", 14% "shield", and under 0.5% were turns. Zero kills in ten
-    # episodes, against fifteen in twenty for acting at random.
-    #
-    # So aim is now what it should have been from the start: a small hint
-    # that points a beginner in the right direction, worth about a twentieth
-    # of a kill over a whole episode. The thing being asked for is kills.
-    "combat":   {"alive": 0.005, "fuel": 0.2, "aim": 0.01, "speed": 0.02,
-                 "kill": 25.0},
+    "combat":   {"alive": 0.01, "fuel": 0.2, "aim": 0.05, "speed": 0.01, "kill": 5.0},
 }
 
 #: Robots present at each stage. Navigation is learned on an empty map.
@@ -96,14 +79,6 @@ STAGE_ROBOTS = {"navigate": 0, "dodge": 2, "combat": 4}
 
 #: How many other ships appear in the observation, nearest first.
 MAX_TRACKED_SHIPS = 4
-
-#: How many incoming shots appear in the observation, nearest first.
-#:
-#: Without these the agent cannot see bullets at all, which makes the
-#: roadmap's "dodge" stage a stage about avoiding *ships*. Shots are the
-#: densest thing in a frame -- a few thousand in a busy ten seconds -- so
-#: only the nearest handful are worth the observation width.
-MAX_TRACKED_SHOTS = 4
 
 HEADING_STEPS = 128
 
@@ -128,18 +103,6 @@ class ServerProcess:
     ) -> None:
         self.port = port
         self.fps = fps
-        # Kept so the process can be started again if it dies mid-run.
-        self._argv = [
-            binary,
-            "-map", map_file,
-            "-port", str(port),
-            "-maxRobots", str(robots),
-            "-minRobots", str(robots),
-            "-framesPerSecond", str(fps),
-            "-noQuit", "-idleRun",
-            "-reportToMetaServer", "false",
-        ]
-        self._quiet = quiet
         self._proc = subprocess.Popen(
             [
                 binary,
@@ -158,25 +121,6 @@ class ServerProcess:
             stderr=subprocess.DEVNULL if quiet else None,
         )
         # Give it time to bind before anyone connects.
-        time.sleep(1.5)
-
-    def alive(self) -> bool:
-        return self._proc.poll() is None
-
-    def restart(self) -> None:
-        """Start the server again after it has died.
-
-        A training run is hours long and a server is a separate process; one
-        of them going away should cost an episode, not the run. Before this
-        existed, a single vanished server ended a 1.4M-step run in its second
-        stage with a connection-refused traceback.
-        """
-        self.close()
-        self._proc = subprocess.Popen(
-            self._argv,
-            stdout=subprocess.DEVNULL if self._quiet else None,
-            stderr=subprocess.DEVNULL if self._quiet else None,
-        )
         time.sleep(1.5)
 
     def close(self) -> None:
@@ -226,12 +170,7 @@ class XPilotEnv(gym.Env):
         frames_per_step: int = 10,
         world_scale: float = 3000.0,
         death_frames: int = 15,
-        death_penalty: float = 5.0,
-        reuse_connection: bool = True,
-        edge_wrap: bool = True,
-        reconnect_tries: int = 5,
-        reconnect_delay: float = 2.0,
-        include_shots: bool = False,
+        death_penalty: float = 1.0,
         stage: str = "combat",
         server: ServerProcess | None = None,
     ) -> None:
@@ -255,13 +194,6 @@ class XPilotEnv(gym.Env):
         # "you died" packet the client can simply read.
         self.death_frames = death_frames
         self.death_penalty = death_penalty
-        self.reuse_connection = reuse_connection
-        self.edge_wrap = edge_wrap
-        self.reconnect_tries = reconnect_tries
-        self.reconnect_delay = reconnect_delay
-        # Changing this changes the observation width, so a checkpoint and
-        # the benchmark that scores it have to agree on it.
-        self.include_shots = include_shots
         if stage not in STAGES:
             raise ValueError(f"unknown stage {stage!r}; expected one of "
                              f"{sorted(STAGES)}")
@@ -270,8 +202,6 @@ class XPilotEnv(gym.Env):
 
         self.action_space = spaces.Discrete(len(ACTIONS))
         obs_len = 6 + 5 * MAX_TRACKED_SHIPS
-        if include_shots:
-            obs_len += 5 * MAX_TRACKED_SHOTS
         self.observation_space = spaces.Box(
             low=-np.inf, high=np.inf, shape=(obs_len,), dtype=np.float32
         )
@@ -286,103 +216,28 @@ class XPilotEnv(gym.Env):
         #: makes a fresh connection, so this is always 0 in practice; it is
         #: kept explicit rather than assumed.
         self._deaths_at_step = 0
-        self._deaths_at_reset = 0
-        self._kills_at_reset = 0
 
     # ------------------------------------------------------------ gym API
 
     def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
+        self._close_client()
 
-        # Reconnecting between episodes is the tidy thing to do and it is
-        # expensive: the handshake is a two-phase exchange with a setup
-        # transfer, and with episodes ending on death rather than on the step
-        # limit it happens every few seconds. Measured, it was most of the
-        # difference between 56 steps/s on the empty map and 25 in combat.
-        #
-        # It is also unnecessary. XPilot respawns a dead ship on the same
-        # connection -- that is what makes an idle bot die ten times in
-        # ninety seconds rather than once -- so a new episode can simply
-        # carry on. The counters this class keeps are already differences
-        # against where the episode started, precisely so that works.
-        last_error: Exception | None = None
-        for attempt in range(self.reconnect_tries):
-            try:
-                if self._client is None or not self.reuse_connection:
-                    self._close_client()
-                    self._client = self._new_client()
-                else:
-                    self._client.release_all()
-                    self._client.send_keys()
-
-                self._steps = 0
-                self._prev_fuel = None
-                self._prev_damaged = False
-                self._deaths_at_step = self._death_count()
-                self._kills_seen = self._kill_count()
-                self._deaths_at_reset = self._deaths_at_step
-                self._kills_at_reset = self._kills_seen
-
-                frame = self._await_frame()
-                break
-            except (ProtocolError, OSError) as exc:
-                # A reused connection can be dead for reasons that have
-                # nothing to do with this episode -- the server can drop a
-                # client, and a server process can die outright. Before
-                # connections were reused, the next episode simply dialled
-                # again and nobody noticed; now the stale client has to be
-                # thrown away explicitly, or a whole training run ends on one
-                # unlucky datagram.
-                last_error = exc
-                # Say so. A silent reconnect loop is indistinguishable from
-                # a hang, and a hung environment stalls every other one with
-                # it because they are stepped in turn.
-                #
-                # Why this happens above roughly six environments on one
-                # machine, which took a while to pin down:
-                #
-                # DummyVecEnv steps environments in turn, and a client only
-                # polls the socket inside its own step(). So with N
-                # environments, each client is serviced once per N steps --
-                # about 39ms of real time each at 255fps with ten frames to a
-                # step, so once every 39N milliseconds. Past six or so that
-                # exceeds how long the server will keep retransmitting
-                # unacknowledged reliable data, and it drops the client. The
-                # server says so in its own log: `Goodbye ... ("timeout 08")`,
-                # eight retransmit timeouts.
-                #
-                # It only bites on stages with robots because those are the
-                # only ones with reliable traffic after setup -- scores,
-                # messages, joins. With no robots there is nothing to
-                # retransmit and nothing to time out, which is why the
-                # navigate stage never failed once.
-                #
-                # The real fix is to run environments in their own processes
-                # (SubprocVecEnv) so every client keeps polling while the
-                # others are stepped. Until then, keep --envs at 6 or below:
-                # measured, 4 and 6 run clean, 10 and 16 do not.
-                self._close_client()
-                if self._server is not None and not self._server.alive():
-                    LOG.warning("port %d: server process died, restarting",
-                                self.port)
-                    self._server.restart()
-                time.sleep(self.reconnect_delay)
-        else:
-            raise ProtocolError(
-                f"could not start an episode after {self.reconnect_tries} "
-                f"attempts on port {self.port}") from last_error
-
-        obs = self._observe(frame)
-        self._last_obs = obs
-        return obs, self._info()
-
-    def _new_client(self) -> Client:
-        c = Client(
+        self._client = Client(
             host=self.host, port=self.port,
             nick=self.nick, user=self.nick, fps=self.fps,
         )
-        c.connect()
-        return c
+        self._client.connect()
+        self._steps = 0
+        self._prev_fuel = None
+        self._prev_damaged = False
+        self._deaths_at_step = self._death_count()
+        self._kills_seen = self._kill_count()
+
+        frame = self._await_frame()
+        obs = self._observe(frame)
+        self._last_obs = obs
+        return obs, self._info()
 
     def _info(self, **extra) -> dict:
         """Per-step diagnostics, including what the reliable stream says.
@@ -396,14 +251,7 @@ class XPilotEnv(gym.Env):
         info = dict(extra)
         rel = getattr(self._client, "reliable", None)
         if rel is not None:
-            board = rel.board.summary()
-            # The board counts a whole connection, and a connection now spans
-            # many episodes. Anything summed per episode has to be a delta
-            # against where this episode started, or twenty single-death
-            # episodes add up to two hundred deaths.
-            board["episode_kills"] = self._kill_count() - self._kills_at_reset
-            board["episode_deaths"] = self._death_count() - self._deaths_at_reset
-            info["scoreboard"] = board
+            info["scoreboard"] = rel.board.summary()
             info["reliable_desynced"] = rel.desynced
         return info
 
@@ -521,34 +369,6 @@ class XPilotEnv(gym.Env):
         me = rel.board.me
         return me.kills if me is not None else 0
 
-    def _world_size(self) -> tuple[float, float]:
-        """Map dimensions in pixels, from the setup blob the server sent.
-
-        Another thing that only exists because the reliable stream is
-        decoded: the frame stream never says how big the world is.
-        """
-        rel = getattr(self._client, "reliable", None)
-        setup = rel.board.setup if rel is not None else None
-        if setup is None or setup.width <= 0 or setup.height <= 0:
-            return (0.0, 0.0)
-        return (float(setup.width), float(setup.height))
-
-    def _delta(self, ax, ay, bx, by):
-        """Vector from a to b, the short way round a wrapping world.
-
-        `dodgers-robots.xp2` sets `edgeWrap="yes"`, and most XPilot maps do:
-        flying off the right edge brings you back on the left. Subtracting
-        coordinates therefore gives the wrong answer for any pair more than
-        half the map apart -- and gives it confidently, as a bearing that can
-        be a full 180 degrees off. Two ships closing on each other across the
-        seam read as the furthest apart on the map.
-
-        Falls back to a plain difference when the world size is unknown,
-        which is right for a map that does not wrap.
-        """
-        w, h = self._world_size() if self.edge_wrap else (0.0, 0.0)
-        return wrapped_delta(w, h, ax, ay, bx, by)
-
     def _observe(self, frame) -> np.ndarray:
         me = frame.self_
         s = self.world_scale
@@ -564,13 +384,12 @@ class XPilotEnv(gym.Env):
         ]
 
         others = [sh for sh in frame.ships if (sh.x, sh.y) != (me.x, me.y)]
-        deltas = {id(sh): self._delta(me.x, me.y, sh.x, sh.y) for sh in others}
-        others.sort(key=lambda sh: deltas[id(sh)][0] ** 2 + deltas[id(sh)][1] ** 2)
+        others.sort(key=lambda sh: (sh.x - me.x) ** 2 + (sh.y - me.y) ** 2)
 
         for i in range(MAX_TRACKED_SHIPS):
             if i < len(others):
                 sh = others[i]
-                dx, dy = deltas[id(sh)]
+                dx, dy = sh.x - me.x, sh.y - me.y
                 dist = math.hypot(dx, dy)
                 bearing = math.atan2(dy, dx)
                 err = (bearing - heading + math.pi) % (2 * math.pi) - math.pi
@@ -578,47 +397,7 @@ class XPilotEnv(gym.Env):
             else:
                 obs += [0.0, 0.0, 0.0, 0.0, 0.0]
 
-        if self.include_shots:
-            obs += self._shot_features(frame, me, heading)
-
         return np.asarray(obs, dtype=np.float32)
-
-    def _shot_features(self, frame, me, heading) -> list:
-        """The nearest few shots, in the same shape as the ship slots.
-
-        These are *all* shots, including our own. PKT_FASTSHOT carries no
-        owner and no velocity -- just a tile index and a byte pair per shot
-        -- so nothing here can distinguish a bullet flying at us from one we
-        just fired. That is a real limitation rather than an oversight: the
-        information is not on the wire. It is survivable because our own fire
-        correlates with the action we just chose, which the agent knows, so
-        it is learnable noise rather than a confound.
-        """
-        s = self.world_scale
-        shots = world_shots(frame)
-
-        rows = []
-        for sx, sy, _kind in shots:
-            dx, dy = self._delta(me.x, me.y, sx, sy)
-            d2 = dx * dx + dy * dy
-            # Our own muzzle flash sits on top of us every time we fire, and
-            # reporting it as the nearest threat would drown out real ones.
-            if d2 < 400:
-                continue
-            rows.append((d2, dx, dy))
-        rows.sort(key=lambda r: r[0])
-
-        out = []
-        for i in range(MAX_TRACKED_SHOTS):
-            if i < len(rows):
-                d2, dx, dy = rows[i]
-                dist = math.sqrt(d2)
-                bearing = math.atan2(dy, dx)
-                err = (bearing - heading + math.pi) % (2 * math.pi) - math.pi
-                out += [dx / s, dy / s, dist / s, err / math.pi, 1.0]
-            else:
-                out += [0.0, 0.0, 0.0, 0.0, 0.0]
-        return out
 
     def _reward(self, frame) -> float:
         """Reward for the current curriculum stage.
@@ -659,14 +438,11 @@ class XPilotEnv(gym.Env):
             others = [sh for sh in frame.ships
                       if (sh.x, sh.y) != (me.x, me.y)]
             if others:
-                deltas = {id(sh): self._delta(me.x, me.y, sh.x, sh.y)
-                          for sh in others}
                 nearest = min(
                     others,
-                    key=lambda sh: deltas[id(sh)][0] ** 2 + deltas[id(sh)][1] ** 2)
+                    key=lambda sh: (sh.x - me.x) ** 2 + (sh.y - me.y) ** 2)
                 heading = 2 * math.pi * me.heading / HEADING_STEPS
-                dx, dy = deltas[id(nearest)]
-                bearing = math.atan2(dy, dx)
+                bearing = math.atan2(nearest.y - me.y, nearest.x - me.x)
                 err = abs((bearing - heading + math.pi) % (2 * math.pi)
                           - math.pi)
                 reward += w["aim"] * (1.0 - err / math.pi)

@@ -153,7 +153,37 @@ jobs:
           # The server is the authority on whether the bot actually played.
           grep -q 'Welcome Wanderer' bot-server.log
           grep -q 'Wanderer.*starts at startpos' bot-server.log
+          # Surviving 60s is not the same as being connected for 60s. A client
+          # that stops acknowledging the reliable stream is dropped by the
+          # server with a retransmit timeout, which the bot experiences as an
+          # ordinary quiet exit -- that is exactly how the piggybacked-segment
+          # bug hid for so long. The server says so in its log; check it.
+          if grep -q 'Goodbye.*timeout' bot-server.log; then
+            echo "server dropped the bot on a timeout:"
+            grep 'Goodbye' bot-server.log
+            exit 1
+          fi
           kill "$(cat bot-server.pid)" || true
+
+      - name: Reliable stream decodes against a live server
+        # The frame stream carries positions; this one carries everything the
+        # game means by an outcome. It is fed by a network, so the cases that
+        # break it -- out-of-order segments, retransmissions, packets split
+        # across segments -- are ordinary traffic rather than edge cases.
+        run: |
+          set -eux
+          # The env tests import gymnasium and numpy, which live in the rl
+          # extra rather than in the client's (deliberately empty) base deps.
+          pip install "./ai[rl]" pytest
+          python -m pytest ai/tests -q
+          ./build/bin/xpilot-ng-server \
+              -map lib/maps/dodgers-robots.xp2 \
+              -maxRobots 3 -minRobots 3 -port 15401 -noQuit -idleRun \
+              > rel-server.log 2>&1 &
+          echo $! > rel-server.pid
+          sleep 5
+          python ai/tools/check_reliable.py --port 15401 --seconds 45
+          kill "$(cat rel-server.pid)" || true
 
       - name: Upload logs on failure
         if: failure()

@@ -22,8 +22,9 @@ development since 2010 and is kept here only as a provenance link.
 | 4 | Quality of life | **Done** — keybind defaults left alone deliberately |
 | 4b | Graphics modernization | **Done** to the stretch line |
 | 5 | Network & hosting | **Done** — including a self-hostable metaserver |
-| 6a | Python bot SDK | **Done** — including frame decoding |
+| 6a | Python bot SDK | **Done** — both packet streams decoded |
 | 6b | Gymnasium RL environment | **Done** — accelerated and parallel |
+| 6c | Learned agents | PPO trains and benchmarks; ahead of random on the server's own score |
 
 Full detail, including everything deliberately *not* done and why, is in
 [`ROADMAP.md`](ROADMAP.md).
@@ -89,10 +90,16 @@ addresses used to be compiled in.
 
 **Bots.** [`ai/`](ai/README.md) is a dependency-free Python client that speaks
 the original protocol, so bots play against unmodified servers seeing only what
-a human's client sees. Frames are decoded into world state — own ship, other
-ships, shots, items — so a bot can perceive as well as act. There is a
-Gymnasium environment on top of it for reinforcement learning, which runs
-faster than realtime and in parallel.
+a human's client sees. **Both** of the game's packet streams are decoded: the
+frame stream into world state — own ship, other ships, shots, items — and the
+reliable sub-stream into players, messages and scores. The second one matters
+more than it sounds, because nothing about a game's *outcome* is on the frame
+stream at all; decoding it is what made kills and scores measurable.
+
+On top of that sits a Gymnasium environment that runs faster than realtime and
+in parallel, PPO curriculum training, and a benchmark that compares any policy
+against acting at random — including on the server's own score, which is
+computed by the game and owes nothing to the reward function.
 
 ## Bugs found and fixed
 
@@ -102,6 +109,43 @@ Several of these had been in the code for decades:
   signed, so `ptr[j++] << 24` shifts a negative value for any byte ≥ 0x80 —
   reachable pre-authentication. The fix was verified not to change wire
   decoding at all. ([`tests/`](tests/README.md))
+- **The reliable sub-stream hides inside frame packets.** Before play it
+  arrives as datagrams of its own; once frames start the server appends it to
+  the *end of a frame update*, so a client checking only the first byte goes
+  deaf exactly when the game begins. Nothing errors — scores and kills simply
+  never arrive, and the server quietly drops the connection with a retransmit
+  timeout that reads like a network fault.
+- **A client that never sends `PKT_TURNSPEED` has a ship that cannot turn.**
+  `MIN_PLAYER_TURNSPEED` is 0.0 and players start at the minimum, so the
+  turn keys are accepted, acknowledged, and do nothing — no error anywhere.
+  Engine power behaves the same way, sitting at 5.0 instead of 55.0. Easy to
+  mistake for bad flying.
+- **A joined ship ignores the controls for ~5 seconds.** Keyboard packets are
+  accepted and acknowledged in every frame the whole time; the ship simply
+  does not move. Re-sending does not help — the server skips any key update
+  whose change counter it has already seen, so only a real press or release
+  counts.
+- **The world wraps, and the protocol never says so.** Most maps set
+  `edgeWrap="yes"`, so subtracting two positions returns the long way round
+  once they are more than half a map apart. Measured on a live game, that
+  made 40% of "which opponent is nearest" answers wrong and put the average
+  bearing out by 81°. The map size needed to correct it exists only in the
+  setup blob at the head of the reliable stream.
+- **Shots are not sent as coordinates.** `PKT_FASTSHOT`'s type byte is an
+  index into a grid of 256-pixel tiles over the player's view, not a colour.
+  Read it as a colour and every shot in the game piles into one corner of
+  the map.
+- **Dying does not stop the frame stream.** The C client's own comment
+  suggests a frame without `PKT_SELF` means the player is dead, so that is
+  where death detection naturally goes. Measured against a live server, an
+  idle bot died ten times in ninety seconds without a single frame missing
+  its `PKT_SELF`. Together with the bug above, this is why "the robots never
+  kill the bot" was believed for so long. They kill it constantly; nobody was
+  listening.
+- **`PKT_PLAYER` is mis-sized by the obvious reading of the protocol.** It
+  carries *two* ship-shape strings, not one, and the reliable stream is
+  undelimited — so reading one string turns everything after it into garbage.
+  Both findings are in [`docs/protocol.md`](docs/protocol.md).
 - **`Console_print` crashed on any format argument**, passing a `va_list` to a
   variadic function. Every existing caller passed a bare string, so it had
   never fired.
@@ -141,8 +185,10 @@ Stated plainly, because they decide what is safe to rely on:
 - **The 144 fps target is unmeasured**, because the reference machine was under
   heavy unrelated load whenever it was tried.
 - **Bots perceive, but the example bot is not good.** Frame decoding is
-  complete; the `hunter` example aims better than chance and no more. Making it
-  play well is Phase 6c.
+  complete; the `hunter` example aims better than chance and no more.
+- **Death detection has never fired in a real game.** It works on synthetic
+  frames, but the built-in robots did not kill the bot in thousands of steps
+  and self-destruct did not either, so the live path is unproven.
 
 ## Licence
 

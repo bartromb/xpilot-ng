@@ -21,7 +21,8 @@ import time
 from dataclasses import dataclass, field
 
 from . import protocol as p
-from .frames import Frame, decode_frame
+from .reliable import ReliableStream
+from .frames import Frame, decode_frame, iter_reliable
 from .packet import Reader, Writer
 
 
@@ -40,6 +41,11 @@ class Status:
     connected: bool = False
     frame: int = 0
     truncated_frames: int = 0
+    #: How often the key state had to be sent again because the server had
+    #: not acknowledged it. A few is normal; a lot means packet loss.
+    key_resends: int = 0
+    #: Seconds between joining and the ship first reacting to a control.
+    ready_after: float | None = None
     login_port: int = 0
     server_version: int = 0
     keys_held: set = field(default_factory=set)
@@ -57,6 +63,9 @@ class Client:
         fps: int = 50,
         team: int = 0xFFFF,
         timeout: float = 3.0,
+        power: float = 55.0,
+        turn_speed: float = 16.0,
+        turn_resistance: float = 0.0,
     ) -> None:
         self.host = host
         self.port = port
@@ -68,6 +77,15 @@ class Client:
         self.view_width = view_width
         self.view_height = view_height
         self.fps = fps
+        # Ship handling. See send_ship_controls -- the turn speed in
+        # particular is load-bearing: leave it unsent and the ship is welded
+        # to one heading.
+        self.power = power
+        self.turn_speed = turn_speed
+        self.turn_resistance = turn_resistance
+        #: Minimum frames between key-state retransmissions. See poll().
+        self.key_resend_frames = 25
+        self._last_key_resend_frame = 0
 
         self.status = Status()
         self._contact: socket.socket | None = None
@@ -78,6 +96,10 @@ class Client:
         # and will eventually drop a client that never acknowledges, so this
         # is not optional even for a bot that ignores the content.
         self._reliable_offset = 0
+        #: Decoded scores, players and messages from that stream. It handles
+        #: the map blob at the head of the stream itself, so segments can be
+        #: fed to it from the first datagram onwards.
+        self.reliable = ReliableStream()
         self._last_loops = 0
         #: The most recently decoded frame, and the bytes it came from.
         self.frame: Frame | None = None
@@ -85,7 +107,7 @@ class Client:
 
     # ---------------------------------------------------------------- join
 
-    def connect(self) -> None:
+    def connect(self, wait_ready: bool = True) -> None:
         """Run the whole handshake, leaving the bot in the game."""
         self._contact_server()
         self._enter_game()
@@ -97,7 +119,14 @@ class Client:
         # in the server's playing-state table; sending it any earlier, during
         # setup or login, is a disconnect.
         self._send_display()
+        # Without this the ship cannot turn. See send_ship_controls.
+        self.send_ship_controls()
         self.status.connected = True
+        if wait_ready:
+            # A freshly-joined ship ignores the controls for about five
+            # seconds. Returning from connect() before then hands back a
+            # client that looks connected and quietly does nothing.
+            self.wait_until_responsive()
 
     def _contact_server(self) -> None:
         self._contact = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -237,6 +266,90 @@ class Client:
 
         return got
 
+    def send_ship_controls(self) -> None:
+        """Tell the server how the ship handles.
+
+        This is not optional and it is not tuning. `MIN_PLAYER_TURNSPEED` is
+        0.0, and a player starts at the minimum (`Player_init` in
+        src/server/player.c), so a client that never sends PKT_TURNSPEED has
+        a ship that **cannot turn at all**. Nothing reports this: the keys
+        are accepted, the frames keep coming, and the heading simply never
+        changes. Measured before this existed, a bot holding turn-right for
+        five seconds stayed at heading 32 the whole time.
+
+        The consequence for a learning agent is worse than a stuck ship. It
+        was being rewarded for pointing at its nearest opponent while having
+        no action available that could change where it pointed, so the aim
+        term was pure noise -- and the benchmark's aim column with it.
+
+        Engine power has the same shape: the default here is what the real
+        client sends (`power` 55.0, `turnSpeed` 16.0, `turnResistance` 0.0
+        in src/client/default.c). The `_s` variants are what the ship does
+        while the shift-modifier is held; the client sends both.
+        """
+        assert self._game is not None
+        for pkt, value in (
+            (p.PKT_POWER, self.power),
+            (p.PKT_POWER_S, self.power),
+            (p.PKT_TURNSPEED, self.turn_speed),
+            (p.PKT_TURNSPEED_S, self.turn_speed),
+            (p.PKT_TURNRESISTANCE, self.turn_resistance),
+            (p.PKT_TURNRESISTANCE_S, self.turn_resistance),
+        ):
+            # The wire format is a short of value * 256.
+            self._game.send(
+                Writer().c(pkt).hd(int(value * 256.0)).bytes())
+
+    def wait_until_responsive(self, timeout: float = 8.0) -> bool:
+        """Block until the ship actually reacts to the controls.
+
+        A freshly-joined ship ignores input for several seconds. Measured:
+        pressing turn-right about a second after joining does nothing at all,
+        while the identical press ten seconds in works. Nothing announces the
+        transition -- the keyboard packet is accepted and acknowledged
+        throughout, the heading simply does not move.
+
+        This matters most for short episodes. At 255 fps with ten frames to a
+        step, a 130-step episode is about five seconds, so an agent that
+        starts the moment it joins can spend most of its first episode
+        issuing commands into a void and learning from the result.
+
+        Re-sending the same key state does not help, because the server skips
+        any update whose change counter it has already seen
+        (`Receive_keyboard`). Only a real transition produces key events, so
+        this toggles a turn key rather than repeating it.
+
+        Returns True once the ship moves, False if it never did.
+        """
+        assert self._game is not None
+        deadline = time.time() + timeout
+        turning = False
+
+        while time.time() < deadline:
+            # Toggle, so the server sees an actual press event.
+            if turning:
+                self.release(p.KEY_TURN_LEFT)
+            else:
+                self.press(p.KEY_TURN_LEFT)
+            turning = not turning
+            self.send_keys()
+
+            seen = set()
+            until = time.time() + 0.5
+            while time.time() < until:
+                frame = self.poll()
+                if frame is not None and frame.self_ is not None:
+                    seen.add(frame.self_.heading)
+                if len(seen) > 1:
+                    self.release_all()
+                    self.send_keys()
+                    self.status.ready_after = time.time() - (deadline - timeout)
+                    return True
+
+        self.release_all()
+        self.send_keys()
+        return False
+
     def request_fps(self, fps: int) -> None:
         """Ask the server for a frame rate.
 
@@ -314,31 +427,40 @@ class Client:
         raise ProtocolError("server never started sending frames")
 
     def _handle_datagram(self, data: bytes) -> None:
-        """Acknowledge the reliable stream. Frame content is not decoded."""
-        if not data or data[0] != p.PKT_RELIABLE:
-            return
-        try:
-            r = Reader(data)
-            r.c()                       # PKT_RELIABLE
-            length = r.hd()
-            rel = r.ld()
-            rel_loops = r.ld()
-        except Reader.Truncated:
+        """Acknowledge and decode every reliable segment in a datagram.
+
+        Not just one, and not only at offset zero. Before frames start, a
+        segment arrives as a datagram of its own; once play begins the server
+        piggybacks it onto the end of a frame update instead, so the datagram
+        starts with PKT_START and the segment is somewhere inside it. Reading
+        only `data[0]` therefore works perfectly through setup and then stops
+        working the instant the game starts -- the stream appears to freeze,
+        nothing is ever acknowledged, and the server eventually drops the
+        connection with a retransmit timeout. That is a slow and confusing
+        way to discover the packet is not where you assumed.
+        """
+        if not data:
             return
 
-        self._last_loops = rel_loops
+        acked = False
+        for rel, rel_loops, payload in iter_reliable(data):
+            self._last_loops = rel_loops
+            self.reliable.feed(rel, payload)
+            # Only advance on the segment we are actually waiting for;
+            # anything else is a retransmission or arrived out of order.
+            if rel == self._reliable_offset:
+                self._reliable_offset += len(payload)
+            acked = True
 
-        # Only advance on the segment we are actually waiting for; anything
-        # else is a retransmission or arrived out of order.
-        if rel == self._reliable_offset:
-            self._reliable_offset += length
+        if not acked:
+            return
 
         try:
             self._game.send(
                 Writer()
                 .c(p.PKT_ACK)
                 .ld(self._reliable_offset)
-                .ld(rel_loops)
+                .ld(self._last_loops)
                 .bytes()
             )
         except OSError:
@@ -404,9 +526,19 @@ class Client:
         self.last_raw = data
 
         frame = decode_frame(data)
-        if frame.truncated:
-            self.status.truncated_frames += 1
-        self.frame = frame
+
+        # No key-state retransmission here. Resending on every frame is a
+        # feedback loop -- a lagging acknowledgement causes resends, which
+        # queue, which widen the lag -- and it is unnecessary anyway: the
+        # environment sends the whole key state every step, so a lost
+        # datagram costs one step, and wait_until_responsive toggles keys
+        # explicitly while waiting for the ship to wake up.
+        #
+        # Removing it did NOT fix the reconnect storm that appears with many
+        # environments on one machine, which is a separate and still-open
+        # problem. See the note in env.reset(). Four environments run clean;
+        # sixteen do not.
+
         return frame
 
     def close(self) -> None:
