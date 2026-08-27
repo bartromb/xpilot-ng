@@ -111,6 +111,9 @@ typedef struct {
 
 #define MIN_SCALEFACTOR		0.1
 #define MAX_SCALEFACTOR		20.0
+/* One press of zoom in or out.  A geometric step so that zooming in and
+   then out returns exactly where you started. */
+#define ZOOM_STEP		1.25
 
 #define FUEL_NOTIFY_TIME	3.0
 #define CONTROL_TIME		8.0
