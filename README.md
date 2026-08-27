@@ -24,7 +24,7 @@ development since 2010 and is kept here only as a provenance link.
 | 5 | Network & hosting | **Done** — including a self-hostable metaserver |
 | 6a | Python bot SDK | **Done** — both packet streams decoded |
 | 6b | Gymnasium RL environment | **Done** — accelerated and parallel |
-| 6c | Learned agents | **Done** — PPO beats random; robots still won't fight |
+| 6c | Learned agents | PPO trains and benchmarks; ahead of random on the server's own score |
 
 Full detail, including everything deliberately *not* done and why, is in
 [`ROADMAP.md`](ROADMAP.md).

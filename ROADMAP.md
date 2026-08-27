@@ -612,6 +612,19 @@ kind of decision from the rest of this phase.
 - [x] Benchmark against the built-in server robots (`ai/xpilot_bot/benchmark.py`),
       reporting kills and deaths from the server's own death notices, always
       against a random-policy baseline on the same map.
+Result as of 2026-08-27: a 180k-step curriculum policy ties random on kills
+(44% against 43%) with the reward difference inside the noise, but finishes
+416 points ahead on the score the *server* computes (+265 against −151) and
+survives about a quarter longer. That score is the one figure training could
+not have gamed, since it owes nothing to the reward function.
+
+Known open problem: with many environments on one machine (16 reproduces it,
+6 does not) every environment starts failing its episode start with "server
+closed the connection", retries, and the run degenerates into a reconnect
+cycle that never finishes a stage. Only stages with robots are affected. The
+server's anti-macro disconnect and client key retransmission have both been
+tested and cleared as causes. Keep `--envs` modest until it is understood.
+
 - [ ] Stretch: LLM as high-level strategy layer / chat personality on top of a
       classical controller (never for frame-level control — latency unsuitable).
       Not attempted.
