@@ -27,4 +27,16 @@ add_library(xpcommon STATIC
     xpmemory.c)
 
 target_include_directories(xpcommon PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
-target_link_libraries(xpcommon PUBLIC xp_common_flags m)
+
+# libm is a separate library on Unix and part of the C runtime on Windows,
+# where asking for it fails the link outright.
+if(WIN32)
+    target_link_libraries(xpcommon PUBLIC xp_common_flags)
+    # Sockets live in ws2_32 rather than libc: recv, select, htons,
+    # WSAGetLastError and __WSAFDIsSet (which is what FD_ISSET expands to)
+    # are all in there. PUBLIC because socklib.c is here but its callers are
+    # in the server and the client.
+    target_link_libraries(xpcommon PUBLIC ws2_32)
+else()
+    target_link_libraries(xpcommon PUBLIC xp_common_flags m)
+endif()
