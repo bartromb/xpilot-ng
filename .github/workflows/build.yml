@@ -245,15 +245,28 @@ jobs:
           file build/bin/*.exe
 
       - name: Server starts and answers a ping
-        # A binary that links is not a binary that runs. This starts the
-        # real server and checks it is listening, which catches a Winsock
-        # startup that never happened.
+        # A binary that links is not a binary that runs. This starts the real
+        # server and checks it is listening, which catches a Winsock startup
+        # that never happened.
+        #
+        # netstat.exe, with the extension, deliberately: MSYS2 also ships a
+        # POSIX netstat that reads /proc/net and cannot see native Windows
+        # sockets, so the bare name finds the wrong tool and reports nothing
+        # for a server that is running perfectly well.
         run: |
           set -eux
           ./build/bin/xpilot-ng-server.exe -map lib/maps/dodgers-robots.xp2 \
               -port 15345 -maxRobots 1 -minRobots 1 -noQuit -idleRun &
-          sleep 8
-          netstat -an | grep -E "15345" || (echo "server is not listening"; exit 1)
+          server_pid=$!
+          sleep 10
+
+          kill -0 "$server_pid" || (echo "server exited on startup"; exit 1)
+
+          if ! /c/Windows/System32/netstat.exe -an | grep -E "15345"; then
+            echo "--- server is not listening; full UDP table follows ---"
+            /c/Windows/System32/netstat.exe -an | grep -i udp | head -40
+            exit 1
+          fi
 
       - name: Package
         run: |
