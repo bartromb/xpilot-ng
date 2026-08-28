@@ -245,28 +245,36 @@ jobs:
           file build/bin/*.exe
 
       - name: Server starts and answers a ping
-        # A binary that links is not a binary that runs. This starts the real
-        # server and checks it is listening, which catches a Winsock startup
-        # that never happened.
+        # A binary that links is not a binary that runs.
         #
-        # netstat.exe, with the extension, deliberately: MSYS2 also ships a
-        # POSIX netstat that reads /proc/net and cannot see native Windows
-        # sockets, so the bare name finds the wrong tool and reports nothing
-        # for a server that is running perfectly well.
+        # Two Windows-specific traps here, both of which reported a healthy
+        # server as dead. MSYS2 ships a POSIX netstat that reads /proc/net
+        # and cannot see native Windows sockets, so netstat.exe is called by
+        # full path. And MSYS2 tracks native (non-MSYS) child processes
+        # loosely, so `kill -0 $!` is not evidence of anything -- tasklist is
+        # asked instead.
         run: |
-          set -eux
+          set -ux
           ./build/bin/xpilot-ng-server.exe -map lib/maps/dodgers-robots.xp2 \
-              -port 15345 -maxRobots 1 -minRobots 1 -noQuit -idleRun &
-          server_pid=$!
-          sleep 10
+              -port 15345 -maxRobots 1 -minRobots 1 -noQuit -idleRun \
+              > server.log 2>&1 &
+          sleep 12
 
-          kill -0 "$server_pid" || (echo "server exited on startup"; exit 1)
+          echo "--- server output ---"
+          cat server.log || true
 
-          if ! /c/Windows/System32/netstat.exe -an | grep -E "15345"; then
-            echo "--- server is not listening; full UDP table follows ---"
-            /c/Windows/System32/netstat.exe -an | grep -i udp | head -40
-            exit 1
+          echo "--- is the process there? ---"
+          /c/Windows/System32/tasklist.exe | grep -i xpilot || true
+
+          echo "--- is the port open? ---"
+          if /c/Windows/System32/netstat.exe -an | grep -E "15345"; then
+            echo "server is listening"
+            exit 0
           fi
+
+          echo "server is NOT listening; UDP table:"
+          /c/Windows/System32/netstat.exe -an | grep -i udp | head -30
+          exit 1
 
       - name: Package
         run: |
