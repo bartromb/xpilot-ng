@@ -2,7 +2,10 @@ name: build
 
 on:
   push:
-    branches: [master, 'phase*']
+    # Every branch. The filter used to be [master, 'phase*'], which meant a
+    # branch named anything else pushed with no CI at all and looked fine --
+    # which is exactly what happened to this one.
+    branches: ['**']
   pull_request:
   workflow_dispatch:
 
@@ -194,3 +197,148 @@ jobs:
             *.log
             build/CMakeFiles/CMakeConfigureLog.yaml
           if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------
+  # Windows. MSYS2/mingw64 because it packages the whole SDL2 family and
+  # expat, so this is a plain CMake build rather than a dependency hunt.
+  # Only the server and the SDL client are built: the X11 client, replay
+  # tool and map editor are Xlib programs.
+  # ---------------------------------------------------------------------
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: false
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-zlib
+            mingw-w64-x86_64-expat
+            mingw-w64-x86_64-SDL2
+            mingw-w64-x86_64-SDL2_ttf
+            mingw-w64-x86_64-SDL2_image
+            mingw-w64-x86_64-SDL2_mixer
+
+      - name: Configure
+        run: |
+          cmake -B build -S . -G Ninja \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DXPILOT_SOUND=ON
+
+      - name: Build
+        run: cmake --build build -j
+
+      - name: The binaries exist and are Windows executables
+        run: |
+          set -eux
+          test -f build/bin/xpilot-ng-server.exe
+          test -f build/bin/xpilot-ng-sdl.exe
+          file build/bin/*.exe
+
+      - name: Server starts and answers a ping
+        # A binary that links is not a binary that runs.
+        #
+        # Two Windows-specific traps here, both of which reported a healthy
+        # server as dead. MSYS2 ships a POSIX netstat that reads /proc/net
+        # and cannot see native Windows sockets, so netstat.exe is called by
+        # full path. And MSYS2 tracks native (non-MSYS) child processes
+        # loosely, so `kill -0 $!` is not evidence of anything -- tasklist is
+        # asked instead.
+        run: |
+          set -ux
+          ./build/bin/xpilot-ng-server.exe -map lib/maps/dodgers-robots.xp2 \
+              -port 15345 -maxRobots 1 -minRobots 1 -noQuit -idleRun \
+              > server.log 2>&1 &
+          sleep 12
+
+          echo "--- server output ---"
+          cat server.log || true
+
+          echo "--- is the process there? ---"
+          /c/Windows/System32/tasklist.exe | grep -i xpilot || true
+
+          echo "--- is the port open? ---"
+          if /c/Windows/System32/netstat.exe -an | grep -E "15345"; then
+            echo "server is listening"
+            exit 0
+          fi
+
+          echo "server is NOT listening; UDP table:"
+          /c/Windows/System32/netstat.exe -an | grep -i udp | head -30
+          exit 1
+
+      - name: Package
+        run: |
+          set -eux
+          mkdir -p dist/xpilot-ng-windows
+          cp build/bin/*.exe dist/xpilot-ng-windows/
+          # MSYS2 binaries need their runtime DLLs alongside them.
+          ldd build/bin/xpilot-ng-sdl.exe \
+            | grep -i mingw64 | awk '{print $3}' | sort -u \
+            | xargs -I{} cp {} dist/xpilot-ng-windows/
+          cp -r lib dist/xpilot-ng-windows/lib
+          cp COPYING README.md BUILDING.md dist/xpilot-ng-windows/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xpilot-ng-windows-x86_64
+          path: dist/xpilot-ng-windows
+
+  # ---------------------------------------------------------------------
+  # macOS. Homebrew has the SDL2 family; zlib and expat come with the SDK.
+  # Same subset as Windows, and for the same reason.
+  # ---------------------------------------------------------------------
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: brew install cmake ninja pkgconf sdl2 sdl2_ttf sdl2_image sdl2_mixer expat
+
+      - name: Configure
+        run: |
+          cmake -B build -S . -G Ninja \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DXPILOT_SOUND=ON \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix expat);$(brew --prefix)"
+
+      - name: Build
+        run: cmake --build build -j
+
+      - name: The binaries exist and are Mach-O executables
+        run: |
+          set -eux
+          test -x build/bin/xpilot-ng-server
+          test -x build/bin/xpilot-ng-sdl
+          file build/bin/xpilot-ng-server build/bin/xpilot-ng-sdl
+
+      - name: Server starts and answers a ping
+        run: |
+          set -eux
+          ./build/bin/xpilot-ng-server -map lib/maps/dodgers-robots.xp2 \
+              -port 15345 -maxRobots 1 -minRobots 1 -noQuit -idleRun &
+          sleep 8
+          lsof -iUDP:15345 || (echo "server is not listening"; exit 1)
+
+      - name: Package
+        run: |
+          set -eux
+          mkdir -p dist/xpilot-ng-macos
+          cp build/bin/xpilot-ng-server build/bin/xpilot-ng-sdl dist/xpilot-ng-macos/
+          cp -R lib dist/xpilot-ng-macos/lib
+          cp COPYING README.md BUILDING.md dist/xpilot-ng-macos/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xpilot-ng-macos
+          path: dist/xpilot-ng-macos

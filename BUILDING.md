@@ -179,6 +179,47 @@ no longer exists, which looks exactly like a broken client. Pass `-noQuit` (wait
 for new players) and `-idleRun` (keep simulating while empty) for any server
 that should outlive a single session.
 
+## Windows
+
+Built with MSYS2's mingw64 toolchain, which packages the whole SDL2 family:
+
+```sh
+pacman -S mingw-w64-x86_64-{gcc,cmake,ninja,pkgconf,zlib,expat} \
+          mingw-w64-x86_64-SDL2{,_ttf,_image,_mixer}
+cmake -B build -S . -G Ninja -DXPILOT_SOUND=ON
+cmake --build build -j
+```
+
+You get `xpilot-ng-server.exe` and `xpilot-ng-sdl.exe`. The X11 client,
+replay tool and map editor are Xlib programs and are not built; CMake works
+that out from the platform rather than failing later with a message about
+libSM.
+
+To hand the build to someone without MSYS2, copy the mingw64 DLLs next to the
+executables — `ldd build/bin/xpilot-ng-sdl.exe | grep mingw64` lists them.
+The CI job does exactly this and uploads the result.
+
+**Cross-checking from Linux.** `x86_64-w64-mingw32-gcc -fsyntax-only` over
+`src/common` and `src/server` catches most portability errors in seconds
+rather than in a ten-minute CI round trip. Two cautions, both learned the
+hard way: point it at a `config.h` with the POSIX `HAVE_*` entries removed,
+or it will "find" headers mingw does not have and mislead you in both
+directions; and add `-Werror=incompatible-pointer-types`, because an older
+mingw waves through what the GCC 14 in MSYS2 rejects.
+
+## macOS
+
+```sh
+brew install cmake ninja pkgconf sdl2 sdl2_ttf sdl2_image sdl2_mixer expat
+cmake -B build -S . -G Ninja -DXPILOT_SOUND=ON \
+      -DCMAKE_PREFIX_PATH="$(brew --prefix expat);$(brew --prefix)"
+cmake --build build -j
+```
+
+Same two binaries, same reason. Note that OpenGL is a framework here
+(`<OpenGL/gl.h>`) while a Homebrew SDL2 uses ordinary include paths — the two
+are chosen independently, which they were not before.
+
 **Zoom.** `+` / `=` / keypad-plus zoom in, `-` / keypad-minus zoom out, and
 the level is shown on screen. Rebind with `-keyZoomIn` / `-keyZoomOut`. Under
 the hood this scales `scaleFactor`, which is how much of the world the client

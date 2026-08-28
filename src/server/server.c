@@ -202,13 +202,10 @@ int main(int argc, char **argv)
     else
 	timer_tick_rate = FPS;
 
-# ifdef _WINDOWS
-    /* Windows returns here, we let the worker thread call sched() */
-    install_timer_tick(ServerThreadTimerProc, timer_tick_rate);
-# else
+    /* Windows used to install a ServerThreadTimerProc here, a function that
+       exists nowhere in this tree; its timer is now driven from the clock
+       inside sched(), so both platforms install the same handler. */
     install_timer_tick(Main_loop, timer_tick_rate);
-
-# endif
 #endif
 
     sched();

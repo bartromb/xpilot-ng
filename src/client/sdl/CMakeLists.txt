@@ -30,29 +30,41 @@ add_executable(xpilot-ng-sdl
     text.c
     todo.c)
 
-# Matches the autotools COND_SDL_GAMELOOP conditional. win32hacks.c is
-# Windows-only and is not part of the CMake build.
+# Matches the autotools COND_SDL_GAMELOOP conditional. gameloop_x.c drives
+# the loop through Xlib directly; gameloop.c is pure SDL and is the only one
+# that compiles off X11.
 if(XPILOT_SDL_GAMELOOP)
     target_sources(xpilot-ng-sdl PRIVATE gameloop.c)
 else()
     target_sources(xpilot-ng-sdl PRIVATE gameloop_x.c)
 endif()
 
+if(WIN32)
+    target_sources(xpilot-ng-sdl PRIVATE win32hacks.c)
+endif()
+
 target_link_libraries(xpilot-ng-sdl PRIVATE
     xpclient
     xpcommon
-    PkgConfig::SDL2
-    PkgConfig::SDL2_TTF
+    ${XP_SDL2_LIBS}
+    ${XP_SDL2_TTF_LIBS}
     OpenGL::GL
-    OpenGL::GLU
-    X11::X11
-    X11::SM
-    X11::ICE
     EXPAT::EXPAT
     ZLIB::ZLIB)
 
-if(SDL2_IMAGE_FOUND)
-    target_link_libraries(xpilot-ng-sdl PRIVATE PkgConfig::SDL2_IMAGE)
+# GLU is not part of the Windows SDK the way it is on Unix; the OpenGL
+# package only reports it where it exists.
+if(OPENGL_GLU_FOUND)
+    target_link_libraries(xpilot-ng-sdl PRIVATE OpenGL::GLU)
+endif()
+
+# Only linked when the X11 game loop is in use -- see above.
+if(NOT XPILOT_SDL_GAMELOOP)
+    target_link_libraries(xpilot-ng-sdl PRIVATE X11::X11 X11::SM X11::ICE)
+endif()
+
+if(HAVE_SDL_IMAGE)
+    target_link_libraries(xpilot-ng-sdl PRIVATE ${XP_SDL2_IMAGE_LIBS})
 endif()
 
 install(TARGETS xpilot-ng-sdl RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")

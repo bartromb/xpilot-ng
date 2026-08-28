@@ -40,11 +40,9 @@ void install_timer_tick(void (*func)(void), int freq);
 
 #else /* SELECT_SCHED */
 
-#ifndef _WINDOWS
+/* One signature on both platforms now: the Windows timer is derived from the
+   clock in sched() rather than from a Win32 TIMERPROC. */
 void install_timer_tick(void (*func)(void), int freq);
-#else
-extern	void install_timer_tick(void (__stdcall *func)(void *,unsigned int ,unsigned int ,unsigned long ), int freq);
-#endif
 void install_timeout(void (*func)(void *), int offset, void *arg);
 void remove_timeout(void (*func)(void *), void *arg);
 

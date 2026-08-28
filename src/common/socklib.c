@@ -280,8 +280,22 @@ int sock_set_non_blocking(sock_t *sock, int flag)
 #endif
 
 #ifdef USE_IOCTL_FIONBIO
-    if (ioctl(sock->fd, FIONBIO, &flag) == 0)
-	return SOCK_IS_OK;
+    {
+	/*
+	 * POSIX ioctl() takes an int through this argument; Winsock's
+	 * ioctlsocket() takes a u_long. Passing &flag suits one and not the
+	 * other, and casting would be worse than it looks -- it would write
+	 * u_long-many bytes into an int on any platform where the two
+	 * differ. So declare the argument with the type the call wants.
+	 */
+#ifdef _WINDOWS
+	u_long nonblocking = (flag != 0) ? 1UL : 0UL;
+#else
+	int nonblocking = flag;
+#endif
+	if (ioctl(sock->fd, FIONBIO, &nonblocking) == 0)
+	    return SOCK_IS_OK;
+    }
     sock_set_error(sock, errno, SOCK_CALL_FCNTL, __LINE__);
     sprintf(buf, "ioctl FIONBIO failed in socklib.c line %d", __LINE__);
     perror(buf);

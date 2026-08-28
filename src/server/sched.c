@@ -64,14 +64,14 @@ static fd_set			input_mask;
 int				max_fd, min_fd;
 static int			input_inited = false;
 
-#if !defined(_WINDOWS)
+/* Both platforms now: the Windows sched() has a loop of its own to stop,
+   which is why this used to be excluded there. */
 static volatile bool sched_running = false;
 
 void stop_sched(void)
 {
 	sched_running = false;
 }
-#endif
 
 static void io_dummy(int fd, void *arg)
 {
@@ -333,11 +333,7 @@ void sched(void)
 static volatile long	timer_ticks;	/* SIGALRMs that have occurred */
 static long		timers_used;	/* SIGALRMs that have been used */
 static long		timer_freq;	/* rate at which timer ticks. (in FPS) */
-#ifndef _WINDOWS
 static void		(*timer_handler)(void);
-#else
-static	TIMERPROC	timer_handler;
-#endif
 static time_t		current_time;
 static int		ticks_till_second;
 
@@ -477,12 +473,22 @@ void install_timer_tick(void (*func)(void), int freq)
 }
 #else
 
-typedef void (__stdcall *windows_timer_t)(void *, unsigned int, unsigned int, unsigned long);
-
-void install_timer_tick(windows_timer_t func, int freq)
+/*
+ * Same signature as the Unix one, deliberately.
+ *
+ * This used to take a Windows TIMERPROC and hand it to SetTimer -- except
+ * the SetTimer call was commented out, and the function it was given,
+ * ServerThreadTimerProc, does not exist anywhere in the tree. It lived in
+ * the old Win32 GUI wrapper, which this repository does not have. So the
+ * Windows server had no timer at all and could not have run.
+ *
+ * Rather than resurrect a message-loop timer for a console program, the
+ * ticks are now produced from the clock inside sched(); see there.
+ */
+void install_timer_tick(void (*func)(void), int freq)
 {
-    if (func != NULL)
-	timer_handler = (TIMERPROC)func;
+    if (func != NULL) /* NULL to change freq, keep same handler */
+	timer_handler = func;
     timer_freq = freq;
     setup_timer();
 }
@@ -710,10 +716,75 @@ void sched(void)
 }
 
 #else /* _WINDOWS */
+
+/*
+ * Advance timer_ticks according to how much real time has passed.
+ *
+ * On Unix a SIGALRM does this. Windows has no equivalent for a console
+ * process without a message loop, so the tick is derived from the clock each
+ * time round the scheduler instead. Same contract either way: timer_ticks
+ * counts ticks that have happened, timers_used counts ticks consumed.
+ *
+ * Catching up is capped. If the process is descheduled for a second, running
+ * a second's worth of frames back to back would be worse than dropping them:
+ * every player would see the world lurch.
+ */
+#define MAX_TICK_CATCHUP	4
+
+static void timer_ticks_from_clock(void)
+{
+    static double	next_tick = 0.0;
+    struct timeval	now;
+    double		seconds, interval;
+    int			caught_up = 0;
+
+    if (timer_freq <= 0)
+	return;
+
+    gettimeofday(&now, NULL);
+    seconds = (double)now.tv_sec + (double)now.tv_usec / 1000000.0;
+    interval = 1.0 / (double)timer_freq;
+
+    if (next_tick == 0.0)
+	next_tick = seconds + interval;
+
+    while (seconds >= next_tick && caught_up < MAX_TICK_CATCHUP) {
+	timer_ticks++;
+	next_tick += interval;
+	caught_up++;
+    }
+
+    /* Too far behind to catch up honestly: resynchronise. */
+    if (seconds >= next_tick)
+	next_tick = seconds + interval;
+}
+
 void sched(void)
 {
     int			i, n, io_todo = 3;
     struct timeval	tv, *tvp = &tv;
+
+    /*
+     * This used to have no loop in it at all: one pass and return.
+     *
+     * That was correct for what it was written for -- the old Win32 GUI
+     * server, whose worker thread called sched() over and over. This
+     * repository does not have that wrapper, so server.c called sched()
+     * once, got control straight back, and went on to End_game(). The
+     * server therefore started, loaded the map, announced "Server runs at 50
+     * frames per second", and exited a moment later, which is exactly what
+     * CI caught it doing.
+     *
+     * It now loops on sched_running like the Unix one.
+     */
+    if (sched_running)
+	dumpcore("sched already running");
+    else
+	sched_running = true;
+
+    while (sched_running) {
+
+    timer_ticks_from_clock();
 
     if (NumPlayers > NumRobots + NumPseudoPlayers
 	|| login_in_progress != 0
@@ -737,6 +808,10 @@ void sched(void)
 	tvp = &tv;
 
 	do {
+	    /* The Unix path calls this from its own tick loop; without it
+	       the server would keep perfect time and never play a frame. */
+	    if (timer_handler)
+		(*timer_handler)();
 	    ++timers_used;
 	    if (--ticks_till_second <= 0) {
 		ticks_till_second += timer_freq;
@@ -774,6 +849,8 @@ void sched(void)
 	    tvp = NULL;
 	}
     }
+
+    }	/* while (sched_running) */
 }
 
 #endif /* _WINDOWS */

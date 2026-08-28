@@ -51,8 +51,15 @@ typedef struct { int bx, by; }		blkvec_t;
 typedef blkvec_t			blkpos_t;
 
 #ifdef _WINDOWS
-# define strncasecmp(__s, __t, __l)	strnicmp(__s, __t, __l)
-# define strcasecmp(__s, __t)	stricmp(__s, __t)
+/* MSVC spelt these strnicmp/stricmp. mingw's <string.h> already maps the
+   POSIX names onto the underscore-prefixed ones, so redefining them here is
+   both unnecessary and a warning; only fill the gap if it is really a gap. */
+# ifndef strncasecmp
+#  define strncasecmp(__s, __t, __l)	strnicmp(__s, __t, __l)
+# endif
+# ifndef strcasecmp
+#  define strcasecmp(__s, __t)	stricmp(__s, __t)
+# endif
 #endif
 
 #endif
