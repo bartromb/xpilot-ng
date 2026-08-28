@@ -25,7 +25,7 @@ development since 2010 and is kept here only as a provenance link.
 | 6a | Python bot SDK | **Done** — both packet streams decoded |
 | 6b | Gymnasium RL environment | **Done** — accelerated and parallel |
 | 6c | Learned agents | PPO trains and benchmarks; ahead of random on the server's own score |
-| — | Windows and macOS | In progress — server and SDL client, built in CI |
+| — | Windows and macOS | **Done** — server and SDL client, verified running in CI |
 
 Full detail, including everything deliberately *not* done and why, is in
 [`ROADMAP.md`](ROADMAP.md).
@@ -43,9 +43,10 @@ map editor are Xlib programs and are not built there.
 | X11 client, replay, map editor | ✅ | — | — |
 
 Both are built by CI on real `windows-latest` and `macos-latest` runners, and
-each job starts the server and checks it is listening — a binary that links
-is not a binary that runs. Downloadable builds are attached to each CI run as
-artifacts.
+each job starts the server and checks it is listening. That check was not
+ceremony: the Windows server built and linked perfectly while being incapable
+of running for more than a few seconds, and only the runtime check caught it.
+Downloadable builds are attached to every CI run as artifacts.
 
 ## Quick start
 
@@ -141,6 +142,12 @@ Several of these had been in the code for decades:
   turn keys are accepted, acknowledged, and do nothing — no error anywhere.
   Engine power behaves the same way, sitting at 5.0 instead of 55.0. Easy to
   mistake for bad flying.
+- **The Windows server could never have run**, in any version of this tree.
+  Three faults in one function: its timer installed a callback that exists
+  nowhere in the source, the tick consumer never invoked the frame handler,
+  and the scheduler had no loop — one pass and it fell through to shutdown.
+  It builds, links, loads the map, prints "Server runs at 50 frames per
+  second", and exits. Nothing but running it would have found this.
 - **A joined ship ignores the controls for ~5 seconds.** Keyboard packets are
   accepted and acknowledged in every frame the whole time; the ship simply
   does not move. Re-sending does not help — the server skips any key update
