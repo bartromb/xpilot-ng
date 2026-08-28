@@ -48,15 +48,39 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
 # ---------------------------------------------------------------------------
+# Platform
+#
+# The X11 client, the replay tool and the map editor are built on Xlib and
+# only make sense where there is an X server. The SDL client and the server
+# are portable, so those are what Windows and macOS get. Defaults are chosen
+# per platform rather than left to fail at find_package time with an error
+# about libSM that tells a Windows user nothing.
+# ---------------------------------------------------------------------------
+
+if(WIN32 OR APPLE)
+    set(XP_HAVE_X11 OFF)
+else()
+    set(XP_HAVE_X11 ON)
+endif()
+
+# ---------------------------------------------------------------------------
 # Options. Names and defaults mirror the autotools --enable/--disable flags.
 # ---------------------------------------------------------------------------
 
-option(XPILOT_X11_CLIENT   "Build the X11 client"                ON)
+option(XPILOT_X11_CLIENT   "Build the X11 client"                ${XP_HAVE_X11})
 option(XPILOT_SDL_CLIENT   "Build the SDL/OpenGL client"         ON)
-option(XPILOT_REPLAY       "Build the replay tool"               ON)
-option(XPILOT_MAPEDIT      "Build the map editor"                ON)
+option(XPILOT_REPLAY       "Build the replay tool"               ${XP_HAVE_X11})
+option(XPILOT_MAPEDIT      "Build the map editor"                ${XP_HAVE_X11})
 option(XPILOT_SOUND        "Enable sound (SDL2_mixer)"           OFF)
-option(XPILOT_SDL_GAMELOOP "Use the SDL game loop (not the X11-optimised one)" OFF)
+# The X11-optimised game loop calls Xlib directly, so off-X11 platforms need
+# the portable one. It is not a preference there, it is the only one that
+# compiles.
+if(XP_HAVE_X11)
+    set(XP_SDL_GAMELOOP_DEFAULT OFF)
+else()
+    set(XP_SDL_GAMELOOP_DEFAULT ON)
+endif()
+option(XPILOT_SDL_GAMELOOP "Use the SDL game loop (not the X11-optimised one)" ${XP_SDL_GAMELOOP_DEFAULT})
 option(XPILOT_DBE          "X Double Buffer Extension support"   OFF)
 option(XPILOT_MBX          "X Multibuffer Extension support"     OFF)
 option(XPILOT_PLOCKSERVER  "Lock the server into memory"         OFF)
@@ -83,8 +107,11 @@ endif()
 find_package(ZLIB REQUIRED)
 find_package(EXPAT REQUIRED)
 
-# X11 is needed by both clients, the replay tool and the map editor.
-if(XPILOT_X11_CLIENT OR XPILOT_SDL_CLIENT OR XPILOT_REPLAY OR XPILOT_MAPEDIT)
+# X11 is needed by the X11 client, the replay tool and the map editor. The
+# SDL client needs it too, but only when it is using the X11-optimised game
+# loop -- with XPILOT_SDL_GAMELOOP it is pure SDL.
+if(XPILOT_X11_CLIENT OR XPILOT_REPLAY OR XPILOT_MAPEDIT
+   OR (XPILOT_SDL_CLIENT AND NOT XPILOT_SDL_GAMELOOP))
     find_package(X11 REQUIRED)
     if(NOT X11_SM_LIB OR NOT X11_ICE_LIB)
         message(FATAL_ERROR
@@ -94,23 +121,61 @@ endif()
 
 if(XPILOT_SDL_CLIENT)
     find_package(OpenGL REQUIRED)
-    if(NOT OPENGL_GLU_FOUND)
+    if(NOT OPENGL_GLU_FOUND AND NOT WIN32)
         message(FATAL_ERROR "GLU is required (install libglu1-mesa-dev)")
     endif()
 
-    find_package(PkgConfig REQUIRED)
-    pkg_check_modules(SDL2 REQUIRED IMPORTED_TARGET sdl2)
-    pkg_check_modules(SDL2_TTF REQUIRED IMPORTED_TARGET SDL2_ttf)
-    pkg_check_modules(SDL2_IMAGE IMPORTED_TARGET SDL2_image)
+    # pkg-config is how SDL2 is found on Linux and on MSYS2. Elsewhere --
+    # notably a Homebrew or vcpkg install -- SDL2 ships CMake config files,
+    # so fall back to those rather than requiring pkg-config everywhere.
+    find_package(PkgConfig QUIET)
+    if(PKG_CONFIG_FOUND)
+        pkg_check_modules(SDL2 IMPORTED_TARGET sdl2)
+        pkg_check_modules(SDL2_TTF IMPORTED_TARGET SDL2_ttf)
+        pkg_check_modules(SDL2_IMAGE IMPORTED_TARGET SDL2_image)
+    endif()
+
+    if(SDL2_FOUND)
+        set(XP_SDL2_LIBS PkgConfig::SDL2)
+    else()
+        find_package(SDL2 REQUIRED)
+        set(XP_SDL2_LIBS SDL2::SDL2)
+    endif()
+
+    if(SDL2_TTF_FOUND)
+        set(XP_SDL2_TTF_LIBS PkgConfig::SDL2_TTF)
+    else()
+        find_package(SDL2_ttf REQUIRED)
+        set(XP_SDL2_TTF_LIBS SDL2_ttf::SDL2_ttf)
+    endif()
+
     if(SDL2_IMAGE_FOUND)
         set(HAVE_SDL_IMAGE TRUE)
+        set(XP_SDL2_IMAGE_LIBS PkgConfig::SDL2_IMAGE)
+    else()
+        find_package(SDL2_image QUIET)
+        if(SDL2_image_FOUND)
+            set(HAVE_SDL_IMAGE TRUE)
+            set(XP_SDL2_IMAGE_LIBS SDL2_image::SDL2_image)
+        endif()
     endif()
 endif()
 
 if(XPILOT_SOUND)
     # Audio is SDL2_mixer as of Phase 3; the OpenAL/freealut backend is gone.
-    find_package(PkgConfig REQUIRED)
-    pkg_check_modules(SDL2_MIXER IMPORTED_TARGET SDL2_mixer)
+    find_package(PkgConfig QUIET)
+    if(PKG_CONFIG_FOUND)
+        pkg_check_modules(SDL2_MIXER IMPORTED_TARGET SDL2_mixer)
+    endif()
+    if(SDL2_MIXER_FOUND)
+        set(XP_SDL2_MIXER_LIBS PkgConfig::SDL2_MIXER)
+    else()
+        find_package(SDL2_mixer QUIET)
+        if(SDL2_mixer_FOUND)
+            set(SDL2_MIXER_FOUND TRUE)
+            set(XP_SDL2_MIXER_LIBS SDL2_mixer::SDL2_mixer)
+        endif()
+    endif()
     if(NOT SDL2_MIXER_FOUND)
         # Autotools downgraded a missing audio library to a warning and
         # silently produced a mute binary, which was easy to miss. Fail loudly.
