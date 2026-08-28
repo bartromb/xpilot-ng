@@ -31,9 +31,23 @@
 # define USUAL_SDL_INCLUDE_CONVENTION 1
 #endif
 
-#ifdef USUAL_SDL_INCLUDE_CONVENTION
+/*
+ * OpenGL lives in a different place on Apple platforms, and that is
+ * independent of where SDL lives -- a Homebrew SDL2 uses the ordinary
+ * include convention while GL is still a framework header. Choosing both
+ * from one switch, which is what this file used to do, means a macOS build
+ * either cannot find GL/gl.h or starts looking for SDL1 framework headers
+ * that are not there either.
+ */
+#ifdef __APPLE__
+# include <OpenGL/gl.h>
+# include <OpenGL/glu.h>
+#else
 # include <GL/gl.h>
 # include <GL/glu.h>
+#endif
+
+#ifdef USUAL_SDL_INCLUDE_CONVENTION
 # include "SDL.h"
 # include "SDL_events.h"
 # include "SDL_video.h"
@@ -46,8 +60,6 @@
 #endif
 
 #ifdef MACOSX_FRAMEWORKS
-# include <OpenGL/gl.h>
-# include <OpenGL/glu.h>
 # include <SDL/SDL.h>
 # include <SDL/SDL_events.h>
 # include <SDL/SDL_video.h>
