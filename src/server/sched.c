@@ -64,14 +64,14 @@ static fd_set			input_mask;
 int				max_fd, min_fd;
 static int			input_inited = false;
 
-#if !defined(_WINDOWS)
+/* Both platforms now: the Windows sched() has a loop of its own to stop,
+   which is why this used to be excluded there. */
 static volatile bool sched_running = false;
 
 void stop_sched(void)
 {
 	sched_running = false;
 }
-#endif
 
 static void io_dummy(int fd, void *arg)
 {
@@ -764,6 +764,26 @@ void sched(void)
     int			i, n, io_todo = 3;
     struct timeval	tv, *tvp = &tv;
 
+    /*
+     * This used to have no loop in it at all: one pass and return.
+     *
+     * That was correct for what it was written for -- the old Win32 GUI
+     * server, whose worker thread called sched() over and over. This
+     * repository does not have that wrapper, so server.c called sched()
+     * once, got control straight back, and went on to End_game(). The
+     * server therefore started, loaded the map, announced "Server runs at 50
+     * frames per second", and exited a moment later, which is exactly what
+     * CI caught it doing.
+     *
+     * It now loops on sched_running like the Unix one.
+     */
+    if (sched_running)
+	dumpcore("sched already running");
+    else
+	sched_running = true;
+
+    while (sched_running) {
+
     timer_ticks_from_clock();
 
     if (NumPlayers > NumRobots + NumPseudoPlayers
@@ -829,6 +849,8 @@ void sched(void)
 	    tvp = NULL;
 	}
     }
+
+    }	/* while (sched_running) */
 }
 
 #endif /* _WINDOWS */
