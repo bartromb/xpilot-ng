@@ -37,8 +37,11 @@
 #endif
 
 #ifdef _WINDOWS
-#ifdef _MSC_VER
+/* _mkdir lives here on every Windows compiler, not just MSVC, and mkdir is
+   redefined to it below regardless -- so including this only under _MSC_VER
+   left mingw calling an undeclared function. */
 # include <direct.h>
+#ifdef _MSC_VER
 # define snprintf _snprintf
 # define printf Trace
 # define X_OK 0
@@ -47,6 +50,11 @@
 # define W_OK 2
 # define R_OK 4
 # define mkdir(A,B) _mkdir(A)
+/* A progress notice during connection setup. The old Win32 GUI client put
+   these in a dialog; the SDL client has no dialog and stubs it out in
+   win32hacks.c. Declared here because the code that calls it, through
+   IFWINDOWS(), is the shared client code. */
+extern void Progress(const char *fmt, ...);
 extern bool threadedDraw; /* default.c */
 #endif
 
