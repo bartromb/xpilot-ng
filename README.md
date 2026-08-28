@@ -25,9 +25,27 @@ development since 2010 and is kept here only as a provenance link.
 | 6a | Python bot SDK | **Done** — both packet streams decoded |
 | 6b | Gymnasium RL environment | **Done** — accelerated and parallel |
 | 6c | Learned agents | PPO trains and benchmarks; ahead of random on the server's own score |
+| — | Windows and macOS | In progress — server and SDL client, built in CI |
 
 Full detail, including everything deliberately *not* done and why, is in
 [`ROADMAP.md`](ROADMAP.md).
+
+## Platforms
+
+Linux is the reference platform and builds everything. Windows and macOS
+build the **server** and the **SDL client**; the X11 client, replay tool and
+map editor are Xlib programs and are not built there.
+
+| | Linux | Windows | macOS |
+|---|---|---|---|
+| server | ✅ | ✅ | ✅ |
+| SDL client | ✅ | ✅ | ✅ |
+| X11 client, replay, map editor | ✅ | — | — |
+
+Both are built by CI on real `windows-latest` and `macos-latest` runners, and
+each job starts the server and checks it is listening — a binary that links
+is not a binary that runs. Downloadable builds are attached to each CI run as
+artifacts.
 
 ## Quick start
 
