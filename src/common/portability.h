@@ -117,10 +117,15 @@ typedef int int32_t;
 #    define EPOCHFILETIME (116444736000000000LL)
 #  endif
 
+/* mingw declares struct timezone in <sys/time.h>; MSVC does not. Defining
+   it unconditionally is a redefinition error on the compiler this actually
+   gets built with now. */
+#  if !defined(__MINGW32__)
 struct timezone {
     int tz_minuteswest; /* minutes W of Greenwich */
     int tz_dsttime;     /* type of dst correction */
 };
+#  endif
 
 
 #  ifndef HAVE_GETTIMEOFDAY

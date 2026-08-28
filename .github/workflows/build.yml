@@ -2,7 +2,10 @@ name: build
 
 on:
   push:
-    branches: [master, 'phase*']
+    # Every branch. The filter used to be [master, 'phase*'], which meant a
+    # branch named anything else pushed with no CI at all and looked fine --
+    # which is exactly what happened to this one.
+    branches: ['**']
   pull_request:
   workflow_dispatch:
 

@@ -30,7 +30,25 @@
 # include <config.h>
 #endif
 
+/*
+ * The Windows blocks throughout this tree are spelt _WINDOWS, which was the
+ * MSVC project's macro. Every compiler that targets Windows defines _WIN32,
+ * so derive the old name from it rather than relying on the build system to
+ * pass it.
+ */
+#if defined(_WIN32) && !defined(_WINDOWS)
+# define _WINDOWS 1
+#endif
+
 #ifdef _WINDOWS
+/*
+ * Sockets first, and winsock2 before anything that might drag in
+ * <windows.h>: including them the other way round gets the ancient
+ * winsock.h declarations instead and a pile of redefinition errors.
+ * ws2tcpip.h is what provides socklen_t and getaddrinfo.
+ */
+# include <winsock2.h>
+# include <ws2tcpip.h>
 # define HAVE_ASSERT_H 1
 # define HAVE_CTYPE_H 1
 # define HAVE_ERRNO_H 1
