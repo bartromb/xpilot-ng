@@ -47,6 +47,17 @@
 # include <GL/glu.h>
 #endif
 
+/*
+ * Windows ships the OpenGL 1.1 headers from 1996 and nothing newer, so a
+ * constant as ordinary as GL_CLAMP_TO_EDGE -- OpenGL 1.2, 1998 -- is simply
+ * absent there. The driver supports it; only the header is stuck. Defining
+ * the value is what every portable GL program ends up doing, short of
+ * pulling in a loader like GLEW for one number.
+ */
+#ifndef GL_CLAMP_TO_EDGE
+# define GL_CLAMP_TO_EDGE 0x812F
+#endif
+
 #ifdef USUAL_SDL_INCLUDE_CONVENTION
 # include "SDL.h"
 # include "SDL_events.h"
