@@ -202,6 +202,12 @@ Several of these had been in the code for decades:
   same option. The option now follows the library: sound is on when
   SDL2_mixer is installed. Confirmed by recording the audio device, not by
   ear: 41% of full scale while firing, against a silent baseline.
+- **The Windows client killed its own connection.** It quit about a second
+  after entering a game. Winsock reports through `WSAGetLastError()`, not
+  `errno`, and its codes are different numbers: the code stored
+  `WSAEWOULDBLOCK` (10035) into `errno` and compared it against `EWOULDBLOCK`
+  (140) and `EAGAIN` (11), so a non-blocking read with no data yet could never
+  be recognised as such. Every idle poll looked like a dead socket.
 - **Windows builds could not report their own errors.** Every `error()`,
   `warn()` and `fatal()` funnelled into a function whose MessageBox was
   commented out and whose only other output expands to nothing outside debug
@@ -237,11 +243,9 @@ Several of these had been in the code for decades:
 
 Stated plainly, because they decide what is safe to rely on:
 
-- **The Windows client quits about a second after entering a game.** It builds,
-  starts, shows its menu and joins a server; then the window closes and the
-  server records a clean "client quit". Cause unknown. The Windows *server* is
-  started and checked alive by CI on real Windows; the client is not, and no
-  one has run it on real Windows at all.
+- **The Windows client has only ever been run under Wine.** It now plays there
+  — joined, rendering, stable — but the Windows *server* is all CI exercises on
+  real Windows, and nobody has run the client on real hardware.
 - **Wayland is untested.** The default game loop needs an X11 video driver and
   says so; native Wayland needs `-DXPILOT_SDL_GAMELOOP=ON` verified.
 - **Audio has never been listened to.** It demonstrably reaches the device —
