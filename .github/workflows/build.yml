@@ -559,10 +559,15 @@ jobs:
           cd /
           "$app/Contents/MacOS/xpilot-ng-server" -map blood-music.xp2 \
               -port 15347 -noQuit -idleRun > /tmp/dmg-run.log 2>&1 &
+          srv=$!
           sleep 8
           cat /tmp/dmg-run.log || true
           lsof -iUDP:15347 || (echo "app cannot find its data"; exit 1)
-          hdiutil detach /tmp/xpdmg
+          # The server anchored itself into the mounted image, so it holds the
+          # volume open. Stop it before unmounting, or detach fails busy.
+          kill "$srv" 2>/dev/null || true
+          wait "$srv" 2>/dev/null || true
+          hdiutil detach /tmp/xpdmg || hdiutil detach -force /tmp/xpdmg
 
       - uses: actions/upload-artifact@v4
         with:
