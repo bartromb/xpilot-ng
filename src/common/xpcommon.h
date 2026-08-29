@@ -257,7 +257,7 @@ extern char *showtime(void);
 #  include "NT/winX.h"
 #  include "../client/NT/winClient.h"*/
 # endif
-static void Win_show_error(char *errmsg);
+static void Win_show_error(const char *level, char *errmsg);
 # include <io.h>
 # include <process.h>
 # include "NT/winNet.h"

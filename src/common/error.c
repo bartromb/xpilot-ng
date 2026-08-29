@@ -157,32 +157,40 @@ void dumpcore(const char *fmt, ...)
 #endif /* _WINDOWS */
 
 #ifdef _WINDOWS
-static void Win_show_error(char *s)
+/*
+ * Every diagnostic on Windows funnelled through here, and here it died: the
+ * only surviving output was Trace(), which expands to nothing unless _DEBUG
+ * is defined (the MessageBox that used to sit here had been commented out).
+ * In a release build error(), warn(), fatal() and xpinfo() therefore printed
+ * nothing at all -- a Windows client could refuse to start, or quit for a
+ * reason it had carefully worded, and leave an empty log behind. Write to
+ * stderr like every other platform does.
+ */
+static void Win_show_error(const char *level, char *s)
 {
     static int inerror = FALSE;
+    size_t len;
+
     Trace("Error: %s\n", s);
+
     if (inerror) return;
     inerror = TRUE;
-    {
-#ifdef   _XPILOTNTSERVER_
-	/* putting up a message box on the server is a bad thing.
-	   It kinda halts the server, which is a bad thing to do for
-	   the simple info messages (nick in use) that call this routine
-	*/
-	xpprintf("%s %s\n", showtime(), s);
-#else
-	/*
-	if (MessageBox(NULL, s, "Error", MB_OKCANCEL | MB_TASKMODAL)
-	    == IDCANCEL) {
-# ifdef   _XPMON_
-	    xpmemShutdown();
-# endif
-	    ExitProcess(1);
-	}
-	*/
-#endif
-    }
-    /* kps - moved out from ifdef block, seems to be a better idea. */
+
+    if (progname[0] != '\0')
+	fprintf(stderr, "%s: %s: ", progname, level);
+    else
+	fprintf(stderr, "%s: ", level);
+
+    fputs(s, stderr);
+
+    len = strlen(s);
+    if (len == 0 || s[len - 1] != '\n')
+	fputc('\n', stderr);
+
+    /* Windows leaves stderr block-buffered when it is redirected to a file,
+     * so a message about an imminent exit would otherwise be lost. */
+    fflush(stderr);
+
     inerror = FALSE;
 }
 
@@ -192,26 +200,31 @@ void xpinfo(const char *fmt, ...)
     char s[512];
 
     va_start(ap, fmt);
-
-    vsprintf(s, fmt, ap);
-
-    Win_show_error(s);
-
+    vsnprintf(s, sizeof s, fmt, ap);
     va_end(ap);
+
+    Win_show_error("INFO", s);
 }
 
 void error(const char *fmt, ...)
 {
     va_list ap;
     char s[512];
+    int e = errno;
+    size_t len;
 
     va_start(ap, fmt);
-
-    vsprintf(s, fmt, ap);
-
-    Win_show_error(s);
-
+    vsnprintf(s, sizeof s, fmt, ap);
     va_end(ap);
+
+    /* Match the POSIX build, which reports what errno had to say. */
+    if (e != 0) {
+	len = strlen(s);
+	if (len < sizeof s - 1)
+	    snprintf(s + len, sizeof s - len, ": (%s)", strerror(e));
+    }
+
+    Win_show_error("ERROR", s);
 }
 
 void warn(const char *fmt, ...)
@@ -220,12 +233,10 @@ void warn(const char *fmt, ...)
     char s[512];
 
     va_start(ap, fmt);
-
-    vsprintf(s, fmt, ap);
-
-    Win_show_error(s);
-
+    vsnprintf(s, sizeof s, fmt, ap);
     va_end(ap);
+
+    Win_show_error("WARNING", s);
 }
 
 void fatal(const char *fmt, ...)
@@ -234,12 +245,10 @@ void fatal(const char *fmt, ...)
     char s[512];
 
     va_start(ap, fmt);
-
-    vsprintf(s, fmt, ap);
-
-    Win_show_error(s);
-
+    vsnprintf(s, sizeof s, fmt, ap);
     va_end(ap);
+
+    Win_show_error("FATAL", s);
 
     exit(1);
 }
@@ -250,12 +259,10 @@ void dumpcore(const char *fmt, ...)
     char s[512];
 
     va_start(ap, fmt);
-
-    vsprintf(s, fmt, ap);
-
-    Win_show_error(s);
-
+    vsnprintf(s, sizeof s, fmt, ap);
     va_end(ap);
+
+    Win_show_error("ABORT", s);
 
     exit(1);
 }
