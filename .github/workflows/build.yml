@@ -281,12 +281,37 @@ jobs:
           set -eux
           mkdir -p dist/xpilot-ng-windows
           cp build/bin/*.exe dist/xpilot-ng-windows/
-          # MSYS2 binaries need their runtime DLLs alongside them.
-          ldd build/bin/xpilot-ng-sdl.exe \
+
+          # MSYS2 binaries need their runtime DLLs alongside them, and the
+          # union over *every* executable -- not just the client. The server
+          # is the one that links expat, so collecting only the client's
+          # dependencies shipped a build whose server could not start:
+          # "libexpat-1.dll not found". Found by downloading the artifact and
+          # running it, which is the only way that shows up.
+          for exe in build/bin/*.exe; do ldd "$exe"; done \
             | grep -i mingw64 | awk '{print $3}' | sort -u \
-            | xargs -I{} cp {} dist/xpilot-ng-windows/
+            | xargs -I{} cp -n {} dist/xpilot-ng-windows/
+
           cp -r lib dist/xpilot-ng-windows/lib
           cp COPYING README.md BUILDING.md dist/xpilot-ng-windows/
+
+      - name: Every dependency is actually in the package
+        # Guards the mistake above: walk each packaged executable's imports
+        # and fail if one is missing from the directory we are about to ship.
+        run: |
+          set -eu
+          cd dist/xpilot-ng-windows
+          missing=0
+          for exe in *.exe; do
+            for dep in $(ldd "$exe" | grep -i mingw64 | awk '{print $1}'); do
+              if [ ! -f "$dep" ]; then
+                echo "MISSING: $exe needs $dep"
+                missing=1
+              fi
+            done
+          done
+          [ "$missing" -eq 0 ] || exit 1
+          echo "all $(ls *.dll | wc -l) DLLs present for $(ls *.exe | wc -l) executables"
 
       - uses: actions/upload-artifact@v4
         with:
