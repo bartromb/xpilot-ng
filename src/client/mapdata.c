@@ -43,7 +43,7 @@ int Mapdata_setup(const char *urlstr)
 {
     URL url;
     const char *name, *dir = NULL;
-    char path[1024], buf[1024], *ptr;
+    char path[1024], buf[1024], dirlist[1024], dirbuf[1024], *ptr;
     int rv = false;
 
     if (setup_done)
@@ -68,9 +68,22 @@ int Mapdata_setup(const char *urlstr)
     }
 
     if (realTexturePath != NULL) {
-	for (dir = strtok(realTexturePath, ":"); dir; dir = strtok(NULL, ":"))
-	    if (access(dir, R_OK | W_OK | X_OK) == 0)
+	char *tok;
+
+	/*
+	 * strtok() writes NULs into whatever it walks. realTexturePath is the
+	 * list every later texture lookup searches, so tokenising it in place
+	 * would cut it down to its first entry and quietly break texture
+	 * loading for the rest of the session. Walk a copy instead.
+	 */
+	strlcpy(dirlist, realTexturePath, sizeof dirlist);
+	for (tok = strtok(dirlist, ":"); tok; tok = strtok(NULL, ":")) {
+	    if (access(tok, R_OK | W_OK | X_OK) == 0) {
+		strlcpy(dirbuf, tok, sizeof dirbuf);
+		dir = dirbuf;
 		break;
+	    }
+	}
     }
 	
     if (dir == NULL) {
