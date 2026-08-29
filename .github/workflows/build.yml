@@ -41,7 +41,19 @@ jobs:
         # .deb this job publishes always has audio in it -- it is the build
         # that ships, and it should not depend on what the runner happens to
         # have installed.
-        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=RelWithDebInfo -DXPILOT_SOUND=ON
+        #
+        # The prefix has to be /usr, because that is where CPack lays the .deb
+        # out (CPACK_PACKAGING_INSTALL_PREFIX). Building with the default
+        # /usr/local baked /usr/local/share/xpilot-ng/ into the binaries while
+        # the package put its data in /usr/share/xpilot-ng/, so an installed
+        # .deb found none of its own maps, textures, fonts or sounds. It only
+        # looked fine on a machine that had also been `cmake --install`ed by
+        # hand.
+        run: |
+          cmake -B build -S . \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_INSTALL_PREFIX=/usr \
+            -DXPILOT_SOUND=ON
 
       - name: Build
         run: cmake --build build -j"$(nproc)"
@@ -206,6 +218,14 @@ jobs:
           cd build
           cpack -G DEB
           dpkg-deb -I ./*.deb
+          # The data directory compiled into the client must be one the
+          # package actually ships, or the .deb installs a game that cannot
+          # find its own files.
+          datadir=$(strings bin/xpilot-ng-sdl \
+                    | grep -m1 -oE '/[a-z/]*/share/xpilot-ng/')
+          echo "client looks for data in $datadir"
+          dpkg-deb -c ./*.deb | grep -q "\.${datadir}defaults.txt"
+          dpkg-deb -c ./*.deb | grep -q "\.${datadir}sound/sounds.txt"
 
       - uses: actions/upload-artifact@v4
         with:
