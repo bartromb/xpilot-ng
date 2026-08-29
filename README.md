@@ -196,6 +196,17 @@ Several of these had been in the code for decades:
   directly over the path list every later texture lookup walks, so the first
   call truncated it to one entry — dropping the directory the map's own
   bitmaps had just been extracted into.
+- **Sound was never built on Linux.** `XPILOT_SOUND` defaulted off and only the
+  Windows and macOS CI jobs turned it on, so the packaged Linux build had
+  neither the audio code nor the samples — their install rule is gated on the
+  same option. The option now follows the library: sound is on when
+  SDL2_mixer is installed. Confirmed by recording the audio device, not by
+  ear: 41% of full scale while firing, against a silent baseline.
+- **Windows builds could not report their own errors.** Every `error()`,
+  `warn()` and `fatal()` funnelled into a function whose MessageBox was
+  commented out and whose only other output expands to nothing outside debug
+  builds. A Windows client could quit for a carefully worded reason and leave
+  an empty log.
 - **`Console_print` crashed on any format argument**, passing a `va_list` to a
   variadic function. Every existing caller passed a bare string, so it had
   never fired.
