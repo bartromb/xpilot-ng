@@ -191,8 +191,14 @@ jobs:
       - name: Package (.deb)
         # CPack has been configured since the autotools removal but nothing
         # ever ran it in CI, so releases had no Linux artifact to attach.
+        #
+        # The earlier install-parity step runs `sudo cmake --install`, which
+        # leaves a root-owned install_manifest.txt in the build tree. cpack
+        # rewrites that file as the normal user and fails with a permission
+        # error that says nothing about why.
         run: |
           set -eux
+          sudo rm -f build/install_manifest.txt
           cd build
           cpack -G DEB
           dpkg-deb -I ./*.deb
