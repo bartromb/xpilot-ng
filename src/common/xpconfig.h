@@ -171,6 +171,9 @@
 
 void Conf_print(void);
 char *Conf_datadir(void);
+/* Point the working directory at the data, for builds whose CONF_DATADIR
+ * is relative (the Windows and macOS packages). No-op elsewhere. */
+void Conf_anchor_datadir(void);
 char *Conf_defaults_file_name(void);
 char *Conf_password_file_name(void);
 char *Conf_player_passwords_file_name(void);

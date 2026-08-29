@@ -271,11 +271,17 @@ jobs:
             mingw-w64-x86_64-SDL2_ttf
             mingw-w64-x86_64-SDL2_image
             mingw-w64-x86_64-SDL2_mixer
+            mingw-w64-x86_64-nsis
 
       - name: Configure
+        # XPILOT_PORTABLE lays the install out self-contained -- binaries at
+        # the root, data in lib/ beside them -- which is what both the .zip
+        # and the installer ship, and what the relative CONF_DATADIR on
+        # Windows expects to find.
         run: |
           cmake -B build -S . -G Ninja \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DXPILOT_PORTABLE=ON \
             -DXPILOT_SOUND=ON
 
       - name: Build
@@ -323,8 +329,10 @@ jobs:
       - name: Package
         run: |
           set -eux
-          mkdir -p dist/xpilot-ng-windows
-          cp build/bin/*.exe dist/xpilot-ng-windows/
+          # Install rather than copy, so the package gets the curated data
+          # set the install rules define, laid out the way the binaries
+          # expect.
+          cmake --install build --prefix "$PWD/dist/xpilot-ng-windows"
 
           # MSYS2 binaries need their runtime DLLs alongside them, and the
           # union over *every* executable -- not just the client. The server
@@ -336,7 +344,6 @@ jobs:
             | grep -i mingw64 | awk '{print $3}' | sort -u \
             | xargs -I{} cp -n {} dist/xpilot-ng-windows/
 
-          cp -r lib dist/xpilot-ng-windows/lib
           cp COPYING README.md BUILDING.md dist/xpilot-ng-windows/
 
       - name: Every dependency is actually in the package
@@ -357,10 +364,51 @@ jobs:
           [ "$missing" -eq 0 ] || exit 1
           echo "all $(ls *.dll | wc -l) DLLs present for $(ls *.exe | wc -l) executables"
 
+      - name: The packaged client finds its data from any directory
+        # The whole point of Conf_anchor_datadir(): a Start Menu shortcut does
+        # not run the game from its own folder. Start the server from
+        # somewhere else entirely and check it still loads its map.
+        run: |
+          set -eux
+          cd /
+          "$GITHUB_WORKSPACE/dist/xpilot-ng-windows/xpilot-ng-server.exe" \
+              -map blood-music.xp2 -port 15346 -noQuit -idleRun \
+              > "$GITHUB_WORKSPACE/anchored.log" 2>&1 &
+          sleep 10
+          cat "$GITHUB_WORKSPACE/anchored.log" || true
+          /c/Windows/System32/netstat.exe -an | grep -E "15346"
+
+      - name: Build the installer
+        run: |
+          set -eux
+          # Take the version from the one place that defines it, so the
+          # installer cannot drift from the build it wraps.
+          version=$(sed -n 's/^[[:space:]]*VERSION[[:space:]]\+\([0-9.]\+\).*/\1/p' \
+                    CMakeLists.txt | head -1)
+          test -n "$version"
+          # NSIS is a native Windows program: it cannot open the POSIX
+          # paths an MSYS2 shell produces, so convert them.
+          src=$(cygpath -w "$PWD/dist/xpilot-ng-windows")
+          lic=$(cygpath -w "$PWD/COPYING")
+          out=$(cygpath -w "$PWD/dist/xpilot-ng-$version-setup-x86_64.exe")
+          makensis -V2 \
+            -DVERSION="$version" \
+            -DSOURCE_DIR="$src" \
+            -DLICENSE_FILE="$lic" \
+            -DOUT_FILE="$out" \
+            packaging/windows/xpilot-ng.nsi
+          test -f "dist/xpilot-ng-$version-setup-x86_64.exe"
+          ls -la dist/*.exe
+
       - uses: actions/upload-artifact@v4
         with:
           name: xpilot-ng-windows-x86_64
           path: dist/xpilot-ng-windows
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xpilot-ng-windows-installer
+          path: dist/xpilot-ng-*-setup-x86_64.exe
 
   # ---------------------------------------------------------------------
   # macOS. Homebrew has the SDL2 family; zlib comes with the SDK.
@@ -399,6 +447,7 @@ jobs:
         run: |
           cmake -B build -S . -G Ninja \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DXPILOT_PORTABLE=ON \
             -DXPILOT_SOUND=ON \
             -DCMAKE_PREFIX_PATH="$(brew --prefix expat);$(brew --prefix)"
 
@@ -426,8 +475,10 @@ jobs:
       - name: Package
         run: |
           set -eux
+          # Install rather than copy, so the package gets the curated data
+          # set, laid out the way the binaries expect to find it.
+          cmake --install build --prefix "$PWD/dist/xpilot-ng-macos"
           mkdir -p dist/xpilot-ng-macos/libs
-          cp build/bin/xpilot-ng-server build/bin/xpilot-ng-sdl dist/xpilot-ng-macos/
 
           # Without this the binaries carry absolute Homebrew paths --
           # /opt/homebrew/opt/sdl2-compat/lib/libSDL2-2.0.0.dylib and friends
@@ -442,7 +493,6 @@ jobs:
               -d dist/xpilot-ng-macos/libs -p @executable_path/libs/
           done
 
-          cp -R lib dist/xpilot-ng-macos/lib
           cp COPYING README.md BUILDING.md dist/xpilot-ng-macos/
 
       - name: Nothing still points at Homebrew
@@ -462,7 +512,64 @@ jobs:
           [ "$bad" -eq 0 ] || exit 1
           echo "self-contained: $(ls libs/*.dylib | wc -l) bundled dylibs"
 
+      - name: The packaged server finds its data from any directory
+        # Same check as the Windows job: an app launched from Finder does not
+        # run from its own folder, so Conf_anchor_datadir() has to work.
+        run: |
+          set -eux
+          cd /
+          "$GITHUB_WORKSPACE/dist/xpilot-ng-macos/xpilot-ng-server" \
+              -map blood-music.xp2 -port 15346 -noQuit -idleRun \
+              > "$GITHUB_WORKSPACE/anchored.log" 2>&1 &
+          sleep 8
+          cat "$GITHUB_WORKSPACE/anchored.log" || true
+          lsof -iUDP:15346 || (echo "did not find its map"; exit 1)
+
+      - name: Build the .dmg
+        run: |
+          set -eux
+          version=$(sed -n 's/^[[:space:]]*VERSION[[:space:]]*\([0-9.]*\).*/\1/p' \
+                    CMakeLists.txt | head -1)
+          test -n "$version"
+          mkdir -p dist/dmg
+          packaging/macos/make-dmg.sh \
+            dist/xpilot-ng-macos "$version" "${{ matrix.arch }}" \
+            "dist/dmg/xpilot-ng-$version-macos-${{ matrix.arch }}.dmg"
+          ls -la dist/dmg
+
+      - name: The .dmg contains an app that is actually complete
+        # A .dmg that mounts is not a .dmg that runs. Mount it and check the
+        # bundle has its executable, its data and its bundled libraries, and
+        # that nothing inside still points at Homebrew.
+        run: |
+          set -eux
+          hdiutil attach dist/dmg/*.dmg -mountpoint /tmp/xpdmg -nobrowse -readonly
+          app="/tmp/xpdmg/XPilot NG.app"
+          test -x "$app/Contents/MacOS/xpilot-ng-sdl"
+          test -x "$app/Contents/MacOS/xpilot-ng-server"
+          test -f "$app/Contents/Info.plist"
+          test -f "$app/Contents/Resources/lib/defaults.txt"
+          test -f "$app/Contents/Resources/lib/sound/sounds.txt"
+          test -d "$app/Contents/MacOS/libs"
+          plutil -lint "$app/Contents/Info.plist"
+          ! otool -L "$app/Contents/MacOS/xpilot-ng-sdl" | tail -n +2 \
+            | grep -E "/opt/homebrew|/usr/local/(opt|Cellar)"
+          # And it runs from inside the mounted image, where the working
+          # directory is nothing like the bundle.
+          cd /
+          "$app/Contents/MacOS/xpilot-ng-server" -map blood-music.xp2 \
+              -port 15347 -noQuit -idleRun > /tmp/dmg-run.log 2>&1 &
+          sleep 8
+          cat /tmp/dmg-run.log || true
+          lsof -iUDP:15347 || (echo "app cannot find its data"; exit 1)
+          hdiutil detach /tmp/xpdmg
+
       - uses: actions/upload-artifact@v4
         with:
           name: xpilot-ng-macos-${{ matrix.arch }}
           path: dist/xpilot-ng-macos
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xpilot-ng-macos-${{ matrix.arch }}-dmg
+          path: dist/dmg/*.dmg

@@ -71,6 +71,10 @@ int main(int argc, char **argv)
     int timer_tick_rate;
     char *addr;
 
+    /* Before anything reads a data file: a shortcut launch starts us
+     * somewhere the data is not. */
+    Conf_anchor_datadir();
+
     /* world is a global now */
     world = &World;
 

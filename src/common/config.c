@@ -25,6 +25,118 @@
 
 #include "xpcommon.h"
 
+#ifdef __APPLE__
+# include <mach-o/dyld.h>
+#endif
+
+/*
+ * Portable builds -- the Windows zip and installer, the macOS app bundle --
+ * compile a relative CONF_DATADIR ("lib/"), so the game finds its maps,
+ * textures, fonts and sounds through the working directory. That works when
+ * it is started from its own folder and fails every other way it can be
+ * started: a Start Menu shortcut, a Finder double-click, or a shell sitting
+ * anywhere else all leave the process somewhere the data is not, and the game
+ * comes up with nothing loaded.
+ *
+ * Anchor the working directory to the executable instead. Builds installed
+ * under an absolute prefix (the Linux packages) compile an absolute
+ * CONF_DATADIR and are left alone.
+ */
+
+static bool Conf_datadir_is_absolute(void)
+{
+    const char *d = CONF_DATADIR;
+
+    if (d[0] == '/')
+	return true;
+#ifdef _WINDOWS
+    if (d[0] != '\0' && d[1] == ':')
+	return true;
+    if (d[0] == '\\')		/* UNC path */
+	return true;
+#endif
+    return false;
+}
+
+/* Full path of the running executable, or false if the platform will not say. */
+static bool Conf_executable_path(char *buf, size_t size)
+{
+#if defined(_WINDOWS)
+    DWORD n = GetModuleFileName(NULL, buf, (DWORD)size);
+
+    return (n > 0 && n < size);
+#elif defined(__APPLE__)
+    uint32_t n = (uint32_t)size;
+
+    return (_NSGetExecutablePath(buf, &n) == 0);
+#else
+    ssize_t n = readlink("/proc/self/exe", buf, size - 1);
+
+    if (n <= 0)
+	return false;
+    buf[n] = '\0';
+    return true;
+#endif
+}
+
+static bool Conf_has_datadir(const char *dir)
+{
+    char path[1024];
+
+    if (snprintf(path, sizeof path, "%s%c%s", dir, PATHNAME_SEP, CONF_DATADIR)
+	>= (int)sizeof path)
+	return false;
+
+    return (access(path, R_OK) == 0);
+}
+
+void Conf_anchor_datadir(void)
+{
+    char exe[1024], dir[1024];
+    char *p;
+
+    if (Conf_datadir_is_absolute())
+	return;
+
+    if (!Conf_executable_path(exe, sizeof exe))
+	return;
+
+    strlcpy(dir, exe, sizeof dir);
+    p = strrchr(dir, PATHNAME_SEP);
+#ifdef _WINDOWS
+    if (p == NULL)
+	p = strrchr(dir, '/');
+#endif
+    if (p == NULL)
+	return;
+    *p = '\0';
+
+    /* Next to the executable: the zip, the installed Windows program. */
+    if (Conf_has_datadir(dir)) {
+	if (chdir(dir) != 0)
+	    warn("could not change to the data directory %s", dir);
+	return;
+    }
+
+    /* Inside a macOS bundle the executable is in Contents/MacOS and the data
+     * is beside it in Contents/Resources. */
+    {
+	char res[1024];
+
+	if (snprintf(res, sizeof res, "%s%c..%cResources", dir,
+		     PATHNAME_SEP, PATHNAME_SEP) < (int)sizeof res
+	    && Conf_has_datadir(res)) {
+	    if (chdir(res) != 0)
+		warn("could not change to the data directory %s", res);
+	    return;
+	}
+    }
+
+    /* Nothing found: leave the working directory alone, so running from a
+     * source tree still works. */
+}
+
+
 char *Conf_datadir(void)
 {
     static char conf[] = CONF_DATADIR;

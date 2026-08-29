@@ -320,7 +320,27 @@ if(NOT CMAKE_MATCH_1 STREQUAL PROJECT_VERSION)
 endif()
 unset(_xp_version_h)
 
-set(XP_DATADIR "${CMAKE_INSTALL_FULL_DATADIR}/${PROJECT_NAME}/")
+# A portable install is the self-contained kind: the Windows installer and
+# zip, and the macOS app bundle. Binaries sit at the root of the install with
+# their data in lib/ beside them, and CONF_DATADIR is relative so the whole
+# thing can be moved anywhere. Conf_anchor_datadir() points the working
+# directory at the executable at startup, so a Start Menu shortcut or a Finder
+# launch finds its data too.
+#
+# Everything else -- the Linux packages -- installs to an absolute prefix in
+# the usual places.
+option(XPILOT_PORTABLE
+       "Lay the install out self-contained: binaries at the root, data in lib/"
+       OFF)
+
+if(XPILOT_PORTABLE)
+    set(XP_DATADIR "lib/")
+    set(CMAKE_INSTALL_BINDIR ".")
+    set(XP_PKGDATADIR "lib")
+else()
+    set(XP_DATADIR "${CMAKE_INSTALL_FULL_DATADIR}/${PROJECT_NAME}/")
+    set(XP_PKGDATADIR "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}")
+endif()
 
 # Applied to every target, matching the autotools AM_CPPFLAGS.
 add_library(xp_common_flags INTERFACE)
@@ -359,7 +379,7 @@ endif()
 # Data files
 # ---------------------------------------------------------------------------
 
-set(XP_PKGDATADIR "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}")
+# XP_PKGDATADIR is set next to XP_DATADIR above, so the two always agree.
 
 # Data files. These lists are taken verbatim from the lib/*/Makefile.am
 # xpilot*_DATA variables rather than globbed, because autotools ships a

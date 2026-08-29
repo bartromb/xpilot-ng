@@ -52,6 +52,10 @@ int main(int argc, char *argv[])
 
     init_error(argv[0]);
 
+    /* Before anything reads a data file: a shortcut or a Finder launch
+     * starts us somewhere the data is not. */
+    Conf_anchor_datadir();
+
     seedMT((unsigned)time(NULL) ^ Get_process_id());
 
     memset(&connectParam, 0, sizeof(Connect_param_t));
