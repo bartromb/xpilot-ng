@@ -323,7 +323,10 @@ jobs:
   # Same subset as Windows, and for the same reason.
   #
   # Two runners because a Mac binary is per-architecture: macos-14 is Apple
-  # Silicon, macos-13 is Intel. Homebrew installs for the host architecture
+  # Silicon, macos-15-intel is Intel. (macos-13 was the old Intel image and
+  # is being retired -- a job asking for it sits queued indefinitely rather
+  # than failing, which is a slow way to find out.) Homebrew installs for the
+  # host architecture
   # only, so a universal binary would need two sets of dependencies -- two
   # builds is the honest way to cover both. Homebrew also lives somewhere
   # different on each (/opt/homebrew against /usr/local), which is why
@@ -336,7 +339,7 @@ jobs:
         include:
           - runner: macos-14
             arch: arm64
-          - runner: macos-13
+          - runner: macos-15-intel
             arch: x86_64
     name: macos (${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
