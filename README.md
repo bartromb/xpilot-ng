@@ -185,6 +185,17 @@ Several of these had been in the code for decades:
   carries *two* ship-shape strings, not one, and the reliable stream is
   undelimited — so reading one string turns everything after it into garbage.
   Both findings are in [`docs/protocol.md`](docs/protocol.md).
+- **The SDL client drew nothing where a wall texture was missing.** Maps flag a
+  polygon style as textured and then name a bitmap they never declare —
+  `blood-music.xp2`, shipped with the game, does it on all 32 of its walls. The
+  X11 client falls back to the style's colour; the SDL client left texturing
+  enabled with nothing bound, so walls filled black and you flew into a map
+  that looked empty. The radar draws walls by another path and kept showing
+  them, which made it look like a collision bug rather than a drawing one.
+- **A map download shortened the texture search path.** `strtok` was run
+  directly over the path list every later texture lookup walks, so the first
+  call truncated it to one entry — dropping the directory the map's own
+  bitmaps had just been extracted into.
 - **`Console_print` crashed on any format argument**, passing a `va_list` to a
   variadic function. Every existing caller passed a bare string, so it had
   never fired.
