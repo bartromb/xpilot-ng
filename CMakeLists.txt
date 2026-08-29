@@ -493,13 +493,17 @@ install(FILES mapconvert.py DESTINATION "${XP_PKGDATADIR}")
 
 # Man pages. Sources are *.man and install as *.6, matching the autotools
 # dist_man6_MANS rule. All five install unconditionally, as they do there,
-# regardless of which targets are enabled.
+# regardless of which targets are enabled -- except in a portable install,
+# where a share/man tree is of no use to anyone unpacking a zip or dragging
+# an app to /Applications, and only leaves litter behind when uninstalled.
+if(NOT XPILOT_PORTABLE)
 foreach(_man xpilot-ng-sdl xpilot-ng-x11 xpilot-ng-server xpilot-ng-replay
              xpilot-ng-xp-mapedit)
     install(FILES "doc/man/${_man}.man"
             DESTINATION "${CMAKE_INSTALL_MANDIR}/man6"
             RENAME "${_man}.6")
 endforeach()
+endif()
 
 # ---------------------------------------------------------------------------
 # Packaging

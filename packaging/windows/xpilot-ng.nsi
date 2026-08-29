@@ -80,8 +80,11 @@ Section "Uninstall"
   RMDir  "$SMPROGRAMS\XPilot NG"
 
   Delete "$INSTDIR\uninstall.exe"
-  ; Only what this installer put there: lib\ and the binaries and DLLs.
+  ; Only what this installer put there. Named explicitly rather than
+  ; RMDir /r "$INSTDIR", which would take the whole directory with it if
+  ; someone installed into one they were already using.
   RMDir /r "$INSTDIR\lib"
+  RMDir /r "$INSTDIR\share"
   Delete "$INSTDIR\*.exe"
   Delete "$INSTDIR\*.dll"
   Delete "$INSTDIR\COPYING"
