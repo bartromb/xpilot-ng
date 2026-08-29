@@ -328,7 +328,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: brew install cmake ninja pkgconf sdl2 sdl2_ttf sdl2_image sdl2_mixer expat
+        run: |
+          brew install cmake ninja pkgconf sdl2 sdl2_ttf sdl2_image sdl2_mixer expat
+          brew install dylibbundler
 
       - name: Configure
         run: |
@@ -358,10 +360,41 @@ jobs:
       - name: Package
         run: |
           set -eux
-          mkdir -p dist/xpilot-ng-macos
+          mkdir -p dist/xpilot-ng-macos/libs
           cp build/bin/xpilot-ng-server build/bin/xpilot-ng-sdl dist/xpilot-ng-macos/
+
+          # Without this the binaries carry absolute Homebrew paths --
+          # /opt/homebrew/opt/sdl2-compat/lib/libSDL2-2.0.0.dylib and friends
+          # -- and refuse to start on any Mac that does not happen to have
+          # the same formulae installed in the same place. dylibbundler
+          # copies the non-system dependencies in and rewrites the load
+          # commands to @executable_path, recursively, because those dylibs
+          # have dependencies of their own.
+          for exe in dist/xpilot-ng-macos/xpilot-ng-server \
+                     dist/xpilot-ng-macos/xpilot-ng-sdl; do
+            dylibbundler -od -b -x "$exe" \
+              -d dist/xpilot-ng-macos/libs -p @executable_path/libs/
+          done
+
           cp -R lib dist/xpilot-ng-macos/lib
           cp COPYING README.md BUILDING.md dist/xpilot-ng-macos/
+
+      - name: Nothing still points at Homebrew
+        # The check that would have caught the shipped-without-expat mistake
+        # on the Windows side: ask the binaries themselves what they load.
+        run: |
+          set -eu
+          cd dist/xpilot-ng-macos
+          bad=0
+          for f in xpilot-ng-server xpilot-ng-sdl libs/*.dylib; do
+            if otool -L "$f" | tail -n +2 \
+                 | grep -E "/opt/homebrew|/usr/local/(opt|Cellar)"; then
+              echo "STILL EXTERNAL: $f"
+              bad=1
+            fi
+          done
+          [ "$bad" -eq 0 ] || exit 1
+          echo "self-contained: $(ls libs/*.dylib | wc -l) bundled dylibs"
 
       - uses: actions/upload-artifact@v4
         with:

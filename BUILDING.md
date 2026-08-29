@@ -220,6 +220,22 @@ Same two binaries, same reason. Note that OpenGL is a framework here
 (`<OpenGL/gl.h>`) while a Homebrew SDL2 uses ordinary include paths — the two
 are chosen independently, which they were not before.
 
+A binary built this way links its dependencies by absolute path
+(`/opt/homebrew/opt/sdl2-compat/lib/libSDL2-2.0.0.dylib` and so on), so it
+runs on the machine that built it and nowhere else. To hand it to anyone,
+bundle the dylibs and rewrite the load commands to `@executable_path`:
+
+```sh
+brew install dylibbundler
+dylibbundler -od -b -x ./xpilot-ng-sdl -d libs/ -p @executable_path/libs/
+```
+
+`otool -L` on the result should show nothing under `/opt/homebrew`. The CI
+job does this and fails if anything still does.
+
+The runners are Apple Silicon, so the published build is **arm64 only**. An
+Intel Mac needs a build of its own; nothing in the source prevents it.
+
 **Zoom.** `+` / `=` / keypad-plus zoom in, `-` / keypad-minus zoom out, and
 the level is shown on screen. Rebind with `-keyZoomIn` / `-keyZoomOut`. Under
 the hood this scales `scaleFactor`, which is how much of the world the client

@@ -46,7 +46,15 @@ Both are built by CI on real `windows-latest` and `macos-latest` runners, and
 each job starts the server and checks it is listening. That check was not
 ceremony: the Windows server built and linked perfectly while being incapable
 of running for more than a few seconds, and only the runtime check caught it.
-Downloadable builds are attached to every CI run as artifacts.
+Downloadable builds are attached to every CI run as artifacts, and both are
+made self-contained: the Windows one carries its mingw DLLs, the macOS one
+has its Homebrew dylibs bundled and its load commands rewritten to
+`@executable_path`. Each is checked for completeness before upload, because
+the first versions of both shipped broken — the Windows build without
+`libexpat-1.dll`, the macOS one pointing at `/opt/homebrew` — while every CI
+job reported success.
+
+The macOS build is **arm64 only**; the runners are Apple Silicon.
 
 ## Quick start
 
