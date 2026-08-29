@@ -846,8 +846,17 @@ void Gui_paint_polygon(int i, int xoff, int yoff)
     /* possibly paint the polygon as filled or textured */
     if ((instruments.texturedWalls || instruments.filledWorld) &&
 	    BIT(p_style.flags, STYLE_TEXTURED | STYLE_FILLED)) {
+	/*
+	 * Maps in the wild mark a style STYLE_TEXTURED without ever declaring
+	 * the bitmap it names, so the texture does not exist. Fall back to the
+	 * style's own colour, the way the X11 client already does, rather than
+	 * drawing with texturing enabled and nothing bound -- that leaves the
+	 * interior whatever colour happened to be current, which in practice
+	 * means the wall is invisible and you fly into it blind.
+	 */
 	if (BIT(p_style.flags, STYLE_TEXTURED)
-	        && instruments.texturedWalls) {
+	        && instruments.texturedWalls
+		&& Image_get_texture(p_style.texture) != NULL) {
 	    Image_use_texture(p_style.texture);
 	    glCallList(polyListBase + i);
 	    Image_no_texture();
