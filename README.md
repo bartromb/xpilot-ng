@@ -16,16 +16,21 @@ development since 2010 and is kept here only as a provenance link.
 Ready-to-run builds for all four targets are on the
 **[Releases page](https://github.com/bartromb/xpilot-ng/releases/latest)**.
 
-| Platform | File | How to install |
+| Platform | Installer | Or unpack it yourself |
 |---|---|---|
-| Linux (Debian/Ubuntu, x86-64) | `xpilot-ng_*_amd64.deb` | `sudo apt install ./xpilot-ng_*_amd64.deb` |
-| Windows (x86-64) | `*-windows-x86_64.zip` | Unzip anywhere and run `xpilot-ng-sdl.exe` |
-| macOS (Apple Silicon) | `*-macos-arm64.tar.gz` | `tar xzf` and run `./xpilot-ng-sdl` |
-| macOS (Intel) | `*-macos-x86_64.tar.gz` | `tar xzf` and run `./xpilot-ng-sdl` |
+| Windows (x86-64) | `*-setup-x86_64.exe` | `*-windows-x86_64.zip` |
+| macOS (Apple Silicon) | `*-macos-arm64.dmg` | `*-macos-arm64.tar.gz` |
+| macOS (Intel) | `*-macos-x86_64.dmg` | `*-macos-x86_64.tar.gz` |
+| Linux (Debian/Ubuntu, x86-64) | `xpilot-ng_*_amd64.deb` | — |
 
-The Windows zip and both macOS tarballs are self-contained — every library
-ships alongside the binaries, so there is nothing to install first. On macOS
-use the `.tar.gz` as it is; repacking it as a zip drops the executable bit.
+The Windows installer adds Start Menu shortcuts and an entry in Add/Remove
+Programs. The `.dmg` holds an `XPilot NG.app` to drag to Applications. On
+Linux: `sudo apt install ./xpilot-ng_*_amd64.deb`.
+
+The zip and both tarballs are self-contained — every library ships alongside
+the binaries, and the game finds its data wherever you put it, so there is
+nothing to install first. On macOS use the `.tar.gz` as it is; repacking it as
+a zip drops the executable bit.
 
 Each release names what was actually verified and what was not. If you would
 rather build from source, see [`BUILDING.md`](BUILDING.md).
