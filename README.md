@@ -237,10 +237,16 @@ Several of these had been in the code for decades:
 
 Stated plainly, because they decide what is safe to rely on:
 
+- **The Windows client quits about a second after entering a game.** It builds,
+  starts, shows its menu and joins a server; then the window closes and the
+  server records a clean "client quit". Cause unknown. The Windows *server* is
+  started and checked alive by CI on real Windows; the client is not, and no
+  one has run it on real Windows at all.
 - **Wayland is untested.** The default game loop needs an X11 video driver and
   says so; native Wayland needs `-DXPILOT_SDL_GAMELOOP=ON` verified.
-- **Audio has never been listened to.** It initialises, loads samples and feeds
-  a stereo stream to PipeWire; whether it *sounds* right is unverified.
+- **Audio has never been listened to.** It demonstrably reaches the device —
+  measured at 41% of full scale while firing, against a silent baseline — but
+  whether it *sounds* right is unverified.
 - **Positional audio is not implementable** as the roadmap describes. The audio
   packet carries a sound index and a volume, and no position.
 - **The 144 fps target is unmeasured**, because the reference machine was under
