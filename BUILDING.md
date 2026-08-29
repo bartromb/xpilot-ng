@@ -234,7 +234,13 @@ dylibbundler -od -b -x ./xpilot-ng-sdl -d libs/ -p @executable_path/libs/
 job does this and fails if anything still does.
 
 Both architectures are published, `xpilot-ng-macos-arm64` and
-`xpilot-ng-macos-x86_64`, built on `macos-14` and `macos-13` respectively.
+`xpilot-ng-macos-x86_64`, built on `macos-14` and `macos-15-intel`
+respectively.
+
+Use the current Intel label. `macos-13` was the old one and is being retired,
+and a job that asks for a label nothing can serve sits *queued* rather than
+failing — fifteen minutes of a perfectly healthy-looking run before it is
+obvious anything is wrong.
 
 They are separate builds rather than one universal binary on purpose:
 Homebrew installs for the host architecture only, so a `-arch x86_64 -arch
