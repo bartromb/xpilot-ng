@@ -233,8 +233,15 @@ dylibbundler -od -b -x ./xpilot-ng-sdl -d libs/ -p @executable_path/libs/
 `otool -L` on the result should show nothing under `/opt/homebrew`. The CI
 job does this and fails if anything still does.
 
-The runners are Apple Silicon, so the published build is **arm64 only**. An
-Intel Mac needs a build of its own; nothing in the source prevents it.
+Both architectures are published, `xpilot-ng-macos-arm64` and
+`xpilot-ng-macos-x86_64`, built on `macos-14` and `macos-13` respectively.
+
+They are separate builds rather than one universal binary on purpose:
+Homebrew installs for the host architecture only, so a `-arch x86_64 -arch
+arm64` link would need two complete sets of dependencies. Two builds is the
+honest way to cover both. Note that Homebrew's prefix differs between them —
+`/opt/homebrew` on Apple Silicon, `/usr/local` on Intel — so nothing in the
+build hardcodes it.
 
 **Zoom.** `+` / `=` / keypad-plus zoom in, `-` / keypad-minus zoom out, and
 the level is shown on screen. Rebind with `-keyZoomIn` / `-keyZoomOut`. Under

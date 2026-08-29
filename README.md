@@ -54,7 +54,10 @@ the first versions of both shipped broken — the Windows build without
 `libexpat-1.dll`, the macOS one pointing at `/opt/homebrew` — while every CI
 job reported success.
 
-The macOS build is **arm64 only**; the runners are Apple Silicon.
+macOS is published for both architectures — `xpilot-ng-macos-arm64` for
+Apple Silicon and `xpilot-ng-macos-x86_64` for Intel. Separate builds rather
+than one universal binary, because Homebrew installs for the host
+architecture only.
 
 ## Quick start
 

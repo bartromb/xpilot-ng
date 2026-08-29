@@ -319,11 +319,27 @@ jobs:
           path: dist/xpilot-ng-windows
 
   # ---------------------------------------------------------------------
-  # macOS. Homebrew has the SDL2 family; zlib and expat come with the SDK.
+  # macOS. Homebrew has the SDL2 family; zlib comes with the SDK.
   # Same subset as Windows, and for the same reason.
+  #
+  # Two runners because a Mac binary is per-architecture: macos-14 is Apple
+  # Silicon, macos-13 is Intel. Homebrew installs for the host architecture
+  # only, so a universal binary would need two sets of dependencies -- two
+  # builds is the honest way to cover both. Homebrew also lives somewhere
+  # different on each (/opt/homebrew against /usr/local), which is why
+  # nothing here hardcodes the prefix.
   # ---------------------------------------------------------------------
   macos:
-    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-14
+            arch: arm64
+          - runner: macos-13
+            arch: x86_64
+    name: macos (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
 
@@ -342,12 +358,15 @@ jobs:
       - name: Build
         run: cmake --build build -j
 
-      - name: The binaries exist and are Mach-O executables
+      - name: The binaries exist and are Mach-O executables of the right arch
         run: |
           set -eux
           test -x build/bin/xpilot-ng-server
           test -x build/bin/xpilot-ng-sdl
           file build/bin/xpilot-ng-server build/bin/xpilot-ng-sdl
+          # A silently-wrong architecture would produce an artifact that
+          # cannot run on the machines it is named for.
+          file build/bin/xpilot-ng-sdl | grep -q "${{ matrix.arch }}"
 
       - name: Server starts and answers a ping
         run: |
@@ -398,5 +417,5 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: xpilot-ng-macos
+          name: xpilot-ng-macos-${{ matrix.arch }}
           path: dist/xpilot-ng-macos
