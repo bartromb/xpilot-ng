@@ -188,6 +188,20 @@ jobs:
           python ai/tools/check_reliable.py --port 15401 --seconds 45
           kill "$(cat rel-server.pid)" || true
 
+      - name: Package (.deb)
+        # CPack has been configured since the autotools removal but nothing
+        # ever ran it in CI, so releases had no Linux artifact to attach.
+        run: |
+          set -eux
+          cd build
+          cpack -G DEB
+          dpkg-deb -I ./*.deb
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xpilot-ng-linux-amd64-deb
+          path: build/*.deb
+
       - name: Upload logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
