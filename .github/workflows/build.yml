@@ -15,7 +15,7 @@ env:
   XPILOT_DEPS: >-
     libx11-dev libsm-dev libice-dev
     libgl-dev libglu1-mesa-dev
-    libsdl2-dev libsdl2-ttf-dev libsdl2-image-dev
+    libsdl2-dev libsdl2-ttf-dev libsdl2-image-dev libsdl2-mixer-dev
     libexpat1-dev zlib1g-dev
 
 jobs:
@@ -37,7 +37,11 @@ jobs:
               $XPILOT_DEPS xvfb libgl1-mesa-dri xfonts-base mesa-utils
 
       - name: Configure
-        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=RelWithDebInfo
+        # Sound is explicit here rather than left to autodetection, so the
+        # .deb this job publishes always has audio in it -- it is the build
+        # that ships, and it should not depend on what the runner happens to
+        # have installed.
+        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=RelWithDebInfo -DXPILOT_SOUND=ON
 
       - name: Build
         run: cmake --build build -j"$(nproc)"
@@ -50,19 +54,19 @@ jobs:
             test -x "build/bin/$b"
           done
 
-      - name: Build with sound enabled
-        # The audio path is off by default, so without this it would never be
-        # compiled in CI. That is exactly how the original audio code rotted:
-        # SOUND was undefined for years and nobody noticed it had stopped
-        # building. Compile-only; CI has no audio device to play through.
+      - name: Check the shipped client really has audio linked in
+        # This used to configure and build a second tree just to prove the
+        # audio path still compiled, while the tree that was packaged had no
+        # sound at all -- so CI was green and the .deb was mute. Sound is on
+        # in the build above now, so assert against that one and skip the
+        # duplicate build.
         run: |
           set -eux
-          sudo apt-get install -y --no-install-recommends libsdl2-mixer-dev
-          cmake -B build-sound -S . -DXPILOT_SOUND=ON
-          cmake --build build-sound -j"$(nproc)"
           # The whole point of the phase: nothing links freealut any more.
-          ! ldd build-sound/bin/xpilot-ng-sdl | grep -qiE 'openal|alut'
-          ldd build-sound/bin/xpilot-ng-sdl | grep -q 'libSDL2_mixer'
+          ! ldd build/bin/xpilot-ng-sdl | grep -qiE 'openal|alut'
+          ldd build/bin/xpilot-ng-sdl | grep -q 'libSDL2_mixer'
+          # And the samples the client plays have to be installed with it.
+          test -f lib/sound/sounds.txt
 
       - name: Install
         # The clients look for textures and fonts under CONF_DATADIR

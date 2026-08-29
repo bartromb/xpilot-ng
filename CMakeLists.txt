@@ -71,7 +71,34 @@ option(XPILOT_X11_CLIENT   "Build the X11 client"                ${XP_HAVE_X11})
 option(XPILOT_SDL_CLIENT   "Build the SDL/OpenGL client"         ON)
 option(XPILOT_REPLAY       "Build the replay tool"               ${XP_HAVE_X11})
 option(XPILOT_MAPEDIT      "Build the map editor"                ${XP_HAVE_X11})
-option(XPILOT_SOUND        "Enable sound (SDL2_mixer)"           OFF)
+
+# Sound follows the library. Defaulting this OFF meant a plain configure
+# produced a mute build, and the Linux package was shipped from exactly such a
+# build for months while Windows and macOS passed -DXPILOT_SOUND=ON -- so the
+# game was silent on Linux only, for no stated reason. Probe first and default
+# to what the machine can actually do. Asking for -DXPILOT_SOUND=ON without the
+# library is still a hard error rather than a mute binary.
+find_package(PkgConfig QUIET)
+if(PKG_CONFIG_FOUND)
+    pkg_check_modules(SDL2_MIXER IMPORTED_TARGET SDL2_mixer)
+endif()
+if(SDL2_MIXER_FOUND)
+    set(XP_SDL2_MIXER_LIBS PkgConfig::SDL2_MIXER)
+else()
+    find_package(SDL2_mixer QUIET)
+    if(SDL2_mixer_FOUND)
+        set(SDL2_MIXER_FOUND TRUE)
+        set(XP_SDL2_MIXER_LIBS SDL2_mixer::SDL2_mixer)
+    endif()
+endif()
+# The audio backend is built on SDL2, so it cannot come on by itself when the
+# SDL client is off.
+if(SDL2_MIXER_FOUND AND XPILOT_SDL_CLIENT)
+    set(XP_SOUND_DEFAULT ON)
+else()
+    set(XP_SOUND_DEFAULT OFF)
+endif()
+option(XPILOT_SOUND        "Enable sound (SDL2_mixer)"           ${XP_SOUND_DEFAULT})
 # The X11-optimised game loop calls Xlib directly, so off-X11 platforms need
 # the portable one. It is not a preference there, it is the only one that
 # compiles.
@@ -163,19 +190,7 @@ endif()
 
 if(XPILOT_SOUND)
     # Audio is SDL2_mixer as of Phase 3; the OpenAL/freealut backend is gone.
-    find_package(PkgConfig QUIET)
-    if(PKG_CONFIG_FOUND)
-        pkg_check_modules(SDL2_MIXER IMPORTED_TARGET SDL2_mixer)
-    endif()
-    if(SDL2_MIXER_FOUND)
-        set(XP_SDL2_MIXER_LIBS PkgConfig::SDL2_MIXER)
-    else()
-        find_package(SDL2_mixer QUIET)
-        if(SDL2_mixer_FOUND)
-            set(SDL2_MIXER_FOUND TRUE)
-            set(XP_SDL2_MIXER_LIBS SDL2_mixer::SDL2_mixer)
-        endif()
-    endif()
+    # The library was probed next to the option above.
     if(NOT SDL2_MIXER_FOUND)
         # Autotools downgraded a missing audio library to a warning and
         # silently produced a mute binary, which was easy to miss. Fail loudly.
