@@ -25,6 +25,29 @@
 
 #include "xpcommon.h"
 
+/*
+ * Winsock does not report through errno, and its codes are not the C runtime
+ * ones: a non-blocking recv() that simply has no data yet reports
+ * WSAEWOULDBLOCK, which is 10035, while mingw's EWOULDBLOCK is 140 and EAGAIN
+ * is 11. The code below used to assign WSAGetLastError() into errno and then
+ * compare it against EWOULDBLOCK/EAGAIN, so the comparison could never match:
+ * every "no data yet" looked like a hard error, and after a few retries the
+ * client declared the connection dead and quit. That is why the Windows
+ * client died about a second after entering a game.
+ *
+ * Ask the right source and compare against the right constants.
+ */
+#ifdef _WINDOWS
+# define sock_last_error()      WSAGetLastError()
+# define sock_would_block(e)    ((e) == WSAEWOULDBLOCK)
+# define sock_interrupted(e)    ((e) == WSAEINTR)
+#else
+# define sock_last_error()      errno
+# define sock_would_block(e)    ((e) == EWOULDBLOCK || (e) == EAGAIN)
+# define sock_interrupted(e)    ((e) == EINTR)
+#endif
+
+
 int last_packet_of_frame;
 
 int Sockbuf_init(sockbuf_t *sbuf, sock_t *sock, size_t size, int state)
@@ -155,13 +178,13 @@ int Sockbuf_flush(sockbuf_t *sbuf)
 	else
 #endif
 	while ((len = sock_write(&sbuf->sock, sbuf->buf, sbuf->len)) <= 0) {
-	    if (len == 0
-		|| errno == EWOULDBLOCK
-		|| errno == EAGAIN) {
+	    int err = sock_last_error();
+
+	    if (len == 0 || sock_would_block(err)) {
 		Sockbuf_clear(sbuf);
 		return 0;
 	    }
-	    if (errno == EINTR) {
+	    if (sock_interrupted(err)) {
 		errno = 0;
 		continue;
 	    }
@@ -195,11 +218,13 @@ int Sockbuf_flush(sockbuf_t *sbuf)
     } else {
 	errno = 0;
 	while ((len = sock_write(&sbuf->sock, sbuf->buf, sbuf->len)) <= 0) {
-	    if (errno == EINTR) {
+	    int err = sock_last_error();
+
+	    if (sock_interrupted(err)) {
 		errno = 0;
 		continue;
 	    }
-	    if (errno != EWOULDBLOCK && errno != EAGAIN) {
+	    if (!sock_would_block(err)) {
 		error("Can't write on socket");
 		return -1;
 	    }
@@ -268,16 +293,17 @@ int Sockbuf_read(sockbuf_t *sbuf)
 #endif
 	while ((len = sock_read(&sbuf->sock, sbuf->buf + sbuf->len, max))
 	       <= 0) {
+	    int err;
+
 	    if (len == 0)
 		return 0;
-#ifdef _WINDOWS
-	    errno = WSAGetLastError();
-#endif
-	    if (errno == EINTR) {
+
+	    err = sock_last_error();
+	    if (sock_interrupted(err)) {
 		errno = 0;
 		continue;
 	    }
-	    if (errno == EWOULDBLOCK || errno == EAGAIN) {
+	    if (sock_would_block(err)) {
 		return 0;
 	    }
 #if 0
@@ -311,14 +337,17 @@ int Sockbuf_read(sockbuf_t *sbuf)
 	errno = 0;
 	while ((len = sock_read(&sbuf->sock, sbuf->buf + sbuf->len, max))
 	       <= 0) {
+	    int err;
+
 	    if (len == 0)
 		return 0;
 
-	    if (errno == EINTR) {
+	    err = sock_last_error();
+	    if (sock_interrupted(err)) {
 		errno = 0;
 		continue;
 	    }
-	    if (errno != EWOULDBLOCK && errno != EAGAIN) {
+	    if (!sock_would_block(err)) {
 		error("Can't read on socket");
 		return -1;
 	    }
