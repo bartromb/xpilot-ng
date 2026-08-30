@@ -50,6 +50,7 @@ rather build from source, see [`BUILDING.md`](BUILDING.md).
 | 6b | Gymnasium RL environment | **Done** — accelerated and parallel |
 | 6c | Learned agents | PPO trains and benchmarks; ahead of random on the server's own score |
 | — | Windows and macOS | **Done** — server and SDL client, verified running in CI |
+| — | Installers | **Done** — Windows setup and macOS `.dmg`, both run from an installed copy |
 
 Full detail, including everything deliberately *not* done and why, is in
 [`ROADMAP.md`](ROADMAP.md).
@@ -77,6 +78,15 @@ has its Homebrew dylibs bundled and its load commands rewritten to
 the first versions of both shipped broken — the Windows build without
 `libexpat-1.dll`, the macOS one pointing at `/opt/homebrew` — while every CI
 job reported success.
+
+That kind of check has a blind spot worth knowing about. Homebrew's `sdl2` is
+sdl2-compat, which loads SDL3 with `dlopen` rather than linking it, so no load
+command names it: `dylibbundler` did not bundle it, the "nothing points at
+Homebrew" check did not miss it, and a full Mach-O scan of the published
+`.dmg` called the app self-contained. It was not — without SDL3 the client
+raised a modal alert from inside dyld and hung before `main()`. Nothing static
+catches a `dlopen`; only running the thing did. CI now installs the app to
+`/Applications` and requires it to join a game.
 
 macOS is published for both architectures — `xpilot-ng-macos-arm64` for
 Apple Silicon and `xpilot-ng-macos-x86_64` for Intel. Separate builds rather
@@ -209,6 +219,18 @@ Several of these had been in the code for decades:
   carries *two* ship-shape strings, not one, and the reliable stream is
   undelimited — so reading one string turns everything after it into garbage.
   Both findings are in [`docs/protocol.md`](docs/protocol.md).
+- **The `.deb` installed a game that could not find its own files.** It was
+  built with the default `/usr/local` prefix, baking that path into the
+  binaries, while CPack laid the package out under `/usr`. It looked fine on
+  any machine that had also been `cmake --install`ed by hand, because the
+  binaries then read *that* copy — which is exactly how the first two releases
+  were "verified".
+- **An installed copy found no data unless it was started from its own
+  folder.** Windows and macOS compile a relative data path, so a Start Menu
+  shortcut, a Finder launch or a shell anywhere else came up with no maps,
+  textures, fonts or sounds. The macOS archives had it worse: they pointed at
+  `/usr/local/share/xpilot-ng/` while shipping their data beside the binary.
+  Startup now anchors the working directory to the executable.
 - **The macOS app could never start.** Homebrew's `sdl2` is sdl2-compat, a shim
   that loads SDL3 with `dlopen` — so no load command names SDL3, `dylibbundler`
   never bundled it, and the shim's library initialiser raised a *modal alert
@@ -282,13 +304,15 @@ Stated plainly, because they decide what is safe to rely on:
   from `/Applications` on both architectures and require it to join a game, so
   the path is exercised on real hardware — but no person has double-clicked it
   in the Finder.
-- **The Windows client has only ever been run under Wine.** It plays there —
-  installed, joined, rendering, stable — but the Windows *server* is all CI
-  exercises on real Windows.
+- **The Windows client has only ever been run under Wine.** Everything works
+  there — the installer, a Start Menu launch from outside the install folder,
+  joining a game, sound, and a clean uninstall — but the Windows *server* is
+  all CI exercises on real Windows.
 - **Wayland is untested.** The default game loop needs an X11 video driver and
   says so; native Wayland needs `-DXPILOT_SDL_GAMELOOP=ON` verified.
-- **Audio has never been listened to.** It demonstrably reaches the device —
-  measured at 41% of full scale while firing, against a silent baseline — but
+- **Audio has never been listened to.** It demonstrably reaches the device on
+  both the Linux and Windows builds — measured at about 41% of full scale while
+  firing, against a silent baseline recorded with the client stopped — but
   whether it *sounds* right is unverified.
 - **Positional audio is not implementable** as the roadmap describes. The audio
   packet carries a sound index and a volume, and no position.
