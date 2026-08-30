@@ -488,8 +488,12 @@ if(XPILOT_SOUND)
     install(DIRECTORY lib/sound/ DESTINATION "${XP_PKGDATADIR}/sound")
 endif()
 
-# mapconvert.py ships in pkgdatadir (autotools dist_pkgdata_DATA).
-install(FILES mapconvert.py DESTINATION "${XP_PKGDATADIR}")
+# mapconvert.py is not installed. Autotools shipped it in pkgdatadir, but it
+# is Python 2 -- 74 print statements, and it does not even parse under Python
+# 3 -- so what was being installed was a script that cannot run, on a system
+# where /usr/bin/python does not exist either. It stays in the source tree
+# because the map conversion it does is still worth having, and porting it is
+# a job of its own.
 
 # Man pages. Sources are *.man and install as *.6, matching the autotools
 # dist_man6_MANS rule. All five install unconditionally, as they do there,
