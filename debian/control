@@ -25,7 +25,11 @@ Vcs-Browser: https://github.com/bartromb/xpilot-ng
 
 Package: xpilot-ng
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends},
+ fonts-freefont-ttf,
+ ttf-bitstream-vera
 Description: multi-player tactical space war game
  XPilot is a multi-player tactical manoeuvring game. Each player controls a
  fighter equipped with a variety of weapons and power-ups. Players compete as

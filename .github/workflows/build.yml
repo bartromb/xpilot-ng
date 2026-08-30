@@ -313,6 +313,15 @@ jobs:
           test -x /usr/games/xpilot-ng-server
           test -f /usr/share/xpilot-ng/sound/sounds.txt
           ldd /usr/games/xpilot-ng-sdl | grep -q libSDL2_mixer
+          # The two redistributed fonts are symlinks into the system font
+          # packages now. test -f follows them, so a link pointing at the
+          # wrong path fails here rather than leaving the client with no
+          # fonts at run time.
+          for f in VeraMoBd.ttf FreeSansBoldOblique.ttf; do
+            test -L "/usr/share/xpilot-ng/fonts/$f"
+            test -f "/usr/share/xpilot-ng/fonts/$f" \
+              || (echo "dangling font symlink: $f -> $(readlink /usr/share/xpilot-ng/fonts/$f)"; exit 1)
+          done
           cd /
           xpilot-ng-server -map blood-music.xp2 -port 15350 -noQuit -idleRun \
               > /tmp/pkg-server.log 2>&1 &

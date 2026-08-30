@@ -12,7 +12,8 @@ override_dh_auto_configure:
 	dh_auto_configure -- \
 	    -DCMAKE_BUILD_TYPE=RelWithDebInfo \
 	    -DCMAKE_INSTALL_BINDIR=games \
-	    -DXPILOT_SOUND=ON
+	    -DXPILOT_SOUND=ON \
+	    -DXPILOT_SYSTEM_FONTS=ON
 
 override_dh_auto_test:
 	# The tree has no ctest targets; its fuzzing harness is run separately.

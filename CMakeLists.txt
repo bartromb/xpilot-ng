@@ -406,10 +406,23 @@ set(XP_MAPS
     lib/maps/tourmination.xp2)
 install(FILES ${XP_MAPS} DESTINATION "${XP_PKGDATADIR}/maps")
 
-set(XP_FONTS
-    lib/fonts/ConsoleFont.bmp
-    lib/fonts/VeraMoBd.ttf
-    lib/fonts/FreeSansBoldOblique.ttf)
+# Two of the three fonts are redistributions: VeraMoBd.ttf is in
+# ttf-bitstream-vera and FreeSansBoldOblique.ttf is in fonts-freefont-ttf.
+# A distribution wants to ship one copy and have packages depend on it, so
+# XPILOT_SYSTEM_FONTS leaves them out and the packaging symlinks the system
+# copies into place. The self-contained packages -- Windows, macOS -- have no
+# system font packages to lean on and keep carrying their own. ConsoleFont.bmp
+# is ours and is always installed.
+option(XPILOT_SYSTEM_FONTS
+       "Do not install the redistributed TTFs; the packaging supplies them"
+       OFF)
+
+set(XP_FONTS lib/fonts/ConsoleFont.bmp)
+if(NOT XPILOT_SYSTEM_FONTS)
+    list(APPEND XP_FONTS
+        lib/fonts/VeraMoBd.ttf
+        lib/fonts/FreeSansBoldOblique.ttf)
+endif()
 install(FILES ${XP_FONTS} DESTINATION "${XP_PKGDATADIR}/fonts")
 
 set(XP_TEXTURES
