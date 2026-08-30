@@ -38,7 +38,6 @@
 
 #define SOCK_GETHOST_TIMEOUT	6
 
-static jmp_buf		env;
 
 
 static struct hostent *sock_get_host_by_name(const char *name);
@@ -756,35 +755,60 @@ int sock_readable(sock_t *sock)
     return SOCK_IS_OK;
 }
 
-static void sock_catch_alarm(int signum)
-{
-    UNUSED_PARAM(signum);
-    printf("DNS lookup cancelled\n");
-
-    longjmp(env, 1);
-}
-
 static struct hostent *sock_get_host_by_name(const char *name)
 {
 #ifndef _WINDOWS
 
-    struct hostent	*hp;
+    /*
+     * This used to bound gethostbyname() with alarm() and longjmp out of the
+     * signal handler when it fired. That unwinds out of the system resolver
+     * while it holds its own locks and part-built allocations, which is
+     * undefined behaviour -- and on macOS it crashed: the server segfaulted
+     * moments after printing "DNS lookup cancelled" on a runner with slow
+     * DNS. getaddrinfo() has its own timeouts, needs no signal handling and
+     * is thread-safe, so the whole mechanism goes away.
+     *
+     * The callers want a struct hostent, and only ever read h_name,
+     * h_addrtype, h_length and h_addr_list, so fill in one of those.
+     */
+    enum { MAX_ADDRS = 8 };
+    static struct hostent	he;
+    static struct in_addr	addrs[MAX_ADDRS];
+    static char			*addr_list[MAX_ADDRS + 1];
+    static char			canon[256];
+    struct addrinfo		hints, *res, *ai;
+    int				n = 0;
 
-    if (setjmp(env)) {
-	alarm(0);
-	signal(SIGALRM, SIG_DFL);
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_INET;		/* the protocol is IPv4 throughout */
+    hints.ai_socktype = SOCK_DGRAM;
+    hints.ai_flags = AI_CANONNAME;
+
+    if (getaddrinfo(name, NULL, &hints, &res) != 0 || res == NULL)
 	return (struct hostent *) NULL;
+
+    strlcpy(canon, res->ai_canonname ? res->ai_canonname : name, sizeof canon);
+
+    for (ai = res; ai != NULL && n < MAX_ADDRS; ai = ai->ai_next) {
+	if (ai->ai_family != AF_INET)
+	    continue;
+	addrs[n] = ((struct sockaddr_in *)ai->ai_addr)->sin_addr;
+	addr_list[n] = (char *)&addrs[n];
+	n++;
     }
+    freeaddrinfo(res);
 
-    signal(SIGALRM, sock_catch_alarm);
-    alarm(SOCK_GETHOST_TIMEOUT);
+    if (n == 0)
+	return (struct hostent *) NULL;
+    addr_list[n] = NULL;
 
-    hp = gethostbyname(name);
+    he.h_name = canon;
+    he.h_aliases = NULL;
+    he.h_addrtype = AF_INET;
+    he.h_length = sizeof(struct in_addr);
+    he.h_addr_list = addr_list;
 
-    alarm(0);
-    signal(SIGALRM, SIG_DFL);
-
-    return hp;
+    return &he;
 
 #else
     
@@ -822,23 +846,30 @@ static struct hostent *sock_get_host_by_addr(const char *addr,
 {
 #ifndef _WINDOWS
 
-    struct hostent	*hp;
+    /* Same story as the forward lookup above: no alarm, no longjmp. Callers
+     * of this one only ever read h_name. */
+    static struct hostent	he;
+    static char			host[NI_MAXHOST];
+    struct sockaddr_in		sin;
 
-    if (setjmp(env)) {
-	alarm(0);
-	signal(SIGALRM, SIG_DFL);
+    if (type != AF_INET || len != (int)sizeof(struct in_addr))
 	return (struct hostent *) NULL;
-    }
 
-    signal(SIGALRM, sock_catch_alarm);
-    alarm(SOCK_GETHOST_TIMEOUT);
+    memset(&sin, 0, sizeof sin);
+    sin.sin_family = AF_INET;
+    memcpy(&sin.sin_addr, addr, sizeof(struct in_addr));
 
-    hp = gethostbyaddr(addr, len, type);
+    if (getnameinfo((struct sockaddr *)&sin, sizeof sin,
+		    host, sizeof host, NULL, 0, NI_NAMEREQD) != 0)
+	return (struct hostent *) NULL;
 
-    alarm(0);
-    signal(SIGALRM, SIG_DFL);
+    he.h_name = host;
+    he.h_aliases = NULL;
+    he.h_addrtype = AF_INET;
+    he.h_length = sizeof(struct in_addr);
+    he.h_addr_list = NULL;
 
-    return hp;
+    return &he;
 
 #else
 
