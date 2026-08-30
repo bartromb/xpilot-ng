@@ -315,3 +315,39 @@ config at all is normal and is reported as INFO rather than an error.
 directory at `/usr/local/share/xpilot-ng/`. Running the binaries from the source
 tree works because maps and textures are found under `lib/`; if you
 `make install` to a prefix, keep the two consistent.
+
+## Debian and Ubuntu packaging
+
+`debian/` builds a single `xpilot-ng` package: server, both clients, replay
+tool and map editor, with their data. Binaries install to `/usr/games` per
+Debian policy, and the data to `/usr/share/xpilot-ng/`, which is where the
+binaries are compiled to look for it.
+
+Build the binary package locally:
+
+```sh
+sudo apt build-dep .          # or install the Build-Depends from debian/control
+dpkg-buildpackage -us -uc -b
+```
+
+### Uploading to a PPA
+
+CI builds the three files a PPA needs and attaches them as the
+`xpilot-ng-ppa-source` artifact: the `.dsc`, the `.orig.tar.gz` and the
+`.debian.tar.xz`. Uploading needs a Launchpad account and a GPG key, so it is
+a manual step:
+
+```sh
+debsign -k <your-key-id> xpilot-ng_*.dsc
+dput ppa:<your-launchpad-user>/<ppa-name> xpilot-ng_*_source.changes
+```
+
+The changelog targets one Ubuntu series at a time — the trailing `~noble1` in
+the version. To build for another, bump it:
+
+```sh
+dch --bpo    # or edit debian/changelog: 4.7.3+r5-1~jammy1, distribution jammy
+```
+
+Launchpad rejects a version it has already seen, so each series needs its own
+suffix.

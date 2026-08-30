@@ -1,0 +1,18 @@
+#!/usr/bin/make -f
+
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
+%:
+	dh $@ --buildsystem=cmake
+
+override_dh_auto_configure:
+	# Games belong in /usr/games under Debian policy. The data directory is
+	# compiled in from the install prefix, which dh sets to /usr, so the
+	# binaries and their data agree without any further help.
+	dh_auto_configure -- \
+	    -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+	    -DCMAKE_INSTALL_BINDIR=games \
+	    -DXPILOT_SOUND=ON
+
+override_dh_auto_test:
+	# The tree has no ctest targets; its fuzzing harness is run separately.

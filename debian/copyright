@@ -1,0 +1,62 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: xpilot-ng
+Upstream-Contact: https://github.com/bartromb/xpilot-ng/issues
+Source: https://github.com/bartromb/xpilot-ng
+Comment:
+ XPilot NG's own last release was in 2010 and its authors are no longer
+ active. This package builds from a revival fork; the original authors'
+ README is preserved in the source as README, and their names and copyright
+ stand unchanged in the file headers.
+
+Files: *
+Copyright:
+ 1991-2001 Bjorn Stabell <bjoern@xpilot.org>
+ 1991-2001 Ken Ronny Schouten <ken@xpilot.org>
+ 1991-2001 Bert Gijsbers <bert@xpilot.org>
+ 1991-2001 Dick Balaska <dick@xpilot.org>
+ 2000-2005 Uoti Urpala
+ 2000-2005 Juha Lindstrom
+ 2000-2005 Kristian Soderblom
+ 2000-2005 Erik Andersson
+ 2025-2026 bartromb <bart.rombaut@gmail.com>
+License: GPL-2+
+
+Files: contrib/corners.c
+ contrib/mapgen.c
+ contrib/mapmapper.c
+ contrib/mkmap.c
+ contrib/pbmtomap.c
+ contrib/circle_cannon_dodgers_generate.cpp
+Copyright: 1991-2005 the XPilot developers
+License: GPL-2+
+Comment:
+ These map-generation helpers carry no licence header of their own. They have
+ been distributed as part of XPilot since the 1990s, under the terms in
+ COPYING, and are covered by the project licence. They are not built or
+ installed by this package.
+
+Files: debian/*
+Copyright: 2026 bartromb <bart.rombaut@gmail.com>
+License: GPL-2+
+Comment:
+ An earlier, unrelated Debian packaging by the Unofficial Debian XPilot group
+ is preserved upstream in contrib/debian/. This packaging was written from
+ scratch and shares nothing with it.
+
+License: GPL-2+
+ This program is free software; you can redistribute it and/or modify it
+ under the terms of the GNU General Public License as published by the Free
+ Software Foundation; either version 2 of the License, or (at your option)
+ any later version.
+ .
+ This program is distributed in the hope that it will be useful, but WITHOUT
+ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ more details.
+ .
+ You should have received a copy of the GNU General Public License along
+ with this program; if not, write to the Free Software Foundation, Inc., 51
+ Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ .
+ On Debian systems, the full text of the GNU General Public License version 2
+ can be found in "/usr/share/common-licenses/GPL-2".

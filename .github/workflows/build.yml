@@ -243,6 +243,86 @@ jobs:
           if-no-files-found: ignore
 
   # ---------------------------------------------------------------------
+  # Debian/Ubuntu packaging. Builds the source package that a PPA takes, and
+  # then builds and installs the binary from it, because a source package that
+  # merely parses is not a package that works.
+  # ---------------------------------------------------------------------
+  debian-package:
+    name: Debian source + binary package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+              devscripts debhelper lintian fakeroot $XPILOT_DEPS
+
+      - name: Build the source package
+        run: |
+          set -eux
+          version=$(dpkg-parsechangelog -S Version)
+          upstream=${version%%-*}
+          work=$(mktemp -d)
+          # The orig tarball is upstream only: debian/ lives in this repo but
+          # must not appear in it, or the 3.0 (quilt) format has two of them.
+          git archive HEAD --prefix="xpilot-ng-$upstream/" | tar -x -C "$work"
+          rm -rf "$work/xpilot-ng-$upstream/debian"
+          tar czf "$work/xpilot-ng_$upstream.orig.tar.gz" \
+              -C "$work" "xpilot-ng-$upstream"
+          cp -r debian "$work/xpilot-ng-$upstream/debian"
+          cd "$work/xpilot-ng-$upstream"
+          dpkg-source -b .
+          mkdir -p "$GITHUB_WORKSPACE/pkg"
+          cp ../*.dsc ../*.orig.tar.gz ../*.debian.tar.xz \
+             "$GITHUB_WORKSPACE/pkg/"
+          echo "WORKDIR=$work/xpilot-ng-$upstream" >> "$GITHUB_ENV"
+
+      - name: Build the binary package
+        run: |
+          set -eux
+          cd "$WORKDIR"
+          dpkg-buildpackage -us -uc -b
+          cp ../*.deb "$GITHUB_WORKSPACE/pkg/"
+          ls -la "$GITHUB_WORKSPACE/pkg"
+
+      - name: Lintian
+        run: |
+          set -eu
+          cd "$GITHUB_WORKSPACE/pkg"
+          # Errors fail the build; warnings are reported and left visible.
+          lintian --fail-on error --tag-display-limit 0 ./*.dsc ./*.deb || {
+            echo "lintian reported errors"; exit 1; }
+
+      - name: Install it and check it runs
+        # The packaging decides where the binaries and their data go, and the
+        # two have to agree -- that is exactly what went wrong with the .deb
+        # CPack produced. So install the real package and start the server
+        # from a directory that is nothing to do with it.
+        run: |
+          set -eux
+          sudo apt-get install -y ./pkg/xpilot-ng_*.deb
+          test -x /usr/games/xpilot-ng-server
+          test -f /usr/share/xpilot-ng/sound/sounds.txt
+          ldd /usr/games/xpilot-ng-sdl | grep -q libSDL2_mixer
+          cd /
+          xpilot-ng-server -map blood-music.xp2 -port 15350 -noQuit -idleRun \
+              > /tmp/pkg-server.log 2>&1 &
+          sleep 8
+          cat /tmp/pkg-server.log
+          ss -lun | grep -q 15350 || (echo "server not listening"; exit 1)
+          sudo apt-get remove -y xpilot-ng
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xpilot-ng-ppa-source
+          path: |
+            pkg/*.dsc
+            pkg/*.orig.tar.gz
+            pkg/*.debian.tar.xz
+
+  # ---------------------------------------------------------------------
   # Windows. MSYS2/mingw64 because it packages the whole SDL2 family and
   # expat, so this is a plain CMake build rather than a dependency hunt.
   # Only the server and the SDL client are built: the X11 client, replay

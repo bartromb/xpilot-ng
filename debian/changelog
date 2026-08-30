@@ -1,0 +1,12 @@
+xpilot-ng (4.7.3+r5-1~noble1) noble; urgency=medium
+
+  * Initial packaging of the revival fork, built from the v4.7.3-r5 release.
+    Upstream XPilot NG last released in 2010; this tree ports it to CMake,
+    SDL2 and SDL2_mixer and fixes the defects that stopped it building and
+    running on current systems.
+  * Sound is enabled: the audio path is SDL2_mixer, and the sample files are
+    installed with it.
+  * Binaries install to /usr/games per policy, with their data in
+    /usr/share/xpilot-ng where the binaries are compiled to look for it.
+
+ -- bartromb <bart.rombaut@gmail.com>  Sun, 30 Aug 2026 19:15:39 +0200
