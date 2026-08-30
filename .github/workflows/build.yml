@@ -640,7 +640,16 @@ jobs:
           "$exe" -name dmgtest -join localhost -port 15348 \
             > /tmp/app-client.log 2>&1 &
           cli=$!
-          sleep 25
+
+          # Wait for the login rather than guessing how long it takes. The
+          # Intel runners are a good deal slower than the arm64 ones -- at a
+          # flat 25 seconds the handshake had started (the server logged
+          # "Checking Address") but not finished.
+          for i in $(seq 1 24); do
+            grep -q "Welcome Dmgtest" /tmp/app-server.log && break
+            kill -0 "$cli" 2>/dev/null || break
+            sleep 5
+          done
 
           echo "=== client output ($(wc -c < /tmp/app-client.log) bytes) ==="
           cat /tmp/app-client.log || true
@@ -662,8 +671,10 @@ jobs:
           if grep -q "Welcome Dmgtest" /tmp/app-server.log; then
             echo "PASS: and it joined the game."
           else
-            echo "NOT ACHIEVED: it started but did not complete a login."
+            echo "FAIL: it started but never completed a login."
             echo "--- server ---"; cat /tmp/app-server.log || true
+            kill "$cli" "$srv" 2>/dev/null || true
+            exit 1
           fi
 
           kill "$cli" "$srv" 2>/dev/null || true
