@@ -338,6 +338,14 @@ jobs:
             pkg/*.orig.tar.gz
             pkg/*.debian.tar.xz
 
+      # The package releases ship. It is the policy-compliant one -- binaries
+      # in /usr/games, fonts from the system packages, lintian clean -- and it
+      # is built and installed by the job above, unlike the CPack .deb.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xpilot-ng-debian-binary
+          path: pkg/xpilot-ng_*.deb
+
   # ---------------------------------------------------------------------
   # Windows. MSYS2/mingw64 because it packages the whole SDL2 family and
   # expat, so this is a plain CMake build rather than a dependency hunt.

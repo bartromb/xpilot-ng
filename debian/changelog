@@ -1,3 +1,14 @@
+xpilot-ng (4.7.3+r6-1~noble1) noble; urgency=medium
+
+  * Build from the v4.7.3-r6 release.
+  * Do not install mapconvert.py: it is Python 2, does not parse under
+    Python 3, and its shebang names an interpreter that a stock Ubuntu does
+    not have. It stays in the source for a later port.
+  * Take VeraMoBd.ttf and FreeSansBoldOblique.ttf from ttf-bitstream-vera
+    and fonts-freefont-ttf rather than shipping copies of them.
+
+ -- bartromb <bart.rombaut@gmail.com>  Sun, 30 Aug 2026 20:53:29 +0200
+
 xpilot-ng (4.7.3+r5-1~noble1) noble; urgency=medium
 
   * Initial packaging of the revival fork, built from the v4.7.3-r5 release.
@@ -9,4 +20,4 @@ xpilot-ng (4.7.3+r5-1~noble1) noble; urgency=medium
   * Binaries install to /usr/games per policy, with their data in
     /usr/share/xpilot-ng where the binaries are compiled to look for it.
 
- -- bartromb <bart.rombaut@gmail.com>  Sun, 30 Aug 2026 19:15:39 +0200
+ -- bartromb <bart.rombaut@gmail.com>  Sat, 30 Aug 2026 17:10:00 +0200
