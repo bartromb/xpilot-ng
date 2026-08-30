@@ -592,52 +592,38 @@ jobs:
           lsof -iUDP:15348 || (echo "installed app cannot find its data"; exit 1)
           kill "$srv" 2>/dev/null || true
 
-      - name: Why the client does not start
-        # It produces no output at all and never connects, while the server
-        # from the same bundle runs fine -- and the runner does report an Aqua
-        # session, so "no window server" was the wrong guess. Gather what the
-        # system knows before theorising again: the exit status, whether the
-        # binary still has a valid signature after dylibbundler rewrote its
-        # load commands, and any crash report the OS wrote.
+      - name: Where the client hangs
+        # It produces no output at all and stays alive, while the server from
+        # the same bundle runs fine. Init_window() prints "SDL_ttf
+        # initialized." as its first act, so a silent client has not got past
+        # TTF_Init() -- and it is still running, so this is a hang, not a
+        # crash. Ask the OS where it is stuck instead of guessing a third
+        # time.
         continue-on-error: true
         run: |
           set -u
-          app="/Applications/XPilot NG.app"
-          exe="$app/Contents/MacOS/xpilot-ng-sdl"
+          exe="/Applications/XPilot NG.app/Contents/MacOS/xpilot-ng-sdl"
 
-          echo "=== session ==="
+          echo "=== session and signature ==="
           launchctl managername || true
+          codesign --verify --verbose=2 "$exe" 2>&1 | head -5 || true
 
-          echo "=== signature of the client ==="
-          codesign -dvv "$exe" 2>&1 | head -20 || true
-          echo "=== signature check ==="
-          codesign --verify --verbose=2 "$exe" 2>&1 | head -20 || true
-          echo "=== signature of the server, which does run ==="
-          codesign -dvv "$app/Contents/MacOS/xpilot-ng-server" 2>&1 | head -8 || true
-
-          echo "=== run it in the foreground and report the exit status ==="
           cd /
-          set +e
-          "$exe" -name dmgtest -join localhost -port 15999 > /tmp/fg.log 2>&1
-          rc=$?
-          set -e
-          echo "exit status: $rc"
-          echo "--- its output (${rc}) ---"
+          "$exe" -name dmgtest -join localhost -port 15999 > /tmp/fg.log 2>&1 &
+          cli=$!
+          sleep 20
+
+          if kill -0 "$cli" 2>/dev/null; then
+            echo "=== still alive after 20s; sampling its stack ==="
+            sample "$cli" 3 -file /tmp/sample.txt > /dev/null 2>&1 || true
+            sed -n '1,140p' /tmp/sample.txt || true
+          else
+            wait "$cli" || echo "=== exited on its own, status $? ==="
+          fi
+
+          echo "=== client output: $(wc -c < /tmp/fg.log) bytes ==="
           cat /tmp/fg.log || true
-          echo "--- byte count: $(wc -c < /tmp/fg.log) ---"
-
-          echo "=== anything the kernel logged ==="
-          ls -t ~/Library/Logs/DiagnosticReports/ 2>/dev/null | head -5 || true
-          for f in $(ls -t ~/Library/Logs/DiagnosticReports/*xpilot* 2>/dev/null | head -1); do
-            echo "--- $f ---"; head -40 "$f"
-          done
-
-          echo "=== does an ad-hoc signature change anything? ==="
-          codesign --force --deep --sign - "$app" 2>&1 | tail -3 || true
-          set +e
-          "$exe" -name dmgtest -join localhost -port 15999 > /tmp/fg2.log 2>&1
-          echo "exit status after re-signing: $?"
-          cat /tmp/fg2.log || true
+          kill "$cli" 2>/dev/null || true
 
       - uses: actions/upload-artifact@v4
         with:
