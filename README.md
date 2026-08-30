@@ -209,6 +209,17 @@ Several of these had been in the code for decades:
   carries *two* ship-shape strings, not one, and the reliable stream is
   undelimited — so reading one string turns everything after it into garbage.
   Both findings are in [`docs/protocol.md`](docs/protocol.md).
+- **The macOS app could never start.** Homebrew's `sdl2` is sdl2-compat, a shim
+  that loads SDL3 with `dlopen` — so no load command names SDL3, `dylibbundler`
+  never bundled it, and the shim's library initialiser raised a *modal alert
+  from inside dyld*, waiting forever for a click. Silent, because the error
+  went to a dialog rather than stderr. Three separate self-containment checks
+  passed the bundle; none of them can see a `dlopen`.
+- **`longjmp` out of the system resolver.** Both name lookups bounded
+  `gethostbyname()` with `alarm()` and jumped out of the signal handler,
+  unwinding through the resolver while it held its own locks. Undefined
+  behaviour that needs a machine with slow DNS to show itself — it crashed the
+  macOS server, and had been in the tree for years.
 - **The SDL client drew nothing where a wall texture was missing.** Maps flag a
   polygon style as textured and then name a bitmap they never declare —
   `blood-music.xp2`, shipped with the game, does it on all 32 of its walls. The
@@ -267,9 +278,13 @@ Several of these had been in the code for decades:
 
 Stated plainly, because they decide what is safe to rely on:
 
-- **The Windows client has only ever been run under Wine.** It now plays there
-  — joined, rendering, stable — but the Windows *server* is all CI exercises on
-  real Windows, and nobody has run the client on real hardware.
+- **Nobody has run any of this on a Mac they own.** CI does start the macOS app
+  from `/Applications` on both architectures and require it to join a game, so
+  the path is exercised on real hardware — but no person has double-clicked it
+  in the Finder.
+- **The Windows client has only ever been run under Wine.** It plays there —
+  installed, joined, rendering, stable — but the Windows *server* is all CI
+  exercises on real Windows.
 - **Wayland is untested.** The default game loop needs an X11 video driver and
   says so; native Wayland needs `-DXPILOT_SDL_GAMELOOP=ON` verified.
 - **Audio has never been listened to.** It demonstrably reaches the device —
