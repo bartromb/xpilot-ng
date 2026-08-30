@@ -493,7 +493,34 @@ jobs:
               -d dist/xpilot-ng-macos/libs -p @executable_path/libs/
           done
 
+          # Homebrew's sdl2 is sdl2-compat: a shim that loads SDL3 at run
+          # time with dlopen, so there is no load command naming it and
+          # dylibbundler cannot see it. Ship it and the app hangs before
+          # main() -- the shim's library initialiser fails and puts up a
+          # modal NSAlert that nobody can dismiss, which is silent because
+          # the error goes to a dialog rather than stderr. The shim looks for
+          # @loader_path/libSDL3.dylib first, and the shim lives in libs/,
+          # so that is where this goes.
+          sdl3=$(brew --prefix sdl3)/lib/libSDL3.dylib
+          test -f "$sdl3"
+          cp -L "$sdl3" dist/xpilot-ng-macos/libs/libSDL3.dylib
+          chmod u+w dist/xpilot-ng-macos/libs/libSDL3.dylib
+          install_name_tool -id @loader_path/libSDL3.dylib \
+            dist/xpilot-ng-macos/libs/libSDL3.dylib
+          # SDL3 has dependencies of its own.
+          dylibbundler -of -b -x dist/xpilot-ng-macos/libs/libSDL3.dylib \
+            -d dist/xpilot-ng-macos/libs -p @executable_path/libs/
+
           cp COPYING README.md BUILDING.md dist/xpilot-ng-macos/
+
+      - name: The library the shim loads by hand is actually there
+        # dylibbundler cannot see a dlopen, and neither can any load-command
+        # check -- so this needs asserting on its own, or the client goes
+        # back to hanging on an invisible dialog.
+        run: |
+          set -eux
+          test -f dist/xpilot-ng-macos/libs/libSDL3.dylib
+          file dist/xpilot-ng-macos/libs/libSDL3.dylib | grep -q "${{ matrix.arch }}"
 
       - name: Nothing still points at Homebrew
         # The check that would have caught the shipped-without-expat mistake
@@ -592,38 +619,54 @@ jobs:
           lsof -iUDP:15348 || (echo "installed app cannot find its data"; exit 1)
           kill "$srv" 2>/dev/null || true
 
-      - name: Where the client hangs
-        # It produces no output at all and stays alive, while the server from
-        # the same bundle runs fine. Init_window() prints "SDL_ttf
-        # initialized." as its first act, so a silent client has not got past
-        # TTF_Init() -- and it is still running, so this is a hang, not a
-        # crash. Ask the OS where it is stuck instead of guessing a third
-        # time.
-        continue-on-error: true
+      - name: The installed client starts, and does not hang on a dialog
+        # The bug this guards: sdl2-compat's library initialiser could not
+        # find SDL3, failed, and put up a modal NSAlert inside dyld's
+        # initialiser -- before main(), with no output, waiting forever for a
+        # click that could never come. Init_window() prints "SDL_ttf
+        # initialized." as its first act, so that line appearing at all is
+        # proof the process got through dyld and into its own code.
         run: |
           set -u
           exe="/Applications/XPilot NG.app/Contents/MacOS/xpilot-ng-sdl"
+          srvexe="/Applications/XPilot NG.app/Contents/MacOS/xpilot-ng-server"
 
-          echo "=== session and signature ==="
-          launchctl managername || true
-          codesign --verify --verbose=2 "$exe" 2>&1 | head -5 || true
+          "$srvexe" -map blood-music.xp2 -port 15348 -noQuit \
+            > /tmp/app-server.log 2>&1 &
+          srv=$!
+          sleep 6
 
           cd /
-          "$exe" -name dmgtest -join localhost -port 15999 > /tmp/fg.log 2>&1 &
+          "$exe" -name dmgtest -join localhost -port 15348 \
+            > /tmp/app-client.log 2>&1 &
           cli=$!
-          sleep 20
+          sleep 25
 
-          if kill -0 "$cli" 2>/dev/null; then
-            echo "=== still alive after 20s; sampling its stack ==="
-            sample "$cli" 3 -file /tmp/sample.txt > /dev/null 2>&1 || true
-            sed -n '1,140p' /tmp/sample.txt || true
+          echo "=== client output ($(wc -c < /tmp/app-client.log) bytes) ==="
+          cat /tmp/app-client.log || true
+
+          if ! grep -q "SDL_ttf initialized" /tmp/app-client.log; then
+            echo "FAIL: the client never reached its own code."
+            if [ "$(wc -c < /tmp/app-client.log)" -eq 0 ] \
+               && kill -0 "$cli" 2>/dev/null; then
+              echo "It is alive and silent -- hung in a library initialiser"
+              echo "again. Stack:"
+              sample "$cli" 2 -file /tmp/sample.txt > /dev/null 2>&1 || true
+              sed -n '1,60p' /tmp/sample.txt || true
+            fi
+            kill "$cli" "$srv" 2>/dev/null || true
+            exit 1
+          fi
+          echo "PASS: the client got through dyld and into main()."
+
+          if grep -q "Welcome Dmgtest" /tmp/app-server.log; then
+            echo "PASS: and it joined the game."
           else
-            wait "$cli" || echo "=== exited on its own, status $? ==="
+            echo "NOT ACHIEVED: it started but did not complete a login."
+            echo "--- server ---"; cat /tmp/app-server.log || true
           fi
 
-          echo "=== client output: $(wc -c < /tmp/fg.log) bytes ==="
-          cat /tmp/fg.log || true
-          kill "$cli" 2>/dev/null || true
+          kill "$cli" "$srv" 2>/dev/null || true
 
       - uses: actions/upload-artifact@v4
         with:
