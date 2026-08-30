@@ -25,7 +25,13 @@ Ready-to-run builds for all four targets are on the
 
 The Windows installer adds Start Menu shortcuts and an entry in Add/Remove
 Programs. The `.dmg` holds an `XPilot NG.app` to drag to Applications. On
-Linux: `sudo apt install ./xpilot-ng_*_amd64.deb`.
+Linux: `sudo apt install ./xpilot-ng_*_amd64.deb`, which puts the binaries in
+`/usr/games` — on the default `PATH`, so `xpilot-ng-sdl` just works.
+
+Releases also carry `*-ppa-source.tar.gz`: the `.dsc`, `.orig.tar.gz` and
+`.debian.tar.xz` that a Launchpad PPA takes. They are bundled because GitHub
+rewrites `~` in an asset name, and the `.dsc` names its files exactly.
+[`BUILDING.md`](BUILDING.md) has the upload steps.
 
 The zip and both tarballs are self-contained — every library ships alongside
 the binaries, and the game finds its data wherever you put it, so there is
@@ -51,6 +57,7 @@ rather build from source, see [`BUILDING.md`](BUILDING.md).
 | 6c | Learned agents | PPO trains and benchmarks; ahead of random on the server's own score |
 | — | Windows and macOS | **Done** — server and SDL client, verified running in CI |
 | — | Installers | **Done** — Windows setup and macOS `.dmg`, both run from an installed copy |
+| — | Debian packaging | **Done** — lintian clean, built and installed in CI; PPA source published |
 
 Full detail, including everything deliberately *not* done and why, is in
 [`ROADMAP.md`](ROADMAP.md).
@@ -219,6 +226,12 @@ Several of these had been in the code for decades:
   carries *two* ship-shape strings, not one, and the reliable stream is
   undelimited — so reading one string turns everything after it into garbage.
   Both findings are in [`docs/protocol.md`](docs/protocol.md).
+- **A script that could not run was installed for years.** `mapconvert.py` is
+  Python 2 — 74 `print` statements, and it does not parse under Python 3 — and
+  its shebang asks for `/usr/bin/python`, which a stock Ubuntu does not have.
+  Autotools shipped it and the CMake rules copied that faithfully. Found by
+  Lintian complaining about the interpreter, which turned out to be the least
+  of it.
 - **The `.deb` installed a game that could not find its own files.** It was
   built with the default `/usr/local` prefix, baking that path into the
   binaries, while CPack laid the package out under `/usr`. It looked fine on
@@ -308,6 +321,9 @@ Stated plainly, because they decide what is safe to rely on:
   there — the installer, a Start Menu launch from outside the install folder,
   joining a game, sound, and a clean uninstall — but the Windows *server* is
   all CI exercises on real Windows.
+- **The PPA has not been uploaded to.** The source package is built and
+  checked on every CI run, but publishing it needs a Launchpad account and
+  key, so nobody has yet seen Launchpad build it.
 - **Wayland is untested.** The default game loop needs an X11 video driver and
   says so; native Wayland needs `-DXPILOT_SDL_GAMELOOP=ON` verified.
 - **Audio has never been listened to.** It demonstrably reaches the device on
