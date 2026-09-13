@@ -1,3 +1,18 @@
+xpilot-ng (4.7.3+r7-1~noble1) noble; urgency=high
+
+  * Build from the v4.7.3-r7 release.
+  * Security: a server could overwrite the client's stack through the map
+    data package its map names, by giving a file in it a name longer than
+    the buffer it was read into. The package extractor is rewritten: names
+    are limited to the characters real packages use, the file count and
+    unpacked size are capped, and a refused package leaves nothing behind.
+  * Map textures download again. The mirror the maps point at redirects
+    http to https, which the old downloader could not follow; it now uses
+    libcurl, restricted to http and https with a size cap.
+  * Build-Depends on libcurl4-gnutls-dev.
+
+ -- bartromb <bart.rombaut@gmail.com>  Sun, 13 Sep 2026 23:17:47 +0200
+
 xpilot-ng (4.7.3+r6-1~noble1) noble; urgency=medium
 
   * Build from the v4.7.3-r6 release.
