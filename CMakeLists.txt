@@ -207,6 +207,29 @@ if(XPILOT_SOUND)
     set(SOUND TRUE)
 endif()
 
+# Map data. A map can name a package of textures for the client to fetch on
+# connect, and the maps in circulation point at http:// URLs on a host that
+# now answers with a redirect to https://. The client's own downloader speaks
+# neither TLS nor redirects, so every such map came up with untextured walls.
+# libcurl does both. Same shape as sound: on when the library is there, and
+# asking for it explicitly without the library is an error rather than a
+# client that quietly cannot download.
+find_package(CURL QUIET)
+if(CURL_FOUND)
+    set(XP_CURL_DEFAULT ON)
+else()
+    set(XP_CURL_DEFAULT OFF)
+endif()
+option(XPILOT_CURL "Fetch map data with libcurl (HTTPS and redirects)"
+       ${XP_CURL_DEFAULT})
+if(XPILOT_CURL AND NOT CURL_FOUND)
+    message(FATAL_ERROR
+        "XPILOT_CURL=ON but libcurl was not found "
+        "(install libcurl4-gnutls-dev). "
+        "Configure with -DXPILOT_CURL=OFF to keep the built-in downloader, "
+        "which cannot fetch over HTTPS.")
+endif()
+
 # ---------------------------------------------------------------------------
 # Configuration probes
 #
@@ -563,5 +586,6 @@ message(STATUS "  SDL client .......... ${XPILOT_SDL_CLIENT}")
 message(STATUS "  replay tool ......... ${XPILOT_REPLAY}")
 message(STATUS "  map editor .......... ${XPILOT_MAPEDIT}")
 message(STATUS "  sound (SDL2_mixer) .. ${XPILOT_SOUND}")
+message(STATUS "  map data (libcurl) .. ${XPILOT_CURL}")
 message(STATUS "  data directory ...... ${XP_DATADIR}")
 message(STATUS "")

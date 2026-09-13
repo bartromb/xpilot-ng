@@ -13,6 +13,7 @@ override_dh_auto_configure:
 	    -DCMAKE_BUILD_TYPE=RelWithDebInfo \
 	    -DCMAKE_INSTALL_BINDIR=games \
 	    -DXPILOT_SOUND=ON \
+	    -DXPILOT_CURL=ON \
 	    -DXPILOT_SYSTEM_FONTS=ON
 
 override_dh_auto_test:

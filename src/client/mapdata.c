@@ -22,6 +22,10 @@
 
 #include <dirent.h>
 
+#ifdef HAVE_LIBCURL
+# include <curl/curl.h>
+#endif
+
 /* kps - you should be able to change this without a recompile */
 #define DATADIR ".xpilot_data"
 #define COPY_BUF_SIZE 8192
@@ -45,7 +49,8 @@ typedef struct {
 } URL;
 
 static int Mapdata_extract(const char *name);
-static int Mapdata_download(const URL *url, const char *filePath);
+static int Mapdata_download(const char *urlstr, const URL *url,
+			    const char *filePath);
 static int Url_parse(const char *urlstr, URL *url);
 static void Url_free_parsed(URL *url);
 
@@ -181,7 +186,7 @@ int Mapdata_setup(const char *urlstr)
 
     warn("Downloading map data from %s to %s.", urlstr, path);
 
-    if (!Mapdata_download(&url, path)) {
+    if (!Mapdata_download(urlstr, &url, path)) {
 	warn("downloading map data failed");
 	goto end;
     }
@@ -398,7 +403,119 @@ static int Mapdata_extract(const char *name)
 }
 
 
-static int Mapdata_download(const URL *url, const char *filePath)
+#ifdef HAVE_LIBCURL
+
+static size_t Mapdata_write(char *data, size_t size, size_t nmemb, void *f)
+{
+    return fwrite(data, size, nmemb, (FILE *)f);
+}
+
+static int Mapdata_download(const char *urlstr, const URL *url,
+			    const char *filePath)
+{
+    static bool curl_ready = false;
+    char errbuf[CURL_ERROR_SIZE];
+    CURL *curl;
+    CURLcode res;
+    FILE *f;
+    int rv = false;
+
+    UNUSED_PARAM(url);
+
+    if (!curl_ready) {
+	if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK) {
+	    error("could not initialise libcurl");
+	    return false;
+	}
+	curl_ready = true;
+    }
+
+    if ((curl = curl_easy_init()) == NULL) {
+	error("could not create a download handle");
+	return false;
+    }
+
+    if ((f = fopen(filePath, "wb")) == NULL) {
+	error("failed to open %s", filePath);
+	curl_easy_cleanup(curl);
+	return false;
+    }
+
+    errbuf[0] = '\0';
+    curl_easy_setopt(curl, CURLOPT_URL, urlstr);
+    curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, errbuf);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, Mapdata_write);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, f);
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, PACKAGE "/" VERSION);
+
+    /*
+     * The host every map in circulation points at now answers http:// with
+     * a redirect to https://. Following it, over TLS, is the reason this
+     * function uses libcurl at all.
+     */
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+    curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 5L);
+
+    /*
+     * The URL is whatever the server sent. Fetch it over the web and nothing
+     * else -- after a redirect as well as before -- so a server cannot point
+     * the client at file:// or any other protocol libcurl happens to speak.
+     */
+#if LIBCURL_VERSION_NUM >= 0x075500
+    curl_easy_setopt(curl, CURLOPT_PROTOCOLS_STR, "http,https");
+    curl_easy_setopt(curl, CURLOPT_REDIR_PROTOCOLS_STR, "http,https");
+#else
+    curl_easy_setopt(curl, CURLOPT_PROTOCOLS,
+		     (long)(CURLPROTO_HTTP | CURLPROTO_HTTPS));
+    curl_easy_setopt(curl, CURLOPT_REDIR_PROTOCOLS,
+		     (long)(CURLPROTO_HTTP | CURLPROTO_HTTPS));
+#endif
+    curl_easy_setopt(curl, CURLOPT_MAXFILESIZE_LARGE,
+		     (curl_off_t)MAPDATA_MAX_BYTES);
+
+    /* An error page is a failure, not something to unpack as map data. */
+    curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1L);
+
+    /* This runs during login: give up on a dead host or a stalled transfer
+     * rather than leaving the player staring at a frozen window. */
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 15L);
+    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 1L);
+    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, 30L);
+
+#if defined(_WINDOWS) && defined(CURLSSLOPT_NATIVE_CA)
+    /* A Windows build can be unpacked anywhere, so the CA bundle path fixed
+     * at build time cannot be relied on. Trust what Windows trusts. */
+    curl_easy_setopt(curl, CURLOPT_SSL_OPTIONS, (long)CURLSSLOPT_NATIVE_CA);
+#endif
+
+    res = curl_easy_perform(curl);
+    if (res == CURLE_OK)
+	rv = true;
+    else {
+	/* error() appends strerror(errno), and errno here is whatever the last
+	 * system call left behind -- libcurl's own message is the whole story. */
+	errno = 0;
+	error("map data download failed: %s",
+	      errbuf[0] != '\0' ? errbuf : curl_easy_strerror(res));
+    }
+
+    if (fclose(f) != 0) {
+	error("Error closing texture file %s", filePath);
+	rv = false;
+    }
+
+    /* A partial package must not be left where it could be unpacked later. */
+    if (!rv)
+	remove(filePath);
+
+    curl_easy_cleanup(curl);
+    return rv;
+}
+
+#else /* !HAVE_LIBCURL */
+
+static int Mapdata_download(const char *urlstr, const URL *url,
+			    const char *filePath)
 {
     char buf[1024];
     int rv, header, c, len, i;
@@ -406,8 +523,17 @@ static int Mapdata_download(const URL *url, const char *filePath)
     FILE *f = NULL;
     size_t n;
 
-    if (strncmp("http", url->protocol, 4) != 0) {
-	error("unsupported protocol %s", url->protocol);
+    UNUSED_PARAM(urlstr);
+
+    /*
+     * This downloader speaks plain HTTP only. It used to accept anything
+     * starting "http", https included, and then send the request unencrypted
+     * to port 80 -- say plainly instead that this build cannot do it.
+     */
+    if (strcmp("http", url->protocol) != 0) {
+	errno = 0;
+	error("cannot fetch %s map data: this client was built without libcurl, "
+	      "which HTTPS needs", url->protocol);
 	return false;
     }
 
@@ -536,6 +662,8 @@ static int Mapdata_download(const URL *url, const char *filePath)
     sock_close(&s);
     return rv;
 }
+
+#endif /* HAVE_LIBCURL */
 
 
 static int Url_parse(const char *urlstr, URL *url)

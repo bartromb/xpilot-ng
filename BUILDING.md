@@ -25,8 +25,8 @@ Clang and GCC 14 have not been tried yet.
 sudo apt install build-essential \
     libx11-dev libsm-dev libice-dev \
     libgl-dev libglu1-mesa-dev \
-    libsdl2-dev libsdl2-ttf-dev libsdl2-image-dev \
-    libexpat1-dev zlib1g-dev
+    libsdl2-dev libsdl2-ttf-dev libsdl2-image-dev libsdl2-mixer-dev \
+    libexpat1-dev zlib1g-dev libcurl4-gnutls-dev
 ```
 
 What each one is for:
@@ -39,6 +39,8 @@ What each one is for:
 | `libsdl2-ttf-dev`, `libsdl2-image-dev` | SDL client fonts and textures |
 | `libexpat1-dev` | XML map parsing (server *and* clients) |
 | `zlib1g-dev` | map and recording compression |
+| `libsdl2-mixer-dev` | sound |
+| `libcurl4-gnutls-dev` | downloading the texture packages some maps name |
 
 The SDL client uses SDL2 directly as of Phase 2. It previously built against
 `libsdl1.2-dev`, which on Ubuntu 24.04 is `sdl12-compat` — a shim over SDL2 —
@@ -54,20 +56,27 @@ a dependency.
 Autotools (`autoconf`, `automake`, `libtool`) is **not** required and is no
 longer used at all.
 
-### Optional: sound
+### Sound and map downloads follow their libraries
 
-Sound is opt-in and is **off** in the default build. To attempt it:
+Two features are switched on automatically when their library is installed,
+and off when it is not:
 
-```sh
-sudo apt install libopenal-dev libalut-dev
-cmake -B build -S . -DXPILOT_SOUND=ON
-```
+| Option | Library | What it does |
+|---|---|---|
+| `XPILOT_SOUND` | SDL2_mixer | sound |
+| `XPILOT_CURL` | libcurl | fetches the texture package a map names, over HTTPS |
 
-`freealut` (`libalut`) is effectively a dead library; replacing this whole path
-with SDL2_mixer is Phase 3 of the roadmap. Unlike the old autotools build,
-which downgraded missing audio libraries to a warning and silently produced a
-mute binary, `-DXPILOT_SOUND=ON` fails outright if OpenAL or freealut is
-missing.
+Asking for either explicitly — `-DXPILOT_SOUND=ON`, `-DXPILOT_CURL=ON` — makes
+a missing library a configure error instead of a quietly reduced build, which
+is what every packaged build does.
+
+`XPILOT_CURL` matters more than it sounds. The maps in circulation point at an
+`http://` mirror that now redirects to `https://`, and without libcurl the
+client can follow neither, so those maps load with untextured walls. The
+libcurl downloader also limits what a server can make it fetch: `http` and
+`https` only, redirects included, and a cap on size. The gnutls flavour of
+libcurl is used on Debian and Ubuntu so that a GPL-2+ program never has to ask
+the OpenSSL licence question.
 
 ## Build
 
@@ -184,9 +193,9 @@ that should outlive a single session.
 Built with MSYS2's mingw64 toolchain, which packages the whole SDL2 family:
 
 ```sh
-pacman -S mingw-w64-x86_64-{gcc,cmake,ninja,pkgconf,zlib,expat} \
+pacman -S mingw-w64-x86_64-{gcc,cmake,ninja,pkgconf,zlib,expat,curl} \
           mingw-w64-x86_64-SDL2{,_ttf,_image,_mixer}
-cmake -B build -S . -G Ninja -DXPILOT_SOUND=ON
+cmake -B build -S . -G Ninja -DXPILOT_SOUND=ON -DXPILOT_CURL=ON
 cmake --build build -j
 ```
 
@@ -211,10 +220,16 @@ mingw waves through what the GCC 14 in MSYS2 rejects.
 
 ```sh
 brew install cmake ninja pkgconf sdl2 sdl2_ttf sdl2_image sdl2_mixer expat
-cmake -B build -S . -G Ninja -DXPILOT_SOUND=ON \
+cmake -B build -S . -G Ninja -DXPILOT_SOUND=ON -DXPILOT_CURL=ON \
       -DCMAKE_PREFIX_PATH="$(brew --prefix expat);$(brew --prefix)"
 cmake --build build -j
 ```
+
+libcurl is not on that list on purpose: macOS ships its own, and that one
+trusts the system certificate store. Homebrew's would look for certificates
+under the Homebrew prefix, which a Mac without Homebrew does not have, so
+HTTPS would work on the build machine and nowhere else. CI checks the client
+links `/usr/lib/libcurl`.
 
 Same two binaries, same reason. Note that OpenGL is a framework here
 (`<OpenGL/gl.h>`) while a Homebrew SDL2 uses ordinary include paths — the two

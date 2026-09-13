@@ -17,6 +17,7 @@ env:
     libgl-dev libglu1-mesa-dev
     libsdl2-dev libsdl2-ttf-dev libsdl2-image-dev libsdl2-mixer-dev
     libexpat1-dev zlib1g-dev
+    libcurl4-gnutls-dev
 
 jobs:
   cmake:
@@ -53,7 +54,8 @@ jobs:
           cmake -B build -S . \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DCMAKE_INSTALL_PREFIX=/usr \
-            -DXPILOT_SOUND=ON
+            -DXPILOT_SOUND=ON \
+            -DXPILOT_CURL=ON
 
       - name: Build
         run: cmake --build build -j"$(nproc)"
@@ -375,6 +377,7 @@ jobs:
             mingw-w64-x86_64-SDL2_ttf
             mingw-w64-x86_64-SDL2_image
             mingw-w64-x86_64-SDL2_mixer
+            mingw-w64-x86_64-curl
             mingw-w64-x86_64-nsis
 
       - name: Configure
@@ -386,7 +389,8 @@ jobs:
           cmake -B build -S . -G Ninja \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DXPILOT_PORTABLE=ON \
-            -DXPILOT_SOUND=ON
+            -DXPILOT_SOUND=ON \
+            -DXPILOT_CURL=ON
 
       - name: Build
         run: cmake --build build -j
@@ -553,10 +557,22 @@ jobs:
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DXPILOT_PORTABLE=ON \
             -DXPILOT_SOUND=ON \
+            -DXPILOT_CURL=ON \
             -DCMAKE_PREFIX_PATH="$(brew --prefix expat);$(brew --prefix)"
 
       - name: Build
         run: cmake --build build -j
+
+      - name: The client uses the system libcurl
+        # macOS ships libcurl, and it trusts the system certificate store, so
+        # HTTPS works on any Mac. A Homebrew libcurl would be bundled without
+        # complaint by dylibbundler -- and would then look for a CA bundle
+        # under the Homebrew prefix, which no player has. Nothing else would
+        # notice: the download would simply fail on every Mac but this one.
+        run: |
+          set -eux
+          otool -L build/bin/xpilot-ng-sdl
+          otool -L build/bin/xpilot-ng-sdl | grep -q '/usr/lib/libcurl'
 
       - name: The binaries exist and are Mach-O executables of the right arch
         run: |

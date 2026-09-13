@@ -36,5 +36,12 @@ if(XPILOT_SOUND)
     target_link_libraries(xpclient PUBLIC ${XP_SDL2_MIXER_LIBS} ${XP_SDL2_LIBS})
 endif()
 
+# mapdata.c fetches map textures with libcurl when it is available, and falls
+# back to its own HTTP-only downloader when it is not.
+if(XPILOT_CURL)
+    target_link_libraries(xpclient PRIVATE CURL::libcurl)
+    target_compile_definitions(xpclient PRIVATE HAVE_LIBCURL)
+endif()
+
 target_include_directories(xpclient PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(xpclient PUBLIC xpcommon xp_common_flags)
