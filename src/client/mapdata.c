@@ -20,9 +20,21 @@
 
 #include "xpclient.h"
 
+#include <dirent.h>
+
 /* kps - you should be able to change this without a recompile */
 #define DATADIR ".xpilot_data"
 #define COPY_BUF_SIZE 8192
+
+/*
+ * Limits on a map data package. A real one holds a map and a dozen or so
+ * textures in well under a megabyte. The package comes from a URL that
+ * whichever server the player joined chose, so these bound what a hostile
+ * server can make the client store, not what a real package needs.
+ */
+#define MAPDATA_MAX_BYTES	(64L * 1024 * 1024)	/* downloaded, and unpacked */
+#define MAPDATA_MAX_FILES	1024
+#define MAPDATA_MAX_NAME	128
 
 typedef struct {
     char *protocol;
@@ -92,21 +104,28 @@ int Mapdata_setup(const char *urlstr)
 	/* so lets create one into users home dir */
 
 	char *home = getenv("HOME");
+	int n;
+
 	if (home == NULL) {
 	    error("couldn't access any dir in %s and HOME is unset", path);
 	    goto end;
 	}
 
 	if (strlen(home) == 0)
-	    sprintf(buf, "%s", DATADIR);
+	    n = snprintf(buf, sizeof buf, "%s", DATADIR);
 	else if (home[strlen(home) - 1] == PATHNAME_SEP)
-	    sprintf(buf, "%s%s", home, DATADIR);
+	    n = snprintf(buf, sizeof buf, "%s%s", home, DATADIR);
 	else
-	    sprintf(buf, "%s%c%s", home, PATHNAME_SEP, DATADIR);
+	    n = snprintf(buf, sizeof buf, "%s%c%s", home, PATHNAME_SEP, DATADIR);
+	if (n < 0 || n >= (int)sizeof buf) {
+	    error("HOME is too long to keep map data under: %s", home);
+	    goto end;
+	}
 
 	if (access(buf, F_OK) != 0) {
 	    if (mkdir(buf, S_IRWXU | S_IRWXG | S_IRWXO) == -1) {
-		error("failed to create directory %s", dir);
+		/* dir is still NULL at this point; the directory is buf. */
+		error("failed to create directory %s", buf);
 		goto end;
 	    }
 	}
@@ -114,12 +133,20 @@ int Mapdata_setup(const char *urlstr)
 	dir = buf;
     }
 
-    if (strlen(dir) == 0)
-	sprintf(path, "%s", name);
-    else if (dir[strlen(dir) - 1] == PATHNAME_SEP)
-	sprintf(path, "%s%s", dir, name);
-    else
-	sprintf(path, "%s%c%s", dir, PATHNAME_SEP, name);
+    {
+	int n;
+
+	if (strlen(dir) == 0)
+	    n = snprintf(path, sizeof path, "%s", name);
+	else if (dir[strlen(dir) - 1] == PATHNAME_SEP)
+	    n = snprintf(path, sizeof path, "%s%s", dir, name);
+	else
+	    n = snprintf(path, sizeof path, "%s%c%s", dir, PATHNAME_SEP, name);
+	if (n < 0 || n >= (int)sizeof path) {
+	    error("map data path for %s is too long", name);
+	    goto end;
+	}
+    }
 
     if (strrchr(path, '.') == NULL) {
 	error("no extension in file name %s.", name);
@@ -161,6 +188,9 @@ int Mapdata_setup(const char *urlstr)
 
     if (!Mapdata_extract(path)) {
 	warn("extracting map data failed");
+	/* Refused or damaged: the package is untrusted and of no further use,
+	 * and the next connect downloads it afresh anyway. */
+	remove(path);
 	goto end;
     }
 
@@ -173,17 +203,71 @@ int Mapdata_setup(const char *urlstr)
 }
 
 
+/*
+ * Whether a name inside a map data package is safe to create. The package
+ * comes from a URL the server chose, so the names are untrusted. Allow only
+ * what real packages use -- "bakedmud.pnm", "moss1.jpg.pnm", "ndh-1.3.xp2" --
+ * which rules out a path separator on any platform, a drive letter, and "."
+ * and "..". The old check refused only the separator of the platform it was
+ * built for, so on Windows "../" went straight through.
+ */
+static bool Mapdata_name_ok(const char *s)
+{
+    size_t i, n = strlen(s);
+
+    if (n == 0 || n > MAPDATA_MAX_NAME)
+	return false;
+    if (strcmp(s, ".") == 0 || strcmp(s, "..") == 0)
+	return false;
+    for (i = 0; i < n; i++) {
+	char c = s[i];
+
+	if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+	      || (c >= '0' && c <= '9')
+	      || c == '.' || c == '-' || c == '_' || c == '+'))
+	    return false;
+    }
+    return true;
+}
+
+/*
+ * Remove a partly extracted package. Mapdata_setup() treats an existing
+ * directory as a finished download, so leaving one behind after a failure
+ * would mean that map never gets its textures -- and after a refused package,
+ * would keep whatever the hostile one managed to write.
+ */
+static void Mapdata_discard(const char *dir)
+{
+    DIR *d;
+    struct dirent *e;
+    char path[1024];
+
+    if ((d = opendir(dir)) != NULL) {
+	while ((e = readdir(d)) != NULL) {
+	    if (strcmp(e->d_name, ".") == 0 || strcmp(e->d_name, "..") == 0)
+		continue;
+	    if (snprintf(path, sizeof path, "%s%c%s", dir, PATHNAME_SEP,
+			 e->d_name) < (int)sizeof path)
+		remove(path);
+	}
+	closedir(d);
+    }
+    rmdir(dir);
+}
+
 static int Mapdata_extract(const char *name)
 {
     gzFile in;
-    FILE *out;
-    int retval;
-    size_t rlen, wlen;
-    char dir[256], buf[COPY_BUF_SIZE], fname[256], *ptr;
-    long int size;
-    int count, i;
+    FILE *out = NULL;
+    int retval, count, i;
+    size_t rlen, wlen, len;
+    char dir[1024], fname[1024], buf[COPY_BUF_SIZE], *ptr, *sep, *end;
+    long size, total = 0;
 
-    strlcpy(dir, name, sizeof dir);
+    if (snprintf(dir, sizeof dir, "%s", name) >= (int)sizeof dir) {
+	error("map data path is too long: %s", name);
+	return 0;
+    }
     ptr = strrchr(dir, '.');
     if (ptr == NULL) {
 	error("file name has no extension %s", dir);
@@ -198,84 +282,119 @@ static int Mapdata_extract(const char *name)
 
     if ((in = gzopen(name, "rb")) == NULL) {
 	error("failed to open %s for reading", name);
+	rmdir(dir);
 	return 0;
     }
 
-    if (gzgets(in, buf, COPY_BUF_SIZE) == Z_NULL) {
-	error("failed to read header from %s", name);
-	gzclose(in);
-	return 0;
-    }
-
-    if (sscanf(buf, "XPD %d\n", &count) != 1) {
+    if (gzgets(in, buf, COPY_BUF_SIZE) == Z_NULL
+	|| sscanf(buf, "XPD %d", &count) != 1
+	|| count < 0 || count > MAPDATA_MAX_FILES) {
 	error("invalid header in %s", name);
-	gzclose(in);
-	return 0;
+	goto fail;
     }
 
     for (i = 0; i < count; i++) {
 
 	if (gzgets(in, buf, COPY_BUF_SIZE) == Z_NULL) {
 	    error("failed to read file info from %s", name);
-	    gzclose(in);
-	    return 0;
+	    goto fail;
 	}
 
-	sprintf(fname, "%s%c", dir, PATHNAME_SEP);
+	/*
+	 * Each entry starts with a line "<name> <size>". It used to be read
+	 * with sscanf("%s"), which has no width: a name longer than the
+	 * 256-byte buffer it was scanned into overwrote the stack. Split the
+	 * line by hand instead, and refuse one too long to have fitted.
+	 */
+	len = strlen(buf);
+	if (len == 0 || buf[len - 1] != '\n') {
+	    error("file info in %s is too long or cut off", name);
+	    goto fail;
+	}
+	while (len > 0 && (buf[len - 1] == '\n' || buf[len - 1] == '\r'))
+	    buf[--len] = '\0';
 
-	if (sscanf(buf, "%s\n%ld\n", fname + strlen(dir) + 1, &size) != 2) {
-	    error("failed to parse file info %s", buf);
-	    gzclose(in);
-	    return 0;
+	sep = strrchr(buf, ' ');
+	if (sep == NULL) {
+	    error("failed to parse file info in %s", name);
+	    goto fail;
+	}
+	*sep = '\0';
+	errno = 0;
+	size = strtol(sep + 1, &end, 10);
+	if (end == sep + 1 || *end != '\0' || errno != 0 || size < 0) {
+	    error("invalid file size in %s", name);
+	    goto fail;
+	}
+	for (ptr = sep; ptr > buf && (ptr[-1] == ' ' || ptr[-1] == '\t'); )
+	    *--ptr = '\0';
+
+	if (!Mapdata_name_ok(buf)) {
+	    errno = 0;
+	    error("refusing map data in %s: unsafe file name \"%.64s\"",
+		  name, buf);
+	    goto fail;
 	}
 
-	/* security check */
-	if (strchr(fname + strlen(dir) + 1, PATHNAME_SEP) != NULL) {
-	    error("file name %s is illegal", fname);
-	    gzclose(in);
-	    return 0;
+	if (size > MAPDATA_MAX_BYTES - total) {
+	    errno = 0;
+	    error("refusing map data in %s: it unpacks to more than %ld bytes",
+		  name, MAPDATA_MAX_BYTES);
+	    goto fail;
+	}
+	total += size;
+
+	if (snprintf(fname, sizeof fname, "%s%c%s", dir, PATHNAME_SEP, buf)
+	    >= (int)sizeof fname) {
+	    error("map data path is too long in %s", name);
+	    goto fail;
 	}
 
 	warn("Extracting %s (%ld)", fname, size);
 
 	if ((out = fopen(fname, "wb")) == NULL) {
-	    error("failed to open %s for writing", buf);
-	    gzclose(in);
-	    return 0;
+	    error("failed to open %s for writing", fname);
+	    goto fail;
 	}
 
 	while (size > 0) {
 	    retval = gzread(in, buf, MIN(COPY_BUF_SIZE, (unsigned)size));
 	    if (retval == -1) {
 		error("error when reading %s", name);
-		gzclose(in);
-		fclose(out);
-		return 0;
+		goto fail;
 	    }
 	    if (retval == 0) {
 		error("unexpected end of file %s", name);
-		gzclose(in);
-		fclose(out);
-		return 0;
+		goto fail;
 	    }
 
 	    rlen = retval;
 	    wlen = fwrite(buf, 1, rlen, out);
 	    if (wlen != rlen) {
 		error("failed to write to %s", fname);
-		gzclose(in);
-		fclose(out);
-		return 0;
+		goto fail;
 	    }
 
 	    size -= rlen;
 	}
 
-	fclose(out);
+	if (fclose(out) != 0) {
+	    out = NULL;
+	    error("failed to write to %s", fname);
+	    goto fail;
+	}
+	out = NULL;
     }
 
     gzclose(in);
     return 1;
+
+ fail:
+    if (out != NULL)
+	fclose(out);
+    gzclose(in);
+    Mapdata_discard(dir);
+    return 0;
 }
 
 
