@@ -501,25 +501,36 @@ jobs:
         # mapdata.c asks for Windows' own certificate store instead. Prove it
         # from a copy of the package with PATH stripped to the system, so the
         # DLLs and the certificates are the ones a player would have.
+        #
+        # And run it without HOME, as a real Windows account has none. An
+        # installed client cannot write to Program Files, so it must fall back
+        # to LOCALAPPDATA for somewhere to keep the data -- the test helper
+        # takes exactly that path, since it has no texture directory of its
+        # own to write to.
         run: |
           set -ux
           t="$RUNNER_TEMP/unpacked"
-          home="$RUNNER_TEMP/home"
-          rm -rf "$t" "$home"
+          appdata="$RUNNER_TEMP/localappdata"
+          rm -rf "$t" "$appdata"
           cp -r dist/xpilot-ng-windows "$t"
           cp build/bin/mapdata-fetch.exe "$t/"
-          mkdir -p "$home"
+          mkdir -p "$appdata"
+          # Before PATH is stripped: cygpath is an MSYS2 tool, and bash applies
+          # a command's assignments left to right, so working this out in the
+          # same line as PATH= finds nothing and leaves the variable empty.
+          winappdata=$(cygpath -w "$appdata")
+          test -n "$winappdata"
           ok=0
           for attempt in 1 2 3; do
-            (cd "$t" && PATH="/c/Windows/System32:/c/Windows" \
-               HOME="$(cygpath -w "$home")" \
+            (cd "$t" && unset HOME && \
+               LOCALAPPDATA="$winappdata" PATH="/c/Windows/System32:/c/Windows" \
                ./mapdata-fetch.exe "http://xpilot.sourceforge.net/maps/ndh-1.3.xpd") \
-              && [ -s "$home/.xpilot_data/ndh-1.3/bakedmud.pnm" ] && { ok=1; break; }
-            rm -rf "$home/.xpilot_data"
+              && [ -s "$appdata/.xpilot_data/ndh-1.3/bakedmud.pnm" ] && { ok=1; break; }
+            rm -rf "$appdata/.xpilot_data"
             sleep 10
           done
-          ls "$home/.xpilot_data/ndh-1.3" || true
-          [ "$ok" -eq 1 ] || { echo "map data did not download over HTTPS"; exit 1; }
+          ls "$appdata/.xpilot_data/ndh-1.3" || true
+          [ "$ok" -eq 1 ] || { echo "map data did not download into LOCALAPPDATA over HTTPS"; exit 1; }
 
       - name: The packaged client finds its data from any directory
         # The whole point of Conf_anchor_datadir(): a Start Menu shortcut does
@@ -736,9 +747,14 @@ jobs:
           "$GITHUB_WORKSPACE/dist/xpilot-ng-macos/xpilot-ng-server" \
               -map blood-music.xp2 -port 15346 -noQuit -idleRun \
               > "$GITHUB_WORKSPACE/anchored.log" 2>&1 &
+          srv=$!
           sleep 8
           cat "$GITHUB_WORKSPACE/anchored.log" || true
           lsof -iUDP:15346 || (echo "did not find its map"; exit 1)
+          # It anchored itself inside the package tree the .dmg is built from
+          # next; leaving it running there holds files open under hdiutil.
+          kill "$srv" 2>/dev/null || true
+          wait "$srv" 2>/dev/null || true
 
       - name: Build the .dmg
         run: |

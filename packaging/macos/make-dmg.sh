@@ -55,6 +55,19 @@ PLIST
 ln -s /Applications "$WORK/Applications"
 
 rm -f "$OUT"
-hdiutil create -volname "XPilot NG $VERSION ($ARCH)" \
-    -srcfolder "$WORK" -ov -format UDZO "$OUT"
+# hdiutil fails now and then with "Resource busy" -- the system is still
+# scanning the files just written -- and the same tree builds fine a moment
+# later. Try a few times before calling it a failure.
+tries=0
+until hdiutil create -volname "XPilot NG $VERSION ($ARCH)" \
+        -srcfolder "$WORK" -ov -format UDZO "$OUT"; do
+    tries=$((tries + 1))
+    if [ "$tries" -ge 5 ]; then
+        echo "hdiutil create failed $tries times" >&2
+        exit 1
+    fi
+    echo "hdiutil create failed, retrying ($tries)" >&2
+    rm -f "$OUT"
+    sleep 5
+done
 hdiutil verify "$OUT"
