@@ -16,6 +16,10 @@ development since 2010 and is kept here only as a provenance link.
 Ready-to-run builds for all four targets are on the
 **[Releases page](https://github.com/bartromb/xpilot-ng/releases/latest)**.
 
+> **Use r7 or later.** Earlier releases let a server overwrite the client's
+> stack through the texture package its map names, just by being joined.
+> See [Bugs found and fixed](#bugs-found-and-fixed).
+
 | Platform | Installer | Or unpack it yourself |
 |---|---|---|
 | Windows (x86-64) | `*-setup-x86_64.exe` | `*-windows-x86_64.zip` |
@@ -231,7 +235,10 @@ Several of these had been in the code for decades:
   `http://` mirror that now redirects to `https://`. The client's own
   downloader could do neither, so those maps came up with bare walls on every
   platform. It now uses libcurl — restricted to `http` and `https`, redirects
-  included, with a size cap, because the URL is chosen by the server.
+  included, with a size cap, because the URL is chosen by the server. And an
+  installed Windows copy could never download them at all: with nowhere
+  writable in Program Files it fell back to `HOME`, which Windows does not
+  set. It now uses `%LOCALAPPDATA%`.
 - **A server could overwrite the client's stack.** The package's file list was
   parsed with an unbounded `sscanf("%s")` into a 256-byte buffer, so a package
   with a long enough name — from any server a player joined — overflowed it.
@@ -332,8 +339,9 @@ Stated plainly, because they decide what is safe to rely on:
   in the Finder.
 - **The Windows client has only ever been run under Wine.** Everything works
   there — the installer, a Start Menu launch from outside the install folder,
-  joining a game, sound, and a clean uninstall — but the Windows *server* is
-  all CI exercises on real Windows.
+  joining a game, sound, and a clean uninstall. On real Windows, CI starts the
+  server and runs the client's map data download — over HTTPS, from an
+  unpacked copy, with no `HOME` — but has never started the client itself.
 - **The PPA has not been uploaded to.** The source package is built and
   checked on every CI run, but publishing it needs a Launchpad account and
   key, so nobody has yet seen Launchpad build it.
