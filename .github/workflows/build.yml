@@ -60,6 +60,26 @@ jobs:
       - name: Build
         run: cmake --build build -j"$(nproc)"
 
+      - name: Map data download and extraction survive a hostile server
+        # A map names the URL of its texture package, so the URL and the
+        # package behind it are chosen by whichever server a player joins.
+        # Build the client's own mapdata.c with the sanitizers -- several of
+        # these cases were memory errors before they were refusals, and only
+        # an instrumented build tells the two apart -- and run it against a
+        # local server that tries an oversized name, path traversal with
+        # either separator, a decompression bomb, a redirect to file://, and
+        # an honest package behind the kind of redirect the real mirror uses.
+        run: |
+          set -eux
+          cc -g -O1 -fsanitize=address,undefined -fno-omit-frame-pointer \
+             -DHAVE_CONFIG_H -DHAVE_LIBCURL \
+             -DCONF_DATADIR='"/usr/share/xpilot-ng/"' \
+             -Ibuild/generated -Isrc/common -Isrc/client \
+             src/client/mapdata.c src/common/error.c tests/mapdata/fetch.c \
+             $(pkg-config --cflags --libs libcurl zlib) \
+             -o build/mapdata-fetch-asan
+          sh tests/mapdata/run.sh build/mapdata-fetch-asan lib/maps/ndh.xpd
+
       - name: Check all five binaries were produced
         run: |
           set -eux
@@ -390,7 +410,8 @@ jobs:
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
             -DXPILOT_PORTABLE=ON \
             -DXPILOT_SOUND=ON \
-            -DXPILOT_CURL=ON
+            -DXPILOT_CURL=ON \
+            -DXPILOT_TESTS=ON
 
       - name: Build
         run: cmake --build build -j
@@ -471,6 +492,34 @@ jobs:
           done
           [ "$missing" -eq 0 ] || exit 1
           echo "all $(ls *.dll | wc -l) DLLs present for $(ls *.exe | wc -l) executables"
+
+      - name: Map data downloads over HTTPS from an unpacked copy
+        # The maps in circulation point at an http:// mirror that redirects
+        # to https://. On Windows that is where this is most likely to break:
+        # libcurl looks for its CA bundle at a path fixed when MSYS2 built it,
+        # and an unpacked or installed copy is nowhere near that path, so
+        # mapdata.c asks for Windows' own certificate store instead. Prove it
+        # from a copy of the package with PATH stripped to the system, so the
+        # DLLs and the certificates are the ones a player would have.
+        run: |
+          set -ux
+          t="$RUNNER_TEMP/unpacked"
+          home="$RUNNER_TEMP/home"
+          rm -rf "$t" "$home"
+          cp -r dist/xpilot-ng-windows "$t"
+          cp build/bin/mapdata-fetch.exe "$t/"
+          mkdir -p "$home"
+          ok=0
+          for attempt in 1 2 3; do
+            (cd "$t" && PATH="/c/Windows/System32:/c/Windows" \
+               HOME="$(cygpath -w "$home")" \
+               ./mapdata-fetch.exe "http://xpilot.sourceforge.net/maps/ndh-1.3.xpd") \
+              && [ -s "$home/.xpilot_data/ndh-1.3/bakedmud.pnm" ] && { ok=1; break; }
+            rm -rf "$home/.xpilot_data"
+            sleep 10
+          done
+          ls "$home/.xpilot_data/ndh-1.3" || true
+          [ "$ok" -eq 1 ] || { echo "map data did not download over HTTPS"; exit 1; }
 
       - name: The packaged client finds its data from any directory
         # The whole point of Conf_anchor_datadir(): a Start Menu shortcut does
@@ -558,6 +607,7 @@ jobs:
             -DXPILOT_PORTABLE=ON \
             -DXPILOT_SOUND=ON \
             -DXPILOT_CURL=ON \
+            -DXPILOT_TESTS=ON \
             -DCMAKE_PREFIX_PATH="$(brew --prefix expat);$(brew --prefix)"
 
       - name: Build
@@ -573,6 +623,24 @@ jobs:
           set -eux
           otool -L build/bin/xpilot-ng-sdl
           otool -L build/bin/xpilot-ng-sdl | grep -q '/usr/lib/libcurl'
+
+      - name: Map data downloads over HTTPS
+        # Against the real mirror the maps point at, which answers http://
+        # with a redirect to https://.
+        run: |
+          set -ux
+          home="$RUNNER_TEMP/home"
+          rm -rf "$home"; mkdir -p "$home"
+          ok=0
+          for attempt in 1 2 3; do
+            HOME="$home" ./build/bin/mapdata-fetch \
+                "http://xpilot.sourceforge.net/maps/ndh-1.3.xpd" \
+              && [ -s "$home/.xpilot_data/ndh-1.3/bakedmud.pnm" ] && { ok=1; break; }
+            rm -rf "$home/.xpilot_data"
+            sleep 10
+          done
+          ls "$home/.xpilot_data/ndh-1.3" || true
+          [ "$ok" -eq 1 ] || { echo "map data did not download over HTTPS"; exit 1; }
 
       - name: The binaries exist and are Mach-O executables of the right arch
         run: |

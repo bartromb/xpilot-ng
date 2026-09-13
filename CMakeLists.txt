@@ -383,6 +383,16 @@ if(XPILOT_NEED_CLIENT_LIB)
     add_subdirectory(src/client)
 endif()
 
+# Test helpers, never installed. tests/mapdata/fetch.c drives the client's
+# map data download and extraction without a window, so CI can run it on
+# platforms where it cannot start the client itself -- and with exactly the
+# compile flags the client gets, which is the point of building it here.
+option(XPILOT_TESTS "Build test helpers (not installed)" OFF)
+if(XPILOT_TESTS AND TARGET xpclient)
+    add_executable(mapdata-fetch tests/mapdata/fetch.c)
+    target_link_libraries(mapdata-fetch PRIVATE xpclient xpcommon ZLIB::ZLIB)
+endif()
+
 add_subdirectory(src/server)
 
 if(XPILOT_X11_CLIENT)

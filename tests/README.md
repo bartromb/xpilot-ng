@@ -63,3 +63,33 @@ These decode network integers, so the fix was checked for behaviour change as
 well as for UB: a round-trip test over 34 edge cases — `INT_MIN`,
 `0x80000000`, `0xD1000000` (the exact `209 << 24` case), and the negative
 values UBSan reported — recovers every value bit-for-bit.
+
+## `mapdata/`
+
+Map data download and extraction against a hostile server.
+
+A map names the URL of its texture package, so the URL — and the package behind
+it — are chosen by whichever server a player joins. `serve.py` serves one honest
+package behind the kind of redirect the real mirror uses, plus packages built
+to break the client: a 1000-byte file name, `../` and `..\` traversal, a
+decompression bomb, a redirect to `file://`, an error page, a lying
+`Content-Length` and a truncated download. `fetch.c` calls the client's own
+`Mapdata_setup()` without a window; `run.sh` runs every case and checks the
+outcome and what was left on disk.
+
+Build `fetch.c` with the sanitizers. Several of these cases were memory errors
+before they were refusals, and only an instrumented build tells the two apart:
+
+```sh
+cc -g -O1 -fsanitize=address,undefined -DHAVE_CONFIG_H -DHAVE_LIBCURL \
+   -DCONF_DATADIR='"/usr/share/xpilot-ng/"' \
+   -Ibuild/generated -Isrc/common -Isrc/client \
+   src/client/mapdata.c src/common/error.c tests/mapdata/fetch.c \
+   $(pkg-config --cflags --libs libcurl zlib) -o mapdata-fetch
+sh tests/mapdata/run.sh ./mapdata-fetch lib/maps/ndh.xpd
+```
+
+Run against the code from before the libcurl change, the suite fails eight of
+its eleven cases, one of them with AddressSanitizer reporting the stack overflow
+in the old extractor.
+
