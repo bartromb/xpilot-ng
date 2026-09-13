@@ -226,6 +226,19 @@ Several of these had been in the code for decades:
   carries *two* ship-shape strings, not one, and the reliable stream is
   undelimited — so reading one string turns everything after it into garbage.
   Both findings are in [`docs/protocol.md`](docs/protocol.md).
+- **Maps loaded without their textures, everywhere.** A map names a texture
+  package for the client to download, and the maps in circulation point at an
+  `http://` mirror that now redirects to `https://`. The client's own
+  downloader could do neither, so those maps came up with bare walls on every
+  platform. It now uses libcurl — restricted to `http` and `https`, redirects
+  included, with a size cap, because the URL is chosen by the server.
+- **A server could overwrite the client's stack.** The package's file list was
+  parsed with an unbounded `sscanf("%s")` into a 256-byte buffer, so a package
+  with a long enough name — from any server a player joined — overflowed it.
+  The same extractor accepted `..\` traversal on Windows and would unpack a
+  decompression bomb without limit. Proven with AddressSanitizer against the
+  old code before being rewritten; `tests/mapdata/` now runs every one of those
+  cases against a hostile server in CI.
 - **A script that could not run was installed for years.** `mapconvert.py` is
   Python 2 — 74 `print` statements, and it does not parse under Python 3 — and
   its shebang asks for `/usr/bin/python`, which a stock Ubuntu does not have.
