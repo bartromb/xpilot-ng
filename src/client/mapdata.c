@@ -111,8 +111,22 @@ int Mapdata_setup(const char *urlstr)
 	char *home = getenv("HOME");
 	int n;
 
+#ifdef _WINDOWS
+	/*
+	 * Windows does not set HOME. A client installed where it cannot
+	 * write -- Program Files, which is where the installer puts it -- so
+	 * had nowhere at all to keep downloaded map data, and every map that
+	 * names a package loaded without its textures. Windows provides a
+	 * per-user local application data directory for exactly this.
+	 */
+	if (home == NULL || home[0] == '\0')
+	    home = getenv("LOCALAPPDATA");
+#endif
+
 	if (home == NULL) {
-	    error("couldn't access any dir in %s and HOME is unset", path);
+	    errno = 0;
+	    error("nowhere to keep map data: no texture directory is "
+		  "writable, and HOME is not set");
 	    goto end;
 	}
 
