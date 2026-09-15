@@ -239,6 +239,13 @@ Several of these had been in the code for decades:
   installed Windows copy could never download them at all: with nowhere
   writable in Program Files it fell back to `HOME`, which Windows does not
   set. It now uses `%LOCALAPPDATA%`.
+- **Map textures smeared instead of tiling.** Once r7 made texture downloads
+  work, walls drew as a single pixel column streaked along their length and
+  turrets vanished. Every uploaded image had been clamped to its edge — right
+  for a sprite, wrong for a texture that fills a wall by repeating, and
+  invisible for as long as the textures never arrived. Textures now repeat,
+  and a tile that is not a power of two is scaled to fill its slot so the
+  repeat holds no padding.
 - **A server could overwrite the client's stack.** The package's file list was
   parsed with an unbounded `sscanf("%s")` into a 256-byte buffer, so a package
   with a long enough name — from any server a player joined — overflowed it.
