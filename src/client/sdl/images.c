@@ -30,6 +30,16 @@ static image_t *images = NULL;
 static int num_images = 0, max_images = 0;
 static int first_texture = 0;
 
+/*
+ * Images registered after the built-in sprites are the textures maps supply
+ * for filling polygons -- walls, cannons, bases. They are drawn differently:
+ * a sprite is drawn once, a texture is repeated across a surface.
+ */
+static bool Image_is_texture(const image_t *img)
+{
+    return (img - images) >= first_texture;
+}
+
 static int pow2_ceil(int t) 
 {
     int r = 1;
@@ -96,18 +106,60 @@ static int Image_init(image_t *img)
      */
     Image_bleed_edges(img);
 
+    /*
+     * A texture has to tile. The data is padded out to a power of two, and
+     * repeating a padded texture repeats the padding too -- a 50x50 tile in
+     * a 64x64 texture draws with a 14-pixel gap after every tile. Scale the
+     * image up to fill the power-of-two size instead, so that one whole
+     * texture is exactly one tile. The polygon's texture coordinates count
+     * in tiles of the original size, so nothing else needs to change.
+     */
+    if (Image_is_texture(img) && img->num_frames == 1
+	&& (img->width != img->data_width || img->height != img->data_height)) {
+	unsigned int *scaled;
+
+	scaled = XCALLOC(unsigned int, img->data_width * img->data_height);
+	if (scaled != NULL) {
+	    for (y = 0; y < img->data_height; y++) {
+		int sy = y * img->height / img->data_height;
+
+		for (x = 0; x < img->data_width; x++) {
+		    int sx = x * img->width / img->data_width;
+
+		    scaled[x + y * img->data_width] =
+			img->data[sx + sy * img->data_width];
+		}
+	    }
+	    XFREE(img->data);
+	    img->data = scaled;
+	}
+    }
+
     glGenTextures(1, &img->name);
     glBindTexture(GL_TEXTURE_2D, img->name);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, img->data_width, img->data_height, 
                  0, GL_RGBA, GL_UNSIGNED_BYTE, img->data);
     Image_set_filter();
 
-    /*
-     * Sprites sit inside a power-of-two texture, so the default GL_REPEAT
-     * makes a sample near one edge pull in the opposite edge. Clamp instead.
-     */
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    if (Image_is_texture(img)) {
+	/*
+	 * A texture fills a polygon by repeating, and its texture coordinates
+	 * run well past 1.0 across a wall. Clamping it -- as sprites need,
+	 * below -- keeps a single tile and smears its edge pixels across the
+	 * rest of the surface: walls and cannons came out as streaks and flat
+	 * colour. That went unseen for as long as map textures failed to
+	 * download at all.
+	 */
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    } else {
+	/*
+	 * Sprites sit inside a power-of-two texture, so the default GL_REPEAT
+	 * makes a sample near one edge pull in the opposite edge. Clamp instead.
+	 */
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    }
 	
     img->state = IMG_STATE_READY;
     return 0;
