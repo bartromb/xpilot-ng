@@ -1,3 +1,15 @@
+xpilot-ng (4.7.3+r8-1~noble1) noble; urgency=medium
+
+  * Build from the v4.7.3-r8 release.
+  * Map textures repeat instead of smearing. Since r7 the client downloads
+    the textures a map names, which exposed that every image was clamped to
+    its edge: walls drew as one pixel column streaked along their length
+    and turrets vanished. Textures now repeat, and tiles that are not a
+    power of two are scaled to fill their slot so the repeat holds no
+    padding.
+
+ -- bartromb <bart.rombaut@gmail.com>  Tue, 15 Sep 2026 08:04:01 +0200
+
 xpilot-ng (4.7.3+r7-1~noble1) noble; urgency=high
 
   * Build from the v4.7.3-r7 release.
